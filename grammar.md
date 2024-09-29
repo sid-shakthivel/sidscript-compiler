@@ -16,6 +16,7 @@
 <func_decl> ::= "fn" <id> "(" <param_list>? ")" ("->" <basic_type>)? "{" <statement>+ "}"
 <param_list> ::= <param> ("," <param>)*
 <param> ::= <basic_type> <id>
+<arg_list> ::= <expr> ("," <expr>)*
 <func_call> ::= <id> "(" <arg_list>? ")" 
 
 <expr> ::= <expr> ("+" | "-") <term> | <term>
