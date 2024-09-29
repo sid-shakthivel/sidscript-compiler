@@ -17,11 +17,11 @@
 <param_list> ::= <param> ("," <param>)*
 <param> ::= <basic_type> <id>
 <arg_list> ::= <expr> ("," <expr>)*
-<func_call> ::= <id> "(" <arg_list>? ")" 
+<func_call> ::= <id> "(" <arg_list>? ")" ";"
 
 <expr> ::= <expr> ("+" | "-") <term> | <term>
 <term> ::= <term> ("*" | "/") <factor> | <factor>
-<factor> ::= <un_opr> <factor> | (<int> | <float> | <bool> | <func_call>)
+<factor> ::= <un_opr> <factor> | (int | float | bool | <func_call>)
 <un_opr> ::= "-" | "~" | "!"
 <basic_type> ::= "int" | "float" | "bool"
 ```

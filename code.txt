@@ -1,2 +1,5 @@
-int test = (5 + 2);
-test = 467;
+fn main()
+{
+    int test = 5 + 2;
+    test = 467;
+}

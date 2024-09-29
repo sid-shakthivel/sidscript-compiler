@@ -15,6 +15,8 @@ add_definitions(${LLVM_DEFINITIONS})
 
 set(SOURCES
     ../src/lexer.cpp
+    ../src/ast.cpp
+    ../src/parser.cpp
     ../src/main.cpp
 )
 
