@@ -19,8 +19,8 @@
 <arg_list> ::= <expr> ("," <expr>)*
 <func_call> ::= <id> "(" <arg_list>? ")" ";"
 
-<expr> ::= <expr> ("+" | "-") <term> | <term>
-<term> ::= <term> ("*" | "/") <factor> | <factor>
+<expr> ::= <term> ("+" | "-") <term> | <term>
+<term> ::= <factor> ("*" | "/") <factor> | <factor>
 <factor> ::= <un_opr> <factor> | (int | float | bool | <func_call>)
 <un_opr> ::= "-" | "~" | "!"
 <basic_type> ::= "int" | "float" | "bool"

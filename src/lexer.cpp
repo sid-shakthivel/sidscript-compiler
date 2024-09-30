@@ -32,6 +32,18 @@ std::unordered_map<std::string, TokenType> string_to_token = {
     {"false", TOKEN_BOOL},
 };
 
+std::string token_to_string(TokenType enumValue)
+{
+    for (const auto &pair : string_to_token)
+    {
+        if (pair.second == enumValue)
+        {
+            return pair.first;
+        }
+    }
+    return "";
+}
+
 Lexer::Lexer(const std::string &src) : source(src), index(0) {}
 
 std::string Lexer::process_number()

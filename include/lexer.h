@@ -39,6 +39,7 @@ enum TokenType
 };
 
 extern std::unordered_map<std::string, TokenType> string_to_token;
+extern std::string token_to_string(TokenType enumValue);
 
 struct Token
 {
