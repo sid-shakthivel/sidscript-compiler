@@ -2,6 +2,7 @@
 #include <iostream>
 
 #include "../include/parser.h"
+#include "../include/lexer.h"
 #include "../include/ast.h"
 
 Parser::Parser(Lexer *l) : lexer(l), current_token(TOKEN_EOF, "")
@@ -22,6 +23,15 @@ bool Parser::match(TokenType type)
     return current_token.type == type;
 }
 
+bool Parser::match(std::vector<TokenType> &end_tokens)
+{
+    for (auto token : end_tokens)
+    {
+        if (current_token.type == token)
+            return true;
+    }
+}
+
 void Parser::advance()
 {
     current_token = lexer->get_next_token();
@@ -30,6 +40,15 @@ void Parser::advance()
 void Parser::error(const std::string &message)
 {
     throw std::runtime_error("Parser Error: " + message + " at token: " + current_token.text);
+}
+
+void Parser::expect(TokenType token_type)
+{
+    if (!(current_token.type == token_type))
+    {
+        std::string expected_token = token_to_string(token_type);
+        error("Expected " + expected_token);
+    }
 }
 
 void Parser::parse_statements()
@@ -50,26 +69,17 @@ VarDecl *Parser::parse_var_decl()
     TokenType var_type = current_token.type;
     advance();
 
-    // Expect identifier
-    if (!match(TOKEN_IDENTIFIER))
-    {
-        error("Expected a variable name");
-        return nullptr;
-    }
+    expect(TOKEN_IDENTIFIER);
+
     std::string var_identifier = current_token.text;
 
     advance();
 
-    // Expect equals
-    if (!match(TOKEN_ASSIGN))
-    {
-        error("Expected '='");
-        return nullptr;
-    }
+    expect(TOKEN_ASSIGN);
 
     advance();
 
-    ASTNode *expr = parse_expr();
+    ASTNode *expr = parse_expr({TOKEN_SEMICOLON});
 
     return new VarDecl(var_identifier, expr, var_type);
 }
@@ -81,32 +91,60 @@ VarAssign *Parser::parse_var_assign()
 
     advance();
 
-    if (!match(TOKEN_ASSIGN))
-    {
-        error("Expected '='");
-        return nullptr;
-    }
+    expect(TOKEN_ASSIGN);
 
     advance();
 
-    ASTNode *expr = parse_expr();
+    ASTNode *expr = parse_expr({TOKEN_SEMICOLON});
 
     return new VarAssign(var_identifier, expr);
 }
 
+IfStmt *Parser::parse_if_stmt()
+{
+    advance();
+
+    expect(TOKEN_LPAREN);
+
+    advance();
+
+    advance();
+
+    expect(TOKEN_LBRACE);
+
+    // Parse statements
+
+    expect(TOKEN_RBRACE);
+
+    return nullptr;
+}
+
+Condition *Parser::parse_condition()
+{
+    ASTNode *left = parse_expr({TOKEN_EQUALS, TOKEN_NOT_EQUALS, TOKEN_LT, TOKEN_GT, TOKEN_LE, TOKEN_GE});
+
+    TokenType op = current_token.type;
+
+    advance();
+
+    ASTNode *right = parse_expr({TOKEN_EQUALS, TOKEN_NOT_EQUALS, TOKEN_LT, TOKEN_GT, TOKEN_LE, TOKEN_GE});
+
+    return new Condition(op, left, right);
+}
+
 // <expr> ::= <expr> ("+" | "-") <term> | <term>
-ASTNode *Parser::parse_expr()
+ASTNode *Parser::parse_expr(std::vector<TokenType> end_tokens)
 {
     // Expect a proper term
-    ASTNode *left_term = parse_term();
+    ASTNode *left_term = parse_term(end_tokens);
 
-    while (!match(TOKEN_SEMICOLON))
+    while (!match(end_tokens))
     {
         TokenType op = current_token.type;
 
         advance();
 
-        ASTNode *right_term = parse_term();
+        ASTNode *right_term = parse_term(end_tokens);
 
         left_term = new BinaryExpression(left_term, right_term, op);
     }
@@ -114,19 +152,19 @@ ASTNode *Parser::parse_expr()
     return left_term;
 }
 
-ASTNode *Parser::parse_term()
+ASTNode *Parser::parse_term(std::vector<TokenType> &end_tokens)
 {
     ASTNode *left_factor = parse_factor();
 
     advance();
 
-    while (!match(TOKEN_SEMICOLON))
+    while (!match(end_tokens))
     {
         TokenType op = current_token.type;
 
         advance();
 
-        ASTNode *right_factor = parse_term();
+        ASTNode *right_factor = parse_term(end_tokens);
 
         left_factor = new BinaryExpression(left_factor, right_factor, op);
     }

@@ -29,8 +29,10 @@ enum TokenType
     TOKEN_NOT_EQUALS,
     TOKEN_EXCLAMATION,
     TOKEN_TILDA,
-    TOKEN_LESS_THAN,
-    TOKEN_GREATER_THAN,
+    TOKEN_LT,
+    TOKEN_GT,
+    TOKEN_LE,
+    TOKEN_GE,
     TOKEN_IDENTIFIER,
     TOKEN_INT,
     TOKEN_BOOL,
@@ -39,7 +41,7 @@ enum TokenType
 };
 
 extern std::unordered_map<std::string, TokenType> string_to_token;
-extern std::string token_to_string(TokenType enumValue);
+extern std::string token_to_string(TokenType token_type);
 
 struct Token
 {

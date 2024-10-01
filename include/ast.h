@@ -1,6 +1,7 @@
 #pragma once
 
 #include <string>
+#include <vector>
 
 #include "lexer.h"
 
@@ -101,6 +102,28 @@ public:
     ASTNode *value;
 
     VarAssign(const std::string &name, ASTNode *val);
+    void print(int tabs) override;
+};
+
+class Condition : public ASTNode
+{
+public:
+    TokenType bin_top;
+    ASTNode *left;
+    ASTNode *right;
+
+    Condition(const TokenType &t, ASTNode *l, ASTNode *r);
+    void print(int tabs) override;
+};
+
+class IfStmt : public ASTNode
+{
+public:
+    Condition *condition;
+    std::vector<ASTNode *> if_statements;
+    std::vector<ASTNode *> else_statements;
+
+    IfStmt(Condition *c);
     void print(int tabs) override;
 };
 

@@ -26,17 +26,19 @@ std::unordered_map<std::string, TokenType> string_to_token = {
     {"!=", TOKEN_NOT_EQUALS},
     {"!", TOKEN_EXCLAMATION},
     {"~", TOKEN_TILDA},
-    {"<", TOKEN_LESS_THAN},
-    {">", TOKEN_GREATER_THAN},
+    {"<", TOKEN_LT},
+    {">", TOKEN_GT},
+    {"<=", TOKEN_LT},
+    {">=", TOKEN_GT},
     {"true", TOKEN_BOOL},
     {"false", TOKEN_BOOL},
 };
 
-std::string token_to_string(TokenType enumValue)
+std::string token_to_string(TokenType token_type)
 {
     for (const auto &pair : string_to_token)
     {
-        if (pair.second == enumValue)
+        if (pair.second == token_type)
         {
             return pair.first;
         }

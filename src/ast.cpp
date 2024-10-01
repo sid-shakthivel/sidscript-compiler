@@ -67,3 +67,28 @@ void VarAssign::print(int tabs)
     std::cout << std::string(tabs, ' ') << "VarAssign: " << var_name << " = " << std::endl;
     value->print(tabs + 1);
 }
+
+Condition::Condition(const TokenType &t, ASTNode *l, ASTNode *r) : bin_top(t), left(l), right(r) {}
+
+void Condition::print(int tabs)
+{
+    std::cout << std::string(tabs, ' ') << "Condition: " << token_to_string(bin_top) << std::endl;
+    left->print(tabs + 1);
+    right->print(tabs + 1);
+}
+
+IfStmt::IfStmt(Condition *c) : condition(c) {}
+
+void IfStmt::print(int tabs)
+{
+    std::cout << std::string(tabs, ' ') << "IfStmt: " << std::endl;
+    condition->print(tabs + 1);
+
+    std::cout << std::string(tabs + 1, ' ') << "If Stms:" << std::endl;
+    for (auto statement : if_statements)
+        statement->print(tabs + 1);
+
+    std::cout << std::string(tabs + 1, ' ') << "Else Stms:" << std::endl;
+    for (auto statement : else_statements)
+        statement->print(tabs + 1);
+}
