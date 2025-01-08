@@ -32,99 +32,128 @@ public:
     void print(int tabs) override;
 };
 
-class FloatLiteral : public Literal
+class RtnNode : public ASTNode
 {
 public:
-    float value;
-
-    FloatLiteral(float v);
-    void print(int tabs) override;
-};
-
-class BoolLiteral : public Literal
-{
-public:
-    bool value;
-
-    BoolLiteral(bool v);
-    void print(int tabs) override;
-};
-
-// <factor> ::= <un_opr> <factor> | (int | float | bool | <func_call>)
-class FactorNode : public ASTNode
-{
-public:
-    Literal *value;
-
-    FactorNode(Literal *v);
-    void print(int tabs) override;
-};
-
-// <factor> ::= <un_opr> <factor> | (int | float | bool | <func_call>)
-class UnaryExpression : public FactorNode
-{
-public:
-    TokenType op; // "-" | "!" | "~"
-
-    UnaryExpression(const TokenType &t, Literal *v);
-    void print(int tabs) override;
-};
-
-// <expr> ::= <expr> ("+" | "-") <term> | <term>
-class BinaryExpression : public ASTNode
-{
-public:
-    ASTNode *left;
-    ASTNode *right;
-    TokenType op; // "+" | "-"
-
-    BinaryExpression(ASTNode *l, ASTNode *r, const TokenType &t);
-    void print(int tabs) override;
-};
-
-// ie int test = 5;
-class VarDecl : public ASTNode
-{
-public:
-    std::string var_name;
-    TokenType type;
     ASTNode *value;
 
-    VarDecl(const std::string &name, ASTNode *val, const TokenType &t);
+    RtnNode(ASTNode *v);
     void print(int tabs) override;
 };
 
-// ie test = 10;
-class VarAssign : public ASTNode
+class FuncNode : public ASTNode
 {
 public:
-    std::string var_name;
-    ASTNode *value;
+    std::string name;
+    std::vector<ASTNode *> args;
+    std::vector<ASTNode *> stmts;
 
-    VarAssign(const std::string &name, ASTNode *val);
+    FuncNode(const std::string &n, std::vector<ASTNode *> &s);
     void print(int tabs) override;
 };
 
-class Condition : public ASTNode
+class ProgramNode : public ASTNode
 {
 public:
-    TokenType bin_top;
-    ASTNode *left;
-    ASTNode *right;
+    FuncNode *func;
 
-    Condition(const TokenType &t, ASTNode *l, ASTNode *r);
+    ProgramNode(FuncNode *f);
     void print(int tabs) override;
 };
 
-class IfStmt : public ASTNode
-{
-public:
-    Condition *condition;
-    std::vector<ASTNode *> if_statements;
-    std::vector<ASTNode *> else_statements;
+// class FloatLiteral : public Literal
+// {
+// public:
+//     float value;
 
-    IfStmt(Condition *c);
-    void print(int tabs) override;
-};
+//     FloatLiteral(float v);
+//     void print(int tabs) override;
+// };
+
+// class BoolLiteral : public Literal
+// {
+// public:
+//     bool value;
+
+//     BoolLiteral(bool v);
+//     void print(int tabs) override;
+// };
+
+// // <factor> ::= <un_opr> <factor> | (int | float | bool | <func_call>)
+// class FactorNode : public ASTNode
+// {
+// public:
+//     Literal *value;
+
+//     FactorNode(Literal *v);
+//     void print(int tabs) override;
+// };
+
+// // <factor> ::= <un_opr> <factor> | (int | float | bool | <func_call>)
+// class UnaryExpression : public FactorNode
+// {
+// public:
+//     TokenType op; // "-" | "!" | "~"
+
+//     UnaryExpression(const TokenType &t, Literal *v);
+//     void print(int tabs) override;
+// };
+
+// // <expr> ::= <expr> ("+" | "-") <term> | <term>
+// class BinaryExpression : public ASTNode
+// {
+// public:
+//     ASTNode *left;
+//     ASTNode *right;
+//     TokenType op; // "+" | "-"
+
+//     BinaryExpression(ASTNode *l, ASTNode *r, const TokenType &t);
+//     void print(int tabs) override;
+// };
+
+// // ie int test = 5;
+// class VarDecl : public ASTNode
+// {
+// public:
+//     std::string var_name;
+//     TokenType type;
+//     ASTNode *value;
+
+//     VarDecl(const std::string &name, ASTNode *val, const TokenType &t);
+//     void print(int tabs) override;
+// };
+
+// // ie test = 10;
+// class VarAssign : public ASTNode
+// {
+// public:
+//     std::string var_name;
+//     ASTNode *value;
+
+//     VarAssign(const std::string &name, ASTNode *val);
+//     void print(int tabs) override;
+// };
+
+// class Condition : public ASTNode
+// {
+// public:
+//     TokenType bin_top;
+//     ASTNode *left;
+//     ASTNode *right;
+
+//     Condition(const TokenType &t, ASTNode *l, ASTNode *r);
+//     void print(int tabs) override;
+// };
+
+// class IfStmt : public ASTNode
+// {
+// public:
+//     Condition *condition;
+//     std::vector<ASTNode *> if_statements;
+//     std::vector<ASTNode *> else_statements;
+
+//     IfStmt(Condition *c);
+//     void print(int tabs) override;
+// };
 
 // std::unique_ptr<ASTNode>

@@ -5,11 +5,13 @@
 
 #include "../include/lexer.h"
 #include "../include/parser.h"
+#include "../include/assembler.h"
+#include "../include/ast.h"
 
 int main()
 {
     std::string file_line;
-    std::ifstream code_file("../code.txt");
+    std::ifstream code_file("../example_code/test.ss");
 
     if (!code_file)
     {
@@ -35,7 +37,11 @@ int main()
 
     Parser parser(&lexer);
 
-    parser.parse();
+    ProgramNode *program = parser.parse();
+
+    Assembler assembler;
+
+    assembler.assemble(program, "test.s");
 
     return 0;
 }

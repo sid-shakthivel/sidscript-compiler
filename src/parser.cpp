@@ -10,12 +10,12 @@ Parser::Parser(Lexer *l) : lexer(l), current_token(TOKEN_EOF, "")
     advance();
 }
 
-void Parser::parse()
+ProgramNode *Parser::parse()
 {
-    parse_statements();
+    FuncNode *main_func = parse_func();
+    ProgramNode *program = new ProgramNode(main_func);
 
-    for (auto statement : statements)
-        statement->print(0);
+    return program;
 }
 
 bool Parser::match(TokenType type)
@@ -39,7 +39,7 @@ void Parser::advance()
 
 void Parser::error(const std::string &message)
 {
-    throw std::runtime_error("Parser Error: " + message + " at token: " + current_token.text);
+    throw std::runtime_error("Parser Error: " + message + " but found : " + current_token.text);
 }
 
 void Parser::expect(TokenType token_type)
@@ -51,155 +51,219 @@ void Parser::expect(TokenType token_type)
     }
 }
 
-void Parser::parse_statements()
+FuncNode *Parser::parse_func()
 {
-    if (match(TOKEN_INT_TEXT) || match(TOKEN_FLOAT_TEXT) || match(TOKEN_BOOL_TEXT))
-    {
-        statements.emplace_back(parse_var_decl());
-    }
-    else if (match(TOKEN_IDENTIFIER))
-    {
-        statements.emplace_back(parse_var_assign());
-    }
-}
+    expect(TOKEN_FN);
 
-// <var_decl> ::= <basic_type> <id> "=" <expr> ";"
-VarDecl *Parser::parse_var_decl()
-{
-    TokenType var_type = current_token.type;
     advance();
 
     expect(TOKEN_IDENTIFIER);
 
-    std::string var_identifier = current_token.text;
+    std::string func_name = current_token.text;
 
-    advance();
-
-    expect(TOKEN_ASSIGN);
-
-    advance();
-
-    ASTNode *expr = parse_expr({TOKEN_SEMICOLON});
-
-    return new VarDecl(var_identifier, expr, var_type);
-}
-
-// <var_assign> ::= <id> "=" <expr> ";"
-VarAssign *Parser::parse_var_assign()
-{
-    std::string var_identifier = current_token.text;
-
-    advance();
-
-    expect(TOKEN_ASSIGN);
-
-    advance();
-
-    ASTNode *expr = parse_expr({TOKEN_SEMICOLON});
-
-    return new VarAssign(var_identifier, expr);
-}
-
-IfStmt *Parser::parse_if_stmt()
-{
     advance();
 
     expect(TOKEN_LPAREN);
 
     advance();
 
+    expect(TOKEN_RPAREN);
+
     advance();
 
     expect(TOKEN_LBRACE);
 
-    // Parse statements
+    advance();
+
+    std::vector<ASTNode *> stmts = parse_stmts();
+
+    advance();
 
     expect(TOKEN_RBRACE);
 
-    return nullptr;
+    return new FuncNode(func_name, stmts);
 }
 
-Condition *Parser::parse_condition()
+std::vector<ASTNode *> Parser::parse_stmts()
 {
-    ASTNode *left = parse_expr({TOKEN_EQUALS, TOKEN_NOT_EQUALS, TOKEN_LT, TOKEN_GT, TOKEN_LE, TOKEN_GE});
+    std::vector<ASTNode *> stmts;
 
-    TokenType op = current_token.type;
+    if (match(TOKEN_RTN))
+    {
+        stmts.emplace_back(parse_rtn());
+    }
+
+    // if (match(TOKEN_INT_TEXT) || match(TOKEN_FLOAT_TEXT) || match(TOKEN_BOOL_TEXT))
+    // {
+    //     statements.emplace_back(parse_var_decl());
+    // }
+    // else if (match(TOKEN_IDENTIFIER))
+    // {
+    //     statements.emplace_back(parse_var_assign());
+    // }
+
+    return stmts;
+}
+
+RtnNode *Parser::parse_rtn()
+{
+    advance();
+
+    IntegerLiteral *expr = parse_expr();
+
+    return new RtnNode(expr);
+}
+
+IntegerLiteral *Parser::parse_expr()
+{
+    expect(TOKEN_INT);
+
+    auto text = current_token.text;
 
     advance();
 
-    ASTNode *right = parse_expr({TOKEN_EQUALS, TOKEN_NOT_EQUALS, TOKEN_LT, TOKEN_GT, TOKEN_LE, TOKEN_GE});
+    expect(TOKEN_SEMICOLON);
 
-    return new Condition(op, left, right);
+    return new IntegerLiteral(std::stoi(text));
 }
 
-// <expr> ::= <expr> ("+" | "-") <term> | <term>
-ASTNode *Parser::parse_expr(std::vector<TokenType> end_tokens)
-{
-    // Expect a proper term
-    ASTNode *left_term = parse_term(end_tokens);
+// // <var_decl> ::= <basic_type> <id> "=" <expr> ";"
+// VarDecl *Parser::parse_var_decl()
+// {
+//     TokenType var_type = current_token.type;
+//     advance();
 
-    while (!match(end_tokens))
-    {
-        TokenType op = current_token.type;
+//     expect(TOKEN_IDENTIFIER);
 
-        advance();
+//     std::string var_identifier = current_token.text;
 
-        ASTNode *right_term = parse_term(end_tokens);
+//     advance();
 
-        left_term = new BinaryExpression(left_term, right_term, op);
-    }
+//     expect(TOKEN_ASSIGN);
 
-    return left_term;
-}
+//     advance();
 
-ASTNode *Parser::parse_term(std::vector<TokenType> &end_tokens)
-{
-    ASTNode *left_factor = parse_factor();
+//     ASTNode *expr = parse_expr({TOKEN_SEMICOLON});
 
-    advance();
+//     return new VarDecl(var_identifier, expr, var_type);
+// }
 
-    while (!match(end_tokens))
-    {
-        TokenType op = current_token.type;
+// // <var_assign> ::= <id> "=" <expr> ";"
+// VarAssign *Parser::parse_var_assign()
+// {
+//     std::string var_identifier = current_token.text;
 
-        advance();
+//     advance();
 
-        ASTNode *right_factor = parse_term(end_tokens);
+//     expect(TOKEN_ASSIGN);
 
-        left_factor = new BinaryExpression(left_factor, right_factor, op);
-    }
+//     advance();
 
-    return left_factor;
-}
+//     ASTNode *expr = parse_expr({TOKEN_SEMICOLON});
 
-FactorNode *Parser::parse_factor()
-{
-    if (match(TOKEN_MINUS) || match(TOKEN_EXCLAMATION) || match(TOKEN_TILDA))
-    {
-        TokenType op = current_token.type;
+//     return new VarAssign(var_identifier, expr);
+// }
 
-        advance();
+// IfStmt *Parser::parse_if_stmt()
+// {
+//     advance();
 
-        auto literal = parse_factor()->value;
-        return new UnaryExpression(op, literal);
-    }
+//     expect(TOKEN_LPAREN);
 
-    // Return AST node
-    if (match(TOKEN_INT))
-    {
-        int value = std::stoi(current_token.text);
-        return new FactorNode(new IntegerLiteral(value));
-    }
-    else if (match(TOKEN_FLOAT))
-    {
-        float value = std::stof(current_token.text);
-        return new FactorNode(new FloatLiteral(value));
-    }
-    else if (match(TOKEN_BOOL))
-    {
-        bool value = current_token.text == "true";
-        return new FactorNode(new BoolLiteral(value));
-    }
+//     advance();
 
-    error("Unknown factor");
-}
+//     advance();
+
+//     expect(TOKEN_LBRACE);
+
+//     // Parse statements
+
+//     expect(TOKEN_RBRACE);
+
+//     return nullptr;
+// }
+
+// Condition *Parser::parse_condition()
+// {
+//     ASTNode *left = parse_expr({TOKEN_EQUALS, TOKEN_NOT_EQUALS, TOKEN_LT, TOKEN_GT, TOKEN_LE, TOKEN_GE});
+
+//     TokenType op = current_token.type;
+
+//     advance();
+
+//     ASTNode *right = parse_expr({TOKEN_EQUALS, TOKEN_NOT_EQUALS, TOKEN_LT, TOKEN_GT, TOKEN_LE, TOKEN_GE});
+
+//     return new Condition(op, left, right);
+// }
+
+// // <expr> ::= <expr> ("+" | "-") <term> | <term>
+// ASTNode *Parser::parse_expr(std::vector<TokenType> end_tokens)
+// {
+//     // Expect a proper term
+//     ASTNode *left_term = parse_term(end_tokens);
+
+//     while (!match(end_tokens))
+//     {
+//         TokenType op = current_token.type;
+
+//         advance();
+
+//         ASTNode *right_term = parse_term(end_tokens);
+
+//         left_term = new BinaryExpression(left_term, right_term, op);
+//     }
+
+//     return left_term;
+// }
+
+// ASTNode *Parser::parse_term(std::vector<TokenType> &end_tokens)
+// {
+//     ASTNode *left_factor = parse_factor();
+
+//     advance();
+
+//     while (!match(end_tokens))
+//     {
+//         TokenType op = current_token.type;
+
+//         advance();
+
+//         ASTNode *right_factor = parse_term(end_tokens);
+
+//         left_factor = new BinaryExpression(left_factor, right_factor, op);
+//     }
+
+//     return left_factor;
+// }
+
+// FactorNode *Parser::parse_factor()
+// {
+//     if (match(TOKEN_MINUS) || match(TOKEN_EXCLAMATION) || match(TOKEN_TILDA))
+//     {
+//         TokenType op = current_token.type;
+
+//         advance();
+
+//         auto literal = parse_factor()->value;
+//         return new UnaryExpression(op, literal);
+//     }
+
+//     // Return AST node
+//     if (match(TOKEN_INT))
+//     {
+//         int value = std::stoi(current_token.text);
+//         return new FactorNode(new IntegerLiteral(value));
+//     }
+//     else if (match(TOKEN_FLOAT))
+//     {
+//         float value = std::stof(current_token.text);
+//         return new FactorNode(new FloatLiteral(value));
+//     }
+//     else if (match(TOKEN_BOOL))
+//     {
+//         bool value = current_token.text == "true";
+//         return new FactorNode(new BoolLiteral(value));
+//     }
+
+//     error("Unknown factor");
+// }

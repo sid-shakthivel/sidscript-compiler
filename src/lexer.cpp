@@ -32,6 +32,7 @@ std::unordered_map<std::string, TokenType> string_to_token = {
     {">=", TOKEN_GT},
     {"true", TOKEN_BOOL},
     {"false", TOKEN_BOOL},
+    {"return", TOKEN_RTN},
 };
 
 std::string token_to_string(TokenType token_type)

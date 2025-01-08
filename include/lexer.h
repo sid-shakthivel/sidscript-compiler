@@ -13,7 +13,7 @@ enum TokenType
     TOKEN_ELSE,
     TOKEN_WHILE,
     TOKEN_FOR,
-    TOKEN_RETURN,
+    TOKEN_RTN,
     TOKEN_FN,
     TOKEN_LPAREN,
     TOKEN_RPAREN,
