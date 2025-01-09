@@ -1,5 +1,6 @@
 #include <vector>
 #include <iostream>
+#include <optional>
 
 #include "../include/parser.h"
 #include "../include/lexer.h"
@@ -39,7 +40,7 @@ void Parser::advance()
 
 void Parser::error(const std::string &message)
 {
-    throw std::runtime_error("Parser Error: " + message + " but found : " + current_token.text);
+    throw std::runtime_error("Parser Error: " + message + " but found " + current_token.text);
 }
 
 void Parser::expect(TokenType token_type)
@@ -93,15 +94,6 @@ std::vector<ASTNode *> Parser::parse_stmts()
         stmts.emplace_back(parse_rtn());
     }
 
-    // if (match(TOKEN_INT_TEXT) || match(TOKEN_FLOAT_TEXT) || match(TOKEN_BOOL_TEXT))
-    // {
-    //     statements.emplace_back(parse_var_decl());
-    // }
-    // else if (match(TOKEN_IDENTIFIER))
-    // {
-    //     statements.emplace_back(parse_var_assign());
-    // }
-
     return stmts;
 }
 
@@ -109,22 +101,48 @@ RtnNode *Parser::parse_rtn()
 {
     advance();
 
-    IntegerLiteral *expr = parse_expr();
+    ASTNode *expr = parse_expr();
 
     return new RtnNode(expr);
 }
 
-IntegerLiteral *Parser::parse_expr()
+ASTNode *Parser::parse_expr(bool expect_semicolon)
 {
-    expect(TOKEN_INT);
+    if (match(TOKEN_INT))
+    {
+        int number = std::stoi(current_token.text);
 
-    auto text = current_token.text;
+        advance();
 
-    advance();
+        if (expect_semicolon)
+            expect(TOKEN_SEMICOLON);
+        else
+            expect(TOKEN_RPAREN);
 
-    expect(TOKEN_SEMICOLON);
+        return new IntegerLiteral(number);
+    }
+    else if (match(TOKEN_TILDA) || match(TOKEN_MINUS))
+    {
+        auto op = current_token.type;
 
-    return new IntegerLiteral(std::stoi(text));
+        advance();
+
+        ASTNode *expr = parse_expr(false);
+
+        return new UnaryNode(get_unary_op_type(op), expr);
+    }
+    else if (match(TOKEN_LPAREN))
+    {
+        advance();
+
+        ASTNode *expr = parse_expr(false);
+
+        advance();
+
+        expect(TOKEN_SEMICOLON);
+
+        return expr;
+    }
 }
 
 // // <var_decl> ::= <basic_type> <id> "=" <expr> ";"

@@ -4,16 +4,27 @@
 #include "../include/ast.h"
 #include "../include/lexer.h"
 
-Literal::Literal(const TokenType &t) : type(t) {}
+UnaryOpType get_unary_op_type(const TokenType &t)
+{
+    switch (t)
+    {
+    case TOKEN_MINUS:
+        return UnaryOpType::NEGATE;
+    case TOKEN_TILDA:
+        return UnaryOpType::COMPLEMENT;
+    default:
+        return UnaryOpType::DECREMENT;
+    }
+}
 
-IntegerLiteral::IntegerLiteral(int v) : Literal(TOKEN_INT), value(v) {}
+IntegerLiteral::IntegerLiteral(int v) : ASTNode(NODE_INTEGER), value(v) {}
 
 void IntegerLiteral::print(int tabs)
 {
     std::cout << std::string(tabs, ' ') << "Literal: " + std::to_string(value) << std::endl;
 }
 
-RtnNode::RtnNode(ASTNode *v) : value(v) {}
+RtnNode::RtnNode(ASTNode *v) : ASTNode(NODE_RETURN), value(v) {}
 
 void RtnNode::print(int tabs)
 {
@@ -21,7 +32,7 @@ void RtnNode::print(int tabs)
     value->print(tabs + 1);
 }
 
-FuncNode::FuncNode(const std::string &n, std::vector<ASTNode *> &s) : name(n), stmts(s) {}
+FuncNode::FuncNode(const std::string &n, std::vector<ASTNode *> &s) : ASTNode(NODE_FUNCTION), name(n), stmts(s) {}
 
 void FuncNode::print(int tabs)
 {
@@ -35,12 +46,35 @@ void FuncNode::print(int tabs)
     }
 }
 
-ProgramNode::ProgramNode(FuncNode *f) : func(f) {}
+ProgramNode::ProgramNode(FuncNode *f) : ASTNode(NODE_PROGRAM), func(f) {}
 
 void ProgramNode::print(int tabs)
 {
     std::cout << std::string(tabs, ' ') << "Program: " << std::endl;
     func->print(tabs + 1);
+}
+
+UnaryNode::UnaryNode(UnaryOpType o, ASTNode *v) : ASTNode(NODE_UNARY), op(o), value(v) {}
+
+void UnaryNode::print(int tabs)
+{
+    auto get_unary_op_string = [](UnaryOpType o) -> std::string
+    {
+        switch (o)
+        {
+        case UnaryOpType::NEGATE:
+            return "NEGATE";
+        case UnaryOpType::COMPLEMENT:
+            return "COMPLEMENT";
+        case UnaryOpType::DECREMENT:
+            return "DECREMENT";
+        }
+        return "";
+    };
+
+    std::cout << std::string(tabs, ' ') << "Unary: " << std::endl;
+    std::cout << std::string(tabs + 1, ' ') << "Type: " << get_unary_op_string(op) << std::endl;
+    value->print(tabs + 1);
 }
 
 // FloatLiteral::FloatLiteral(float v) : Literal(TOKEN_FLOAT), value(v) {}

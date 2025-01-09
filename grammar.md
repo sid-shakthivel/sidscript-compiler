@@ -29,10 +29,13 @@
 
 ### Current ASDL
 
+need to recognise tilda, negation, decrement
+
 program = Program(function_definition)
 func_decl = Function(identifier name, statement body)
 stmt = Return(exp)
-expr = Literal(int)
+expr = Literal(int) | Unary(un_opr, expr)
+un_opr = Complement | Negate
 
 ### Current Grammar
 
@@ -41,6 +44,7 @@ for the function need to add back rust-y "-> int|void"
 <program> ::= <func_decl>
 <func_decl> ::= "fn" <identifier> "(" ")" "{" <stmt> "}"
 <stmt> ::= "return" <expr> ";"
-<expr> ::= <int>
+<exp> ::= <int> | <unop> <exp> | "(" <exp> ")"
+<unop> ::= "-" | "~"
 <identifier> ::= ? An identifier token ?
 <int> ::= ? A constant token ?

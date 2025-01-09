@@ -26,18 +26,12 @@ int main()
     code_file.close();
 
     Lexer lexer(file_contents);
-
-    // Token next_token = lexer.get_next_token();
-
-    // while (next_token.type != TOKEN_EOF)
-    // {
-    //     std::cout << next_token.text << "\n";
-    //     next_token = lexer.get_next_token();
-    // }
+    // lexer.print_all_tokens();
 
     Parser parser(&lexer);
 
     ProgramNode *program = parser.parse();
+    // program->print(0);
 
     Assembler assembler;
 

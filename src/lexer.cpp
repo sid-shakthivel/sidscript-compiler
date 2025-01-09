@@ -110,3 +110,13 @@ Token Lexer::get_next_token()
     index++;
     return get_next_token();
 }
+
+void Lexer::print_all_tokens()
+{
+    Token next_token = get_next_token();
+    while (next_token.type != TOKEN_EOF)
+    {
+        std::cout << next_token.text << "\n";
+        next_token = get_next_token();
+    }
+}

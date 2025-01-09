@@ -1,6 +1,8 @@
 #include <cstdio>
 #include <cerrno>
 #include <iostream>
+#include <functional>
+#include <numeric>
 
 #include "../include/assembler.h"
 #include "../include/parser.h"
@@ -60,28 +62,114 @@ void Assembler::assemble_func(FuncNode *func, FILE *file)
     fprintf(file, "	pushq	%%rbp\n");
     fprintf(file, "	movq	%%rsp, %%rbp\n"); // movq is used for 64 bits
 
+    /*
+    Three-Address Code (TAC) is an IR to simplify code generation
+    Breaks down complex expressions/statements into a sequence of instructions where:
+        - Each instruction has at most three operands
+        - Temporary variables are used to hold intermediate results
+    Helps for debugging and optimisation
+
+    This method calcualtes the stack space required for the function
+    */
+    int stack_space = std::accumulate(func->stmts.begin(), func->stmts.end(), 0,
+                                      [this](int acc, ASTNode *stmt)
+                                      {
+                                          return acc + this->calculate_stack_space(stmt);
+                                      }) *
+                      8; // 8 bits is word size
+
+    fprintf(file, "	subq	$%d, %%rsp\n\n", stack_space);
+
+    func_temp_var_count = 1;
+
     for (auto stmt : func->stmts)
     {
         assemble_stmt(stmt, file);
     }
+
+    /*
+    Function epilogue
+    Clean up stack
+    Restores the previous base pointer by popping the saved value from the stack into %rbp (cleans up stack frame)
+    Returns control to the caller by popping the return address off the stack and jumping to it.
+    */
+    fprintf(file, "\n	addq	$%d, %%rsp\n", stack_space);
+    fprintf(file, "	popq	%%rbp\n");
+    fprintf(file, "	retq\n");
 }
 
 void Assembler::assemble_stmt(ASTNode *stmt, FILE *file)
 {
-    // For now since the only stmt is return assume it is return
 
-    /*
-    Moves the immediate value into the eax register (which holds return value of functions)
-    System V AMD64 calling convention is used by macOS
-    Assume for now that all return values are integers
-    */
-    int rtn_value = ((IntegerLiteral *)((RtnNode *)stmt)->value)->value;
-    fprintf(file, "	movl	$%d, %%eax\n", rtn_value); // mov1 is used for 32 bits
+    if (stmt->type == NodeType::NODE_RETURN)
+    {
+        ASTNode *value = ((RtnNode *)stmt)->value;
 
-    /*
-        Restores the previous base pointer by popping the saved value from the stack into %rbp (cleans up stack frame)
-        Returns control to the caller by popping the return address off the stack and jumping to it.
-    */
-    fprintf(file, "	popq	%%rbp\n");
-    fprintf(file, "	retq\n");
+        // /*
+        //     Moves the immediate value into the eax register (which holds return value of functions)
+        //     System V AMD64 calling convention is used by macOS
+        //     */
+        // int rtn_value = ((IntegerLiteral *)value)->value;
+        // fprintf(file, "	movl	$%d, %%eax\n", rtn_value);
+
+        assemble_expr(value, file);
+        fprintf(file, "	movl	%d(%%rbp), %%eax\n", func_temp_var_count * -4);
+    }
+}
+
+void Assembler::assemble_expr(ASTNode *expr, FILE *file)
+{
+    if (expr->type == NodeType::NODE_INTEGER)
+    {
+        IntegerLiteral *literal = (IntegerLiteral *)expr;
+        fprintf(file, "        movl    $%d, %d(%%rbp)\n", literal->value, func_temp_var_count * -4);
+    }
+    else if (expr->type == NodeType::NODE_UNARY)
+    {
+        UnaryNode *unary = (UnaryNode *)expr;
+        assemble_unary(unary, file);
+    }
+}
+
+void Assembler::assemble_unary(UnaryNode *unary, FILE *file)
+{
+    assemble_expr(unary->value, file);
+    int old_temp_var_count = func_temp_var_count;
+    func_temp_var_count += 1;
+
+    // Apply the unary operation
+    switch (unary->op)
+    {
+    case NEGATE:
+        fprintf(file, "        negl    %d(%%rbp)\n", old_temp_var_count * -4);
+        break;
+
+    case COMPLEMENT:
+        fprintf(file, "        notl    %d(%%rbp)\n", old_temp_var_count * -4);
+        break;
+
+    default:
+        fprintf(stderr, "Error: Unsupported unary operation\n");
+        exit(1);
+    }
+
+    fprintf(file, "        movl    %d(%%rbp), %%r10d\n", old_temp_var_count * -4);
+    fprintf(file, "        movl    %%r10d, %d(%%rbp)\n", func_temp_var_count * -4);
+}
+
+// Determines the number of temporary variables needed on the stack during execution.
+int Assembler::calculate_stack_space(ASTNode *node)
+{
+    switch (node->type)
+    {
+    case NodeType::NODE_INTEGER:
+        return 1;
+    case NodeType::NODE_RETURN:
+        return calculate_stack_space(((RtnNode *)node)->value);
+    case NodeType::NODE_UNARY:
+        return 1 + calculate_stack_space(((UnaryNode *)node)->value);
+    default:
+        return 0;
+    }
+    return 0;
 }

@@ -5,25 +5,38 @@
 
 #include "lexer.h"
 
+enum UnaryOpType
+{
+    NEGATE,
+    COMPLEMENT,
+    DECREMENT,
+};
+
+enum NodeType
+{
+    NODE_INTEGER,
+    NODE_RETURN,
+    NODE_FUNCTION,
+    NODE_PROGRAM,
+    NODE_UNARY,
+};
+
+UnaryOpType
+get_unary_op_type(const TokenType &t);
+
 class ASTNode
 {
 public:
+    NodeType type;
+
+    ASTNode(NodeType t) : type(t) {}
     virtual ~ASTNode() = default;
     virtual void print(int tabs)
     {
     }
 };
 
-// <basic_type> ::= "int" | "float" | "bool"
-class Literal : public ASTNode
-{
-public:
-    TokenType type;
-
-    Literal(const TokenType &t);
-};
-
-class IntegerLiteral : public Literal
+class IntegerLiteral : public ASTNode
 {
 public:
     int value;
@@ -60,6 +73,25 @@ public:
     ProgramNode(FuncNode *f);
     void print(int tabs) override;
 };
+
+class UnaryNode : public ASTNode
+{
+public:
+    UnaryOpType op;
+    ASTNode *value;
+
+    UnaryNode(UnaryOpType o, ASTNode *v);
+    void print(int tabs) override;
+};
+
+// // <basic_type> ::= "int" | "float" | "bool"
+// class Literal : public ASTNode
+// {
+// public:
+//     TokenType type;
+
+//     Literal(const TokenType &t);
+// };
 
 // class FloatLiteral : public Literal
 // {
