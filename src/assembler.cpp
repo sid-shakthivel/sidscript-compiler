@@ -129,6 +129,56 @@ void Assembler::assemble_expr(ASTNode *expr, FILE *file)
         UnaryNode *unary = (UnaryNode *)expr;
         assemble_unary(unary, file);
     }
+    else if (expr->type == NodeType::NODE_BINARY)
+    {
+        BinaryNode *binary = (BinaryNode *)expr;
+        assemble_binary(binary, file);
+    }
+}
+
+void Assembler::assemble_binary(BinaryNode *binary, FILE *file)
+{
+    assemble_expr(binary->left, file);
+    int old_temp_var_count = func_temp_var_count;
+    func_temp_var_count += 1;
+
+    assemble_expr(binary->right, file);
+
+    switch (binary->op)
+    {
+    case BinOpType::ADD:
+        fprintf(file, "        movl    %d(%%rbp), %%r10d\n", func_temp_var_count * -4);
+        fprintf(file, "        addl    %d(%%rbp), %%r10d\n", old_temp_var_count * -4);
+        break;
+    case BinOpType::SUB:
+        // Ensure that the second operand is subtracted from the first ie (6 - 3 = 3, not 3 - 6 = -3)
+        fprintf(file, "        movl    %d(%%rbp), %%r10d\n", old_temp_var_count * -4);
+        fprintf(file, "        subl    %d(%%rbp), %%r10d\n", func_temp_var_count * -4);
+        break;
+    case BinOpType::MUL:
+        fprintf(file, "        movl    %d(%%rbp), %%r10d\n", func_temp_var_count * -4);
+        fprintf(file, "        imull   %d(%%rbp), %%r10d\n", old_temp_var_count * -4);
+        break;
+    case BinOpType::DIV:
+        fprintf(file, "        movl    %d(%%rbp), %%eax\n", old_temp_var_count * -4);
+        fprintf(file, "        cdq\n");
+        fprintf(file, "        movl    %d(%%rbp), %%r10d\n", func_temp_var_count * -4);
+        fprintf(file, "        idivl   %%r10d\n");
+        fprintf(file, "        movl    %%eax, %%r10d\n");
+        break;
+    case BinOpType::MOD:
+        fprintf(file, "        movl    %d(%%rbp), %%eax\n", old_temp_var_count * -4);
+        fprintf(file, "        cdq\n");
+        fprintf(file, "        movl    %d(%%rbp), %%r10d\n", func_temp_var_count * -4);
+        fprintf(file, "        idivl   %%r10d\n");
+        fprintf(file, "        movl    %%edx, %%r10d\n");
+        break;
+    default:
+        fprintf(stderr, "Error: Unsupported binary operation\n");
+        exit(1);
+    }
+
+    fprintf(file, "        movl    %%r10d, %d(%%rbp)\n", func_temp_var_count * -4);
 }
 
 void Assembler::assemble_unary(UnaryNode *unary, FILE *file)
@@ -168,6 +218,8 @@ int Assembler::calculate_stack_space(ASTNode *node)
         return calculate_stack_space(((RtnNode *)node)->value);
     case NodeType::NODE_UNARY:
         return 1 + calculate_stack_space(((UnaryNode *)node)->value);
+    case NodeType::NODE_BINARY:
+        return 1 + calculate_stack_space(((BinaryNode *)node)->left) + calculate_stack_space(((BinaryNode *)node)->right);
     default:
         return 0;
     }

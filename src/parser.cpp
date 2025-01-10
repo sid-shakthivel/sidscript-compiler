@@ -113,8 +113,6 @@ RtnNode *Parser::parse_rtn()
 
     ASTNode *expr = parse_expr(0);
 
-    std::cout << current_token.text << std::endl;
-
     expect(TOKEN_SEMICOLON);
 
     return new RtnNode(expr);

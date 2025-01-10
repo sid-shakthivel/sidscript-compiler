@@ -16,6 +16,7 @@ private:
     void assemble_stmt(ASTNode *stmt, FILE *file);
     void assemble_expr(ASTNode *expr, FILE *file);
     void assemble_unary(UnaryNode *unary, FILE *file);
+    void assemble_binary(BinaryNode *binary, FILE *file);
 
     int calculate_stack_space(ASTNode *node);
     unsigned int func_temp_var_count = 0;
