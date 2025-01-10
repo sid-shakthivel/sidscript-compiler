@@ -7,14 +7,22 @@
 #include "../include/ast.h"
 
 std::unordered_map<BinOpType, int> precedence_map = {
-    {ADD, 10},
-    {SUB, 10},
-    {MUL, 15},
-    {DIV, 15},
-    {MOD, 15},
+    {OR, 5},
+    {AND, 10},
+    {EQUAL, 20},
+    {NOT_EQUAL, 20},
+    {LESS_THAN, 25},
+    {GREATER_THAN, 25},
+    {LESS_OR_EQUAL, 25},
+    {GREATER_OR_EQUAL, 25},
+    {ADD, 35},
+    {SUB, 35},
+    {MUL, 40},
+    {DIV, 40},
+    {MOD, 40},
 };
 
-std::vector<TokenType> bin_op_tokens = {TOKEN_PLUS, TOKEN_MINUS, TOKEN_STAR, TOKEN_SLASH, TOKEN_PERCENT};
+std::vector<TokenType> bin_op_tokens = {TOKEN_PLUS, TOKEN_MINUS, TOKEN_STAR, TOKEN_SLASH, TOKEN_PERCENT, TOKEN_EQUALS, TOKEN_NOT_EQUALS, TOKEN_LT, TOKEN_GT, TOKEN_LE, TOKEN_GE, TOKEN_AND, TOKEN_OR};
 
 Parser::Parser(Lexer *l) : lexer(l), current_token(TOKEN_EOF, "")
 {

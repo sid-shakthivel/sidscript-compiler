@@ -31,6 +31,22 @@ BinOpType get_bin_op_type(const TokenType &t)
         return BinOpType::DIV;
     case TOKEN_PERCENT:
         return BinOpType::MOD;
+    case TOKEN_AND:
+        return BinOpType::AND;
+    case TOKEN_OR:
+        return BinOpType::OR;
+    case TOKEN_EQUALS:
+        return BinOpType::EQUAL;
+    case TOKEN_NOT_EQUALS:
+        return BinOpType::NOT_EQUAL;
+    case TOKEN_LT:
+        return BinOpType::LESS_THAN;
+    case TOKEN_GT:
+        return BinOpType::GREATER_THAN;
+    case TOKEN_LE:
+        return BinOpType::LESS_OR_EQUAL;
+    case TOKEN_GE:
+        return BinOpType::GREATER_OR_EQUAL;
     default:
         return BinOpType::ADD;
     }
@@ -112,6 +128,24 @@ void BinaryNode::print(int tabs)
             return "MUL";
         case BinOpType::DIV:
             return "DIV";
+        case BinOpType::MOD:
+            return "MOD";
+        case BinOpType::AND:
+            return "AND";
+        case BinOpType::OR:
+            return "OR";
+        case BinOpType::EQUAL:
+            return "EQUAL";
+        case BinOpType::NOT_EQUAL:
+            return "NOT_EQUAL";
+        case BinOpType::LESS_THAN:
+            return "LESS_THAN";
+        case BinOpType::GREATER_THAN:
+            return "GREATER_THAN";
+        case BinOpType::LESS_OR_EQUAL:
+            return "LESS_OR_EQUAL";
+        case BinOpType::GREATER_OR_EQUAL:
+            return "GREATER_OR_EQUAL";
         }
         return "";
     };

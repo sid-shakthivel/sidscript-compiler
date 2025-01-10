@@ -1,5 +1,6 @@
 #include <string>
 #include <iostream>
+#include <unordered_set>
 
 #include "../include/lexer.h"
 
@@ -31,6 +32,10 @@ std::unordered_map<std::string, TokenType> string_to_token = {
     {">", TOKEN_GT},
     {"<=", TOKEN_LT},
     {">=", TOKEN_GT},
+    {"&&", TOKEN_AND},
+    {"||", TOKEN_OR},
+    {"++", TOKEN_INCREMENT},
+    {"--", TOKEN_DECREMENT},
     {"true", TOKEN_BOOL},
     {"false", TOKEN_BOOL},
     {"return", TOKEN_RTN},
@@ -72,7 +77,21 @@ std::string Lexer::process_identifier()
 
 std::string Lexer::process_symbol()
 {
+    static const std::unordered_set<std::string> multi_char_symbols = {
+        "&&", "||", "==", "!=", ">=", "<=", "++", "--"};
+
     std::string symbol(1, source[index++]);
+
+    if (index < source.length())
+    {
+        std::string potential_symbol = symbol + source[index];
+        if (multi_char_symbols.find(potential_symbol) != multi_char_symbols.end())
+        {
+            symbol = potential_symbol;
+            index++;
+        }
+    }
+
     return symbol;
 }
 
@@ -104,6 +123,11 @@ Token Lexer::get_next_token()
 
         auto it = string_to_token.find(temp_symbol);
         TokenType token_type = (it != string_to_token.end()) ? it->second : TOKEN_UNKNOWN_SYMBOL;
+
+        if (token_type == TOKEN_UNKNOWN_SYMBOL)
+        {
+            std::cout << "unknown symbol\n";
+        }
 
         return Token(token_type, temp_symbol);
     }

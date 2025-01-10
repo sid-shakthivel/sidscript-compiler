@@ -36,7 +36,9 @@ func_decl = Function(identifier name, statement body)
 stmt = Return(exp)
 expr = Literal(int) | Unary(un_opr, expr) | Binary(bin_apr, exp, exp)
 un_opr = Complement | Negate
-bin_opr = Add | Subtract | Multiply | Divide | Remainder
+bin_opr = Add | Subtract | Multiply | Divide | Remainder | And | Or
+| Equal | NotEqual | LessThan | LessOrEqual
+| GreaterThan | GreaterOrEqual
 
 ### Current Grammar
 
@@ -47,7 +49,8 @@ for the function need to add back rust-y "-> int|void"
 <stmt> ::= "return" <expr> ";"
 <expr> ::= <factor> | <expr> <binop> <expr>
 <factor> ::= <int> | <unop> <factor> | "(" <expr> ")"
-<binop> ::= "-" | "+" | "*" | "/" | "%"
-<unop> ::= "-" | "~"
+<binopr> ::= ::= "-" | "+" | "\*" | "/" | "%" | "&&" | "||"
+| "==" | "!=" | "<" | "<=" | ">" | ">="
+<unopr> ::= "-" | "~" | "!"
 <identifier> ::= ? An identifier token ?
 <int> ::= ? A constant token ?
