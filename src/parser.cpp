@@ -101,23 +101,20 @@ RtnNode *Parser::parse_rtn()
 {
     advance();
 
-    ASTNode *expr = parse_expr();
+    ASTNode *expr = parse_factor();
+
+    advance();
+
+    expect(TOKEN_SEMICOLON);
 
     return new RtnNode(expr);
 }
 
-ASTNode *Parser::parse_expr(bool expect_semicolon)
+ASTNode *Parser::parse_factor()
 {
     if (match(TOKEN_INT))
     {
         int number = std::stoi(current_token.text);
-
-        advance();
-
-        if (expect_semicolon)
-            expect(TOKEN_SEMICOLON);
-        else
-            expect(TOKEN_RPAREN);
 
         return new IntegerLiteral(number);
     }
@@ -127,7 +124,7 @@ ASTNode *Parser::parse_expr(bool expect_semicolon)
 
         advance();
 
-        ASTNode *expr = parse_expr(false);
+        ASTNode *expr = parse_factor();
 
         return new UnaryNode(get_unary_op_type(op), expr);
     }
@@ -135,11 +132,11 @@ ASTNode *Parser::parse_expr(bool expect_semicolon)
     {
         advance();
 
-        ASTNode *expr = parse_expr(false);
+        ASTNode *expr = parse_factor();
 
         advance();
 
-        expect(TOKEN_SEMICOLON);
+        expect(TOKEN_RPAREN);
 
         return expr;
     }

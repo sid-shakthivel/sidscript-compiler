@@ -24,7 +24,8 @@ private:
     std::vector<ASTNode *> parse_stmts();
     FuncNode *parse_func();
     RtnNode *parse_rtn();
-    ASTNode *parse_expr(bool expect_semicolon = true);
+    ASTNode *parse_factor();
+    ASTNode *parse_expr();
 
     // IfStmt *parse_if_stmt();
     // Condition *parse_condition();

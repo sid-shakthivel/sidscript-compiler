@@ -1,3 +1,3 @@
 fn main() {
-    return ~(-5);
+    return (-9);
 }

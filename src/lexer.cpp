@@ -21,6 +21,7 @@ std::unordered_map<std::string, TokenType> string_to_token = {
     {"-", TOKEN_MINUS},
     {"*", TOKEN_STAR},
     {"\\", TOKEN_SLASH},
+    {"%", TOKEN_PERCENT},
     {"=", TOKEN_ASSIGN},
     {"==", TOKEN_EQUALS},
     {"!=", TOKEN_NOT_EQUALS},

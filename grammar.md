@@ -34,8 +34,9 @@ need to recognise tilda, negation, decrement
 program = Program(function_definition)
 func_decl = Function(identifier name, statement body)
 stmt = Return(exp)
-expr = Literal(int) | Unary(un_opr, expr)
+expr = Literal(int) | Unary(un_opr, expr) | Binary(bin_apr, exp, exp)
 un_opr = Complement | Negate
+bin_opr = Add | Subtract | Multiply | Divide | Remainder
 
 ### Current Grammar
 
@@ -44,7 +45,9 @@ for the function need to add back rust-y "-> int|void"
 <program> ::= <func_decl>
 <func_decl> ::= "fn" <identifier> "(" ")" "{" <stmt> "}"
 <stmt> ::= "return" <expr> ";"
-<exp> ::= <int> | <unop> <exp> | "(" <exp> ")"
+<expr> ::= <factor> | <expr> <binop> <expr>
+<factor> ::= <int> | <unop> <factor> | "(" <expr> ")"
+<binop> ::= "-" | "+" | "*" | "/" | "%"
 <unop> ::= "-" | "~"
 <identifier> ::= ? An identifier token ?
 <int> ::= ? A constant token ?
