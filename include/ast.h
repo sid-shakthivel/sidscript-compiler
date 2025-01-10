@@ -12,6 +12,15 @@ enum UnaryOpType
     DECREMENT,
 };
 
+enum BinOpType
+{
+    ADD,
+    SUB,
+    MUL,
+    DIV,
+    MOD,
+};
+
 enum NodeType
 {
     NODE_INTEGER,
@@ -19,10 +28,11 @@ enum NodeType
     NODE_FUNCTION,
     NODE_PROGRAM,
     NODE_UNARY,
+    NODE_BINARY
 };
 
-UnaryOpType
-get_unary_op_type(const TokenType &t);
+UnaryOpType get_unary_op_type(const TokenType &t);
+BinOpType get_bin_op_type(const TokenType &t);
 
 class ASTNode
 {
@@ -81,6 +91,17 @@ public:
     ASTNode *value;
 
     UnaryNode(UnaryOpType o, ASTNode *v);
+    void print(int tabs) override;
+};
+
+class BinaryNode : public ASTNode
+{
+public:
+    BinOpType op;
+    ASTNode *left;
+    ASTNode *right;
+
+    BinaryNode(BinOpType o, ASTNode *l, ASTNode *r);
     void print(int tabs) override;
 };
 

@@ -1,6 +1,7 @@
 #pragma once
 
 #include <vector>
+#include <unordered_map>
 
 #include "ast.h"
 #include "lexer.h"
@@ -25,7 +26,9 @@ private:
     FuncNode *parse_func();
     RtnNode *parse_rtn();
     ASTNode *parse_factor();
-    ASTNode *parse_expr();
+    ASTNode *parse_expr(int min_precedence);
+
+    int get_precedence(TokenType op);
 
     // IfStmt *parse_if_stmt();
     // Condition *parse_condition();

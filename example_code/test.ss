@@ -1,3 +1,3 @@
 fn main() {
-    return (-9);
+    return 1 / 2 * 3;
 }

@@ -17,6 +17,25 @@ UnaryOpType get_unary_op_type(const TokenType &t)
     }
 }
 
+BinOpType get_bin_op_type(const TokenType &t)
+{
+    switch (t)
+    {
+    case TOKEN_PLUS:
+        return BinOpType::ADD;
+    case TOKEN_MINUS:
+        return BinOpType::SUB;
+    case TOKEN_STAR:
+        return BinOpType::MUL;
+    case TOKEN_SLASH:
+        return BinOpType::DIV;
+    case TOKEN_PERCENT:
+        return BinOpType::MOD;
+    default:
+        return BinOpType::ADD;
+    }
+}
+
 IntegerLiteral::IntegerLiteral(int v) : ASTNode(NODE_INTEGER), value(v) {}
 
 void IntegerLiteral::print(int tabs)
@@ -75,6 +94,32 @@ void UnaryNode::print(int tabs)
     std::cout << std::string(tabs, ' ') << "Unary: " << std::endl;
     std::cout << std::string(tabs + 1, ' ') << "Type: " << get_unary_op_string(op) << std::endl;
     value->print(tabs + 1);
+}
+
+BinaryNode::BinaryNode(BinOpType o, ASTNode *l, ASTNode *r) : ASTNode(NODE_BINARY), op(o), left(l), right(r) {}
+
+void BinaryNode::print(int tabs)
+{
+    auto get_binary_op_string = [](BinOpType o) -> std::string
+    {
+        switch (o)
+        {
+        case BinOpType::ADD:
+            return "ADD";
+        case BinOpType::SUB:
+            return "SUB";
+        case BinOpType::MUL:
+            return "MUL";
+        case BinOpType::DIV:
+            return "DIV";
+        }
+        return "";
+    };
+
+    std::cout << std::string(tabs, ' ') << "Binary: " << std::endl;
+    std::cout << std::string(tabs + 1, ' ') << "Type: " << get_binary_op_string(op) << std::endl;
+    left->print(tabs + 1);
+    right->print(tabs + 1);
 }
 
 // FloatLiteral::FloatLiteral(float v) : Literal(TOKEN_FLOAT), value(v) {}

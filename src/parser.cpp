@@ -6,6 +6,16 @@
 #include "../include/lexer.h"
 #include "../include/ast.h"
 
+std::unordered_map<BinOpType, int> precedence_map = {
+    {ADD, 10},
+    {SUB, 10},
+    {MUL, 15},
+    {DIV, 15},
+    {MOD, 15},
+};
+
+std::vector<TokenType> bin_op_tokens = {TOKEN_PLUS, TOKEN_MINUS, TOKEN_STAR, TOKEN_SLASH, TOKEN_PERCENT};
+
 Parser::Parser(Lexer *l) : lexer(l), current_token(TOKEN_EOF, "")
 {
     advance();
@@ -101,13 +111,32 @@ RtnNode *Parser::parse_rtn()
 {
     advance();
 
-    ASTNode *expr = parse_factor();
+    ASTNode *expr = parse_expr(0);
 
-    advance();
+    std::cout << current_token.text << std::endl;
 
     expect(TOKEN_SEMICOLON);
 
     return new RtnNode(expr);
+}
+
+ASTNode *Parser::parse_expr(int min_presedence = 0)
+{
+    ASTNode *left = parse_factor();
+
+    advance();
+
+    while (match(bin_op_tokens) && get_precedence(current_token.type) >= min_presedence)
+    {
+        TokenType op = current_token.type;
+
+        advance();
+
+        ASTNode *right = parse_expr(get_precedence(op) + 1);
+        left = new BinaryNode(get_bin_op_type(op), left, right);
+    }
+
+    return left;
 }
 
 ASTNode *Parser::parse_factor()
@@ -132,7 +161,7 @@ ASTNode *Parser::parse_factor()
     {
         advance();
 
-        ASTNode *expr = parse_factor();
+        ASTNode *expr = parse_expr();
 
         advance();
 
@@ -140,6 +169,11 @@ ASTNode *Parser::parse_factor()
 
         return expr;
     }
+}
+
+int Parser::get_precedence(TokenType op)
+{
+    return precedence_map.at(get_bin_op_type(op));
 }
 
 // // <var_decl> ::= <basic_type> <id> "=" <expr> ";"
