@@ -1,3 +1,3 @@
 fn main() {
-    return 20 || 1;
+    return 5 || 0;
 }

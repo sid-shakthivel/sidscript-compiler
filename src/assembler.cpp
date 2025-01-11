@@ -173,6 +173,79 @@ void Assembler::assemble_binary(BinaryNode *binary, FILE *file)
         fprintf(file, "        idivl   %%r10d\n");
         fprintf(file, "        movl    %%edx, %%r10d\n");
         break;
+    case BinOpType::LESS_THAN:
+        // The cmpl instruction compares the first operand (src) to the second operand (dest) as dest - src.
+        fprintf(file, "        movl    %d(%%rbp), %%r10d\n", old_temp_var_count * -4);
+        fprintf(file, "        cmpl    %d(%%rbp), %%r10d\n", func_temp_var_count * -4);
+        fprintf(file, "        setl    %%r10b\n");
+        fprintf(file, "        movzbl  %%r10b, %%r10d\n");
+        break;
+    case BinOpType::GREATER_THAN:
+        fprintf(file, "        movl    %d(%%rbp), %%r10d\n", old_temp_var_count * -4);
+        fprintf(file, "        cmpl    %d(%%rbp), %%r10d\n", func_temp_var_count * -4);
+        fprintf(file, "        setg    %%r10b\n");
+        fprintf(file, "        movzbl  %%r10b, %%r10d\n");
+        break;
+    case BinOpType::LESS_OR_EQUAL:
+        fprintf(file, "        movl    %d(%%rbp), %%r10d\n", old_temp_var_count * -4);
+        fprintf(file, "        cmpl    %d(%%rbp), %%r10d\n", func_temp_var_count * -4);
+        fprintf(file, "        setle    %%r10b\n");
+        fprintf(file, "        movzbl  %%r10b, %%r10d\n");
+        break;
+    case BinOpType::GREATER_OR_EQUAL:
+        fprintf(file, "        movl    %d(%%rbp), %%r10d\n", old_temp_var_count * -4);
+        fprintf(file, "        cmpl    %d(%%rbp), %%r10d\n", func_temp_var_count * -4);
+        fprintf(file, "        setge    %%r10b\n");
+        fprintf(file, "        movzbl  %%r10b, %%r10d\n");
+        break;
+    case BinOpType::EQUAL:
+        fprintf(file, "        movl    %d(%%rbp), %%r10d\n", old_temp_var_count * -4);
+        fprintf(file, "        cmpl    %d(%%rbp), %%r10d\n", func_temp_var_count * -4);
+        fprintf(file, "        sete    %%r10b\n");
+        fprintf(file, "        movzbl  %%r10b, %%r10d\n");
+        break;
+    case BinOpType::NOT_EQUAL:
+        fprintf(file, "        movl    %d(%%rbp), %%r10d\n", old_temp_var_count * -4);
+        fprintf(file, "        cmpl    %d(%%rbp), %%r10d\n", func_temp_var_count * -4);
+        fprintf(file, "        setne    %%r10b\n");
+        fprintf(file, "        movzbl  %%r10b, %%r10d\n");
+        break;
+    case BinOpType::OR:
+    {
+        std::string true_label = ".true_table_" + std::to_string(temp_label_count);
+        std::string end_label = ".end_table_" + std::to_string(temp_label_count);
+        fprintf(file, "        movl    %d(%%rbp), %%r10d\n", old_temp_var_count * -4);
+        fprintf(file, "        testl %%r10d, %%r10d\n");
+        fprintf(file, "        jnz %s\n", true_label.c_str());
+        fprintf(file, "        movl    %d(%%rbp), %%r10d\n", func_temp_var_count * -4);
+        fprintf(file, "        testl %%r10d, %%r10d\n");
+        fprintf(file, "        jnz %s\n", true_label.c_str());
+        fprintf(file, "        movl    $0, %%r10d\n");
+        fprintf(file, "        jmp %s\n", end_label.c_str());
+        fprintf(file, "%s:\n", true_label.c_str());
+        fprintf(file, "        movl    $1, %%r10d\n");
+        fprintf(file, "%s:\n", end_label.c_str());
+        temp_label_count++;
+        break;
+    }
+    case BinOpType::AND:
+    {
+        std::string false_label = ".false_table_" + std::to_string(temp_label_count);
+        std::string end_label = ".end_table_" + std::to_string(temp_label_count);
+        fprintf(file, "        movl    %d(%%rbp), %%r10d\n", old_temp_var_count * -4);
+        fprintf(file, "        testl %%r10d, %%r10d\n");
+        fprintf(file, "        jz %s\n", false_label.c_str());
+        fprintf(file, "        movl    %d(%%rbp), %%r10d\n", func_temp_var_count * -4);
+        fprintf(file, "        testl %%r10d, %%r10d\n");
+        fprintf(file, "        jz %s\n", false_label.c_str());
+        fprintf(file, "        movl    $1, %%r10d\n");
+        fprintf(file, "        jmp %s\n", end_label.c_str());
+        fprintf(file, "%s:\n", false_label.c_str());
+        fprintf(file, "        movl    $0, %%r10d\n");
+        fprintf(file, "%s:\n", end_label.c_str());
+        temp_label_count++;
+        break;
+    }
     default:
         fprintf(stderr, "Error: Unsupported binary operation\n");
         exit(1);

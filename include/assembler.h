@@ -20,4 +20,5 @@ private:
 
     int calculate_stack_space(ASTNode *node);
     unsigned int func_temp_var_count = 0;
+    unsigned int temp_label_count = 0;
 };
