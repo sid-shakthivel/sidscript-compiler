@@ -31,10 +31,10 @@ int main()
     Parser parser(&lexer);
 
     ProgramNode *program = parser.parse();
-    // program->print(0);
+    program->print(0);
 
-    Assembler assembler;
-    assembler.assemble(program, "test.s");
+    // Assembler assembler;
+    // assembler.assemble(program, "test.s");
 
     return 0;
 }

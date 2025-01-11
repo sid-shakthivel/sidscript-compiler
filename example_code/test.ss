@@ -1,3 +1,4 @@
 fn main() {
-    return 5 || 0;
+    int test = 5;
+    test = 10;
 }

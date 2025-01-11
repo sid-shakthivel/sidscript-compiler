@@ -156,69 +156,31 @@ void BinaryNode::print(int tabs)
     right->print(tabs + 1);
 }
 
-// FloatLiteral::FloatLiteral(float v) : Literal(TOKEN_FLOAT), value(v) {}
+VarNode::VarNode(const std::string &n) : ASTNode(NODE_VAR), name(n) {}
 
-// void FloatLiteral::print(int tabs)
-// {
-//     std::cout << std::string(tabs, ' ') << "Literal: " + std::to_string(value) << std::endl;
-// }
+void VarNode::print(int tabs)
+{
+    std::cout << std::string(tabs, ' ') << "Var: " << name << std::endl;
+}
 
-// BoolLiteral::BoolLiteral(bool v) : Literal(TOKEN_BOOL), value(v) {}
+VarAssignNode::VarAssignNode(VarNode *v, ASTNode *val) : ASTNode(NODE_VAR_ASSIGN), var(v), value(val) {}
 
-// void BoolLiteral::print(int tabs)
-// {
-//     std::cout << std::string(tabs, ' ') << "Literal: " + std::to_string(value) << std::endl;
-// }
+void VarAssignNode::print(int tabs)
+{
+    std::cout << std::string(tabs, ' ') << "VarAssign: " << std::endl;
+    var->print(tabs + 1);
+    value->print(tabs + 1);
+}
 
-// FactorNode::FactorNode(Literal *v) : value(v) {}
+VarDeclNode::VarDeclNode(VarNode *v, ASTNode *val) : ASTNode(NODE_VAR_DECL), var(v), value(val) {}
 
-// void FactorNode::print(int tabs)
-// {
-//     std::cout << std::string(tabs, ' ') << "Factor: " << std::endl;
-//     value->print(tabs + 1);
-// }
-
-// UnaryExpression::UnaryExpression(const TokenType &t, Literal *v) : op(t), FactorNode(v) {}
-
-// void UnaryExpression::print(int tabs)
-// {
-//     std::cout << std::string(tabs, ' ') << "UnExpr(" + token_to_string(op) + "): " << std::endl;
-//     value->print(tabs + 1);
-// }
-
-// BinaryExpression::BinaryExpression(ASTNode *l, ASTNode *r, const TokenType &t) : left(l), op(t), right(r) {}
-
-// void BinaryExpression::print(int tabs)
-// {
-//     std::cout << std::string(tabs, ' ') << "BinExpr(" + token_to_string(op) + "): " << std::endl;
-//     left->print(tabs + 1);
-//     right->print(tabs + 1);
-// }
-
-// VarDecl::VarDecl(const std::string &name, ASTNode *val, const TokenType &t) : var_name(name), value(val), type(t) {}
-
-// void VarDecl::print(int tabs)
-// {
-//     std::cout << std::string(tabs, ' ') << "VarDecl: " << var_name << " = " << std::endl;
-//     value->print(tabs + 1);
-// }
-
-// VarAssign::VarAssign(const std::string &name, ASTNode *val) : var_name(name), value(val) {}
-
-// void VarAssign::print(int tabs)
-// {
-//     std::cout << std::string(tabs, ' ') << "VarAssign: " << var_name << " = " << std::endl;
-//     value->print(tabs + 1);
-// }
-
-// Condition::Condition(const TokenType &t, ASTNode *l, ASTNode *r) : bin_top(t), left(l), right(r) {}
-
-// void Condition::print(int tabs)
-// {
-//     std::cout << std::string(tabs, ' ') << "Condition: " << token_to_string(bin_top) << std::endl;
-//     left->print(tabs + 1);
-//     right->print(tabs + 1);
-// }
+void VarDeclNode::print(int tabs)
+{
+    std::cout << std::string(tabs, ' ') << "VarDecl: " << std::endl;
+    var->print(tabs + 1);
+    if (value != nullptr)
+        value->print(tabs + 1);
+}
 
 // IfStmt::IfStmt(Condition *c) : condition(c) {}
 
