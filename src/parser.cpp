@@ -78,11 +78,15 @@ void Parser::expect(std::vector<TokenType> &tokens)
     error("Expected " + token_to_string(tokens[0]));
 }
 
+void Parser::expect_and_advance(TokenType token_type)
+{
+    expect(token_type);
+    advance();
+}
+
 FuncNode *Parser::parse_func()
 {
-    expect(TOKEN_FN);
-
-    advance();
+    expect_and_advance(TOKEN_FN);
 
     expect(TOKEN_IDENTIFIER);
 
@@ -90,42 +94,42 @@ FuncNode *Parser::parse_func()
 
     advance();
 
-    expect(TOKEN_LPAREN);
+    expect_and_advance(TOKEN_LPAREN);
 
-    advance();
+    expect_and_advance(TOKEN_RPAREN);
 
-    expect(TOKEN_RPAREN);
+    expect_and_advance(TOKEN_ARROW);
 
-    advance();
+    expect_and_advance(TOKEN_INT_TEXT);
 
-    expect(TOKEN_LBRACE);
+    expect_and_advance(TOKEN_LBRACE);
 
-    advance();
-
-    std::vector<ASTNode *> stmts = parse_stmts();
+    std::vector<ASTNode *> stmts = parse_elements();
 
     expect(TOKEN_RBRACE);
 
     return new FuncNode(func_name, stmts);
 }
 
-std::vector<ASTNode *> Parser::parse_stmts()
+std::vector<ASTNode *> Parser::parse_elements()
 {
-    std::vector<ASTNode *> stmts;
+    std::vector<ASTNode *> elements;
 
     while (current_token.type != TOKEN_RBRACE)
     {
         if (match(TOKEN_RTN))
-            stmts.emplace_back(parse_rtn());
+            elements.emplace_back(parse_rtn());
         else if (match(TOKEN_INT_TEXT))
-            stmts.emplace_back(parse_var_decl());
+            elements.emplace_back(parse_var_decl());
         else if (match(TOKEN_IDENTIFIER))
-            stmts.emplace_back(parse_expr(0));
+            elements.emplace_back(parse_expr(0));
+        else
+            error("Expected an element");
 
         advance();
     }
 
-    return stmts;
+    return elements;
 }
 
 RtnNode *Parser::parse_rtn()

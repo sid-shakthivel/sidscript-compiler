@@ -1,4 +1,5 @@
-fn main() {
-    int test = 5;
-    test = 10;
+fn main() -> int {
+    int test = 76 * 2;
+    int best = 3;
+    return test;
 }

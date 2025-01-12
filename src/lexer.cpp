@@ -39,6 +39,7 @@ std::unordered_map<std::string, TokenType> string_to_token = {
     {"true", TOKEN_BOOL},
     {"false", TOKEN_BOOL},
     {"return", TOKEN_RTN},
+    {"->", TOKEN_ARROW},
 };
 
 std::string token_to_string(TokenType token_type)
@@ -78,7 +79,7 @@ std::string Lexer::process_identifier()
 std::string Lexer::process_symbol()
 {
     static const std::unordered_set<std::string> multi_char_symbols = {
-        "&&", "||", "==", "!=", ">=", "<=", "++", "--"};
+        "&&", "||", "==", "!=", ">=", "<=", "++", "--", "->"};
 
     std::string symbol(1, source[index++]);
 

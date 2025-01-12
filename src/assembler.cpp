@@ -84,7 +84,7 @@ void Assembler::assemble_func(FuncNode *func, FILE *file)
 
     for (auto stmt : func->stmts)
     {
-        assemble_stmt(stmt, file);
+        assemble_element(stmt, file);
     }
 
     /*
@@ -98,12 +98,12 @@ void Assembler::assemble_func(FuncNode *func, FILE *file)
     fprintf(file, "	retq\n");
 }
 
-void Assembler::assemble_stmt(ASTNode *stmt, FILE *file)
+void Assembler::assemble_element(ASTNode *element, FILE *file)
 {
 
-    if (stmt->type == NodeType::NODE_RETURN)
+    if (element->type == NodeType::NODE_RETURN)
     {
-        ASTNode *value = ((RtnNode *)stmt)->value;
+        ASTNode *value = ((RtnNode *)element)->value;
 
         // /*
         //     Moves the immediate value into the eax register (which holds return value of functions)
@@ -114,6 +114,20 @@ void Assembler::assemble_stmt(ASTNode *stmt, FILE *file)
 
         assemble_expr(value, file);
         fprintf(file, "	movl	%d(%%rbp), %%eax\n", func_temp_var_count * -4);
+    }
+    else if (element->type == NodeType::NODE_VAR_DECL)
+    {
+        VarAssignNode *var_decl = (VarAssignNode *)element;
+
+        if (var_decl->value != nullptr)
+        {
+            func_temp_var_count += 1;
+            assemble_expr(var_decl->value, file);
+        }
+
+        // assemble_expr(var_assign->value, file);
+        // fprintf(file, "        movl    %d(%%rbp), %%r10d\n", func_temp_var_count * -4);
+        // fprintf(file, "        movl    %%r10d, %d(%%rbp)\n", var_assign->var->offset * -4);
     }
 }
 
@@ -293,6 +307,13 @@ int Assembler::calculate_stack_space(ASTNode *node)
         return 1 + calculate_stack_space(((UnaryNode *)node)->value);
     case NodeType::NODE_BINARY:
         return 1 + calculate_stack_space(((BinaryNode *)node)->left) + calculate_stack_space(((BinaryNode *)node)->right);
+    case NodeType::NODE_VAR_DECL:
+    {
+        VarAssignNode *var_decl = (VarAssignNode *)node;
+        return 1 + var_decl->value != nullptr ? calculate_stack_space(var_decl->value) : 0;
+    }
+    case NodeType::NODE_VAR_ASSIGN:
+        return calculate_stack_space(((VarAssignNode *)node)->value);
     default:
         return 0;
     }

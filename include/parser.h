@@ -20,10 +20,11 @@ private:
     bool match(std::vector<TokenType> &tokens);
     void advance();
     void expect(TokenType token_type);
+    void expect_and_advance(TokenType token_type);
     void expect(std::vector<TokenType> &tokens);
     void error(const std::string &message);
 
-    std::vector<ASTNode *> parse_stmts();
+    std::vector<ASTNode *> parse_elements();
     FuncNode *parse_func();
     RtnNode *parse_rtn();
     VarDeclNode *parse_var_decl();

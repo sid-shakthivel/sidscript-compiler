@@ -13,7 +13,7 @@ public:
 
 private:
     void assemble_func(FuncNode *func, FILE *file);
-    void assemble_stmt(ASTNode *stmt, FILE *file);
+    void assemble_element(ASTNode *element, FILE *file);
     void assemble_expr(ASTNode *expr, FILE *file);
     void assemble_unary(UnaryNode *unary, FILE *file);
     void assemble_binary(BinaryNode *binary, FILE *file);

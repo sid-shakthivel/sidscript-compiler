@@ -42,6 +42,7 @@ enum TokenType
     TOKEN_OR,
     TOKEN_INCREMENT,
     TOKEN_DECREMENT,
+    TOKEN_ARROW,
     TOKEN_UNKNOWN_SYMBOL,
 };
 
