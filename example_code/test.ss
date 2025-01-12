@@ -1,5 +1,7 @@
 fn main() -> int {
-    int test = 76 * 2;
-    int best = 3;
-    return test;
+    int a = 5;
+    if (a == 5) 
+    {
+        a = 4;
+    }
 }

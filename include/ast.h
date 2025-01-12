@@ -40,6 +40,7 @@ enum NodeType
     NODE_VAR,
     NODE_VAR_ASSIGN,
     NODE_VAR_DECL,
+    NODE_IF,
 };
 
 UnaryOpType get_unary_op_type(const TokenType &t);
@@ -145,36 +146,13 @@ public:
     void print(int tabs) override;
 };
 
-// // ie int test = 5;
-// class VarDecl : public ASTNode
-// {
-// public:
-//     std::string var_name;
-//     TokenType type;
-//     ASTNode *value;
+class IfNode : public ASTNode
+{
+public:
+    BinaryNode *condition;
+    std::vector<ASTNode *> then_elements;
+    std::vector<ASTNode *> else_elements;
 
-//     VarDecl(const std::string &name, ASTNode *val, const TokenType &t);
-//     void print(int tabs) override;
-// };
-
-// // ie test = 10;
-// class VarAssign : public ASTNode
-// {
-// public:
-//     std::string var_name;
-//     ASTNode *value;
-
-//     VarAssign(const std::string &name, ASTNode *val);
-//     void print(int tabs) override;
-// };
-
-// class IfStmt : public ASTNode
-// {
-// public:
-//     Condition *condition;
-//     std::vector<ASTNode *> if_statements;
-//     std::vector<ASTNode *> else_statements;
-
-//     IfStmt(Condition *c);
-//     void print(int tabs) override;
-// };
+    IfNode(BinaryNode *c, std::vector<ASTNode *> &t, std::vector<ASTNode *> &e);
+    void print(int tabs) override;
+};

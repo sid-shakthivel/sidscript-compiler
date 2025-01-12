@@ -39,18 +39,16 @@ std::unordered_map<std::string, TokenType> string_to_token = {
     {"true", TOKEN_BOOL},
     {"false", TOKEN_BOOL},
     {"return", TOKEN_RTN},
+    {"?", TOKEN_QUESTION_MARK},
+    {":", TOKEN_COLON},
     {"->", TOKEN_ARROW},
 };
 
 std::string token_to_string(TokenType token_type)
 {
     for (const auto &pair : string_to_token)
-    {
         if (pair.second == token_type)
-        {
             return pair.first;
-        }
-    }
     return "";
 }
 
@@ -99,16 +97,12 @@ std::string Lexer::process_symbol()
 Token Lexer::get_next_token()
 {
     if (index >= source.length())
-    {
         return Token(TOKEN_EOF, "");
-    }
 
     char c = source[index];
 
     if (isdigit(c))
-    {
         return Token(TOKEN_INT, process_number());
-    }
     else if (isalpha(c))
     {
         std::string temp_identifier = process_identifier();
@@ -126,9 +120,7 @@ Token Lexer::get_next_token()
         TokenType token_type = (it != string_to_token.end()) ? it->second : TOKEN_UNKNOWN_SYMBOL;
 
         if (token_type == TOKEN_UNKNOWN_SYMBOL)
-        {
-            std::cout << "unknown symbol\n";
-        }
+            std::cout << "Unknown symbol\n";
 
         return Token(token_type, temp_symbol);
     }

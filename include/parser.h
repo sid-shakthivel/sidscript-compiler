@@ -30,14 +30,7 @@ private:
     VarDeclNode *parse_var_decl();
     ASTNode *parse_factor();
     ASTNode *parse_expr(int min_precedence);
+    IfNode *parse_if_stmt();
 
     int get_precedence(TokenType op);
-
-    // IfStmt *parse_if_stmt();
-    // Condition *parse_condition();
-    // VarDecl *parse_var_decl();
-    // VarAssign *parse_var_assign();
-    // ASTNode *parse_expr(std::vector<TokenType> end_tokens);
-    // ASTNode *parse_term(std::vector<TokenType> &end_tokens);
-    // FactorNode *parse_factor();
 };

@@ -182,18 +182,18 @@ void VarDeclNode::print(int tabs)
         value->print(tabs + 1);
 }
 
-// IfStmt::IfStmt(Condition *c) : condition(c) {}
+IfNode::IfNode(BinaryNode *c, std::vector<ASTNode *> &t, std::vector<ASTNode *> &e) : ASTNode(NODE_IF), condition(c), then_elements(t), else_elements(e) {}
 
-// void IfStmt::print(int tabs)
-// {
-//     std::cout << std::string(tabs, ' ') << "IfStmt: " << std::endl;
-//     condition->print(tabs + 1);
+void IfNode::print(int tabs)
+{
+    std::cout << std::string(tabs, ' ') << "If: " << std::endl;
+    condition->print(tabs + 1);
 
-//     std::cout << std::string(tabs + 1, ' ') << "If Stms:" << std::endl;
-//     for (auto statement : if_statements)
-//         statement->print(tabs + 1);
+    std::cout << std::string(tabs + 1, ' ') << "If Stms:" << std::endl;
+    for (auto statement : then_elements)
+        statement->print(tabs + 1);
 
-//     std::cout << std::string(tabs + 1, ' ') << "Else Stms:" << std::endl;
-//     for (auto statement : else_statements)
-//         statement->print(tabs + 1);
-// }
+    std::cout << std::string(tabs + 1, ' ') << "Else Stms:" << std::endl;
+    for (auto statement : else_elements)
+        statement->print(tabs + 1);
+}

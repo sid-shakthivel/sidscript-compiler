@@ -123,6 +123,8 @@ std::vector<ASTNode *> Parser::parse_elements()
             elements.emplace_back(parse_var_decl());
         else if (match(TOKEN_IDENTIFIER))
             elements.emplace_back(parse_expr(0));
+        else if (match(TOKEN_IF))
+            elements.emplace_back(parse_if_stmt());
         else
             error("Expected an element");
 
@@ -141,6 +143,26 @@ RtnNode *Parser::parse_rtn()
     expect(TOKEN_SEMICOLON);
 
     return new RtnNode(expr);
+}
+
+IfNode *Parser::parse_if_stmt()
+{
+    advance();
+
+    expect_and_advance(TOKEN_LPAREN);
+
+    ASTNode *expr = parse_expr(0);
+
+    expect_and_advance(TOKEN_RPAREN);
+
+    expect_and_advance(TOKEN_LBRACE);
+
+    std::vector<ASTNode *> then_elements = parse_elements();
+    std::vector<ASTNode *> else_elements;
+
+    expect(TOKEN_RBRACE);
+
+    return new IfNode((BinaryNode *)expr, then_elements, else_elements);
 }
 
 VarDeclNode *Parser::parse_var_decl()
