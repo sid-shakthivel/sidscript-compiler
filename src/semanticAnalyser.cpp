@@ -1,6 +1,6 @@
 #include "../include/semanticAnalyser.h"
 
-SemanticAnalyser::SemanticAnalyser(SymbolTable symbolTable) : symbolTable(symbolTable) {}
+SemanticAnalyser::SemanticAnalyser(SymbolTable &symbolTable) : symbolTable(symbolTable) {}
 
 void SemanticAnalyser::analyse(ProgramNode *program)
 {

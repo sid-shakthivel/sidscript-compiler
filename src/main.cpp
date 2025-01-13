@@ -9,6 +9,7 @@
 #include "../include/ast.h"
 #include "../include/symbolTable.h"
 #include "../include/semanticAnalyser.h"
+#include "../include/tacGenerator.h"
 
 int main()
 {
@@ -38,6 +39,10 @@ int main()
     SymbolTable symbolTable;
     SemanticAnalyser semanticAnalyser(symbolTable);
     semanticAnalyser.analyse(program);
+
+    TacGenerator tacGenerator(symbolTable);
+    std::vector<TACInstruction> instructions = tacGenerator.generate_tac(program);
+    tacGenerator.print_tac();
 
     // Assembler assembler;
     // assembler.assemble(program, "test.s");

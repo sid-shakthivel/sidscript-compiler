@@ -12,6 +12,7 @@ set(SOURCES
     ../src/assembler.cpp
     ../src/symbolTable.cpp
     ../src/semanticAnalyser.cpp
+    ../src/tacGenerator.cpp
     ../src/main.cpp
 )
 
