@@ -81,7 +81,7 @@ class FuncNode : public ASTNode
 public:
     std::string name;
     std::vector<ASTNode *> args;
-    std::vector<ASTNode *> stmts;
+    std::vector<ASTNode *> elements;
 
     FuncNode(const std::string &n, std::vector<ASTNode *> &s);
     void print(int tabs) override;

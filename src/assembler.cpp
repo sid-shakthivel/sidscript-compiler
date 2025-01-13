@@ -71,7 +71,7 @@ void Assembler::assemble_func(FuncNode *func, FILE *file)
 
     This method calcualtes the stack space required for the function
     */
-    int stack_space = std::accumulate(func->stmts.begin(), func->stmts.end(), 0,
+    int stack_space = std::accumulate(func->elements.begin(), func->elements.end(), 0,
                                       [this](int acc, ASTNode *stmt)
                                       {
                                           return acc + this->calculate_stack_space(stmt);
@@ -82,7 +82,7 @@ void Assembler::assemble_func(FuncNode *func, FILE *file)
 
     func_temp_var_count = 1;
 
-    for (auto stmt : func->stmts)
+    for (auto stmt : func->elements)
     {
         assemble_element(stmt, file);
     }

@@ -10,6 +10,8 @@ set(SOURCES
     ../src/ast.cpp
     ../src/parser.cpp
     ../src/assembler.cpp
+    ../src/symbolTable.cpp
+    ../src/semanticAnalyser.cpp
     ../src/main.cpp
 )
 

@@ -67,7 +67,7 @@ void RtnNode::print(int tabs)
     value->print(tabs + 1);
 }
 
-FuncNode::FuncNode(const std::string &n, std::vector<ASTNode *> &s) : ASTNode(NODE_FUNCTION), name(n), stmts(s) {}
+FuncNode::FuncNode(const std::string &n, std::vector<ASTNode *> &s) : ASTNode(NODE_FUNCTION), name(n), elements(s) {}
 
 void FuncNode::print(int tabs)
 {
@@ -75,7 +75,7 @@ void FuncNode::print(int tabs)
     std::cout << std::string(tabs + 1, ' ') << "Name: " << name << std::endl;
     std::cout << std::string(tabs + 1, ' ') << "Body: " << std::endl;
 
-    for (auto stmt : stmts)
+    for (auto stmt : elements)
     {
         stmt->print(tabs + 2);
     }
@@ -191,9 +191,9 @@ void IfNode::print(int tabs)
 
     std::cout << std::string(tabs + 1, ' ') << "If Stms:" << std::endl;
     for (auto statement : then_elements)
-        statement->print(tabs + 1);
+        statement->print(tabs + 2);
 
     std::cout << std::string(tabs + 1, ' ') << "Else Stms:" << std::endl;
     for (auto statement : else_elements)
-        statement->print(tabs + 1);
+        statement->print(tabs + 2);
 }

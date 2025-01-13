@@ -7,6 +7,8 @@
 #include "../include/parser.h"
 #include "../include/assembler.h"
 #include "../include/ast.h"
+#include "../include/symbolTable.h"
+#include "../include/semanticAnalyser.h"
 
 int main()
 {
@@ -31,7 +33,11 @@ int main()
     Parser parser(&lexer);
 
     ProgramNode *program = parser.parse();
-    program->print(0);
+    // program->print(0);
+
+    SymbolTable symbolTable;
+    SemanticAnalyser semanticAnalyser(symbolTable);
+    semanticAnalyser.analyse(program);
 
     // Assembler assembler;
     // assembler.assemble(program, "test.s");

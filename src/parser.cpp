@@ -102,17 +102,15 @@ FuncNode *Parser::parse_func()
 
     expect_and_advance(TOKEN_INT_TEXT);
 
-    expect_and_advance(TOKEN_LBRACE);
-
-    std::vector<ASTNode *> stmts = parse_elements();
-
-    expect(TOKEN_RBRACE);
+    std::vector<ASTNode *> stmts = parse_block();
 
     return new FuncNode(func_name, stmts);
 }
 
-std::vector<ASTNode *> Parser::parse_elements()
+std::vector<ASTNode *> Parser::parse_block()
 {
+    expect_and_advance(TOKEN_LBRACE);
+
     std::vector<ASTNode *> elements;
 
     while (current_token.type != TOKEN_RBRACE)
@@ -125,11 +123,13 @@ std::vector<ASTNode *> Parser::parse_elements()
             elements.emplace_back(parse_expr(0));
         else if (match(TOKEN_IF))
             elements.emplace_back(parse_if_stmt());
-        else
+        else if (match(TOKEN_EOF))
             error("Expected an element");
 
         advance();
     }
+
+    expect(TOKEN_RBRACE);
 
     return elements;
 }
@@ -155,12 +155,16 @@ IfNode *Parser::parse_if_stmt()
 
     expect_and_advance(TOKEN_RPAREN);
 
-    expect_and_advance(TOKEN_LBRACE);
-
-    std::vector<ASTNode *> then_elements = parse_elements();
+    std::vector<ASTNode *> then_elements = parse_block();
     std::vector<ASTNode *> else_elements;
 
-    expect(TOKEN_RBRACE);
+    advance();
+
+    if (match(TOKEN_ELSE))
+    {
+        advance();
+        else_elements = parse_block();
+    }
 
     return new IfNode((BinaryNode *)expr, then_elements, else_elements);
 }

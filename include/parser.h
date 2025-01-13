@@ -24,7 +24,7 @@ private:
     void expect(std::vector<TokenType> &tokens);
     void error(const std::string &message);
 
-    std::vector<ASTNode *> parse_elements();
+    std::vector<ASTNode *> parse_block();
     FuncNode *parse_func();
     RtnNode *parse_rtn();
     VarDeclNode *parse_var_decl();
