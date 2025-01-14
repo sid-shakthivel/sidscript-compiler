@@ -6,7 +6,7 @@
 Symbol::Symbol(std::string n, int o, bool t) : name(n), stack_offset(o), is_temporary(t)
 {
     if (is_temporary)
-        unique_id = stack_offset /= -4;
+        unique_id = stack_offset / -4;
 }
 
 std::string Symbol::gen_unique_name()
@@ -64,7 +64,8 @@ void SymbolTable::resolve_variable(const std::string &name)
 
 int SymbolTable::get_var_count()
 {
-    return all_symbols.size();
+    // return all_symbols.size();
+    return var_count - 1;
 }
 
 Symbol *SymbolTable::find_symbol(const std::string &name)

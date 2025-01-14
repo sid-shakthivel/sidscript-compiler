@@ -64,7 +64,6 @@ void Assembler::assemble_tac(TACInstruction &instruction, FILE *file)
         */
         int stack_space = symbolTable->get_var_count() * 8;
         fprintf(file, "	subq	$%d, %%rsp\n\n", stack_space);
-        fprintf(file, "\n");
     }
     else if (instruction.op == TACOp::FUNC_END)
     {
@@ -85,12 +84,12 @@ void Assembler::assemble_tac(TACInstruction &instruction, FILE *file)
 
         if (potential_var == nullptr)
         {
-            fprintf(file, "	movq	$%s, %d(%%rbp)\n", instruction.arg2.c_str(), var->stack_offset);
+            fprintf(file, "	movl	$%s, %d(%%rsp)\n", instruction.arg2.c_str(), var->stack_offset);
         }
         else
         {
-            fprintf(file, "movq %d(%%rbp), %%r10d\n", potential_var->stack_offset);
-            fprintf(file, "movq %%r10d, %d(%%rbp)\n", var->stack_offset);
+            fprintf(file, "        movl    %d(%%rsp), %%r10d\n", potential_var->stack_offset);
+            fprintf(file, "        movl    %%r10d, %d(%%rsp)\n", var->stack_offset);
         }
     }
     else if (instruction.op == TACOp::RETURN)
@@ -99,15 +98,37 @@ void Assembler::assemble_tac(TACInstruction &instruction, FILE *file)
 
         if (potential_var == nullptr)
         {
-            fprintf(file, "	movq	$%s, %%eax\n", instruction.arg1.c_str());
+            fprintf(file, "	movl	$%s, %%eax\n", instruction.arg1.c_str());
         }
         else
         {
-            fprintf(file, "        movq    %d(%%rbp), %%eax\n", potential_var->stack_offset);
+            fprintf(file, "        movl    %d(%%rsp), %%eax\n", potential_var->stack_offset);
         }
     }
     else if (instruction.op == TACOp::ADD)
     {
-        
+        Symbol *potential_var = symbolTable->find_symbol(instruction.arg1);
+        Symbol *potential_var_2 = symbolTable->find_symbol(instruction.arg2);
+        Symbol *result_var = symbolTable->find_symbol(instruction.result);
+
+        if (potential_var == nullptr)
+        {
+            fprintf(file, "	movl	$%s, %%r10d\n", instruction.arg1.c_str());
+        }
+        else
+        {
+            fprintf(file, "        movl    %d(%%rsp), %%r10d\n", potential_var->stack_offset);
+        }
+
+        if (potential_var_2 == nullptr)
+        {
+            fprintf(file, "	addl	$%s, %%r10d\n", instruction.arg2.c_str());
+        }
+        else
+        {
+            fprintf(file, "  addl    %d(%%rsp), %%r10d\n", potential_var_2->stack_offset);
+        }
+
+        fprintf(file, "        movl    %%r10d, %d(%%rsp)\n", result_var->stack_offset);
     }
 }
