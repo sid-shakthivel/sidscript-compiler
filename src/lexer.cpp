@@ -99,6 +99,7 @@ Token Lexer::get_next_token()
     if (index >= source.length())
         return Token(TOKEN_EOF, "");
 
+    shadow_index = index;
     char c = source[index];
 
     if (isdigit(c))
@@ -120,13 +121,18 @@ Token Lexer::get_next_token()
         TokenType token_type = (it != string_to_token.end()) ? it->second : TOKEN_UNKNOWN_SYMBOL;
 
         if (token_type == TOKEN_UNKNOWN_SYMBOL)
-            std::cout << "Unknown symbol\n";
+            std::cout << "Lexer Error: Unknown symbol\n";
 
         return Token(token_type, temp_symbol);
     }
 
     index++;
     return get_next_token();
+}
+
+void Lexer::rewind()
+{
+    index = shadow_index;
 }
 
 void Lexer::print_all_tokens()

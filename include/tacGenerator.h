@@ -13,6 +13,14 @@ enum class TACOp
     MUL,
     DIV,
     MOD,
+    GT,
+    LT,
+    GTE,
+    LTE,
+    EQUAL,
+    NOT_EQUAL,
+    AND,
+    OR,
     FUNC_BEGIN, // Function prologue
     FUNC_END,   // Function epilogue
     RETURN,

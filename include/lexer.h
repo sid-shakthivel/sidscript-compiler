@@ -65,11 +65,13 @@ class Lexer
 public:
     Lexer(const std::string &source);
     Token get_next_token();
+    void rewind();
     void print_all_tokens();
 
 private:
     std::string source;
     size_t index;
+    size_t shadow_index;
 
     std::string process_number();
     std::string process_identifier();

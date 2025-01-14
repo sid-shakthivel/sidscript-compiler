@@ -54,6 +54,11 @@ void Parser::advance()
     current_token = lexer->get_next_token();
 }
 
+void Parser::retreat()
+{
+    lexer->rewind();
+}
+
 void Parser::error(const std::string &message)
 {
     throw std::runtime_error("Parser Error: " + message + " but found " + current_token.text);
@@ -123,7 +128,7 @@ std::vector<ASTNode *> Parser::parse_block()
             elements.emplace_back(parse_expr(0));
         else if (match(TOKEN_IF))
             elements.emplace_back(parse_if_stmt());
-        else if (match(TOKEN_EOF))
+        else
             error("Expected an element");
 
         advance();
@@ -165,6 +170,8 @@ IfNode *Parser::parse_if_stmt()
         advance();
         else_elements = parse_block();
     }
+    else
+        retreat();
 
     return new IfNode((BinaryNode *)expr, then_elements, else_elements);
 }
@@ -249,10 +256,6 @@ ASTNode *Parser::parse_factor()
 
         ASTNode *expr = parse_expr(0);
 
-        advance();
-
-        expect(TOKEN_RPAREN);
-
         return expr;
     }
     else if (match(TOKEN_IDENTIFIER))
@@ -261,68 +264,10 @@ ASTNode *Parser::parse_factor()
         return new VarNode(var_identifier);
     }
     else
-    {
         error("Expected expression");
-    }
 }
 
 int Parser::get_precedence(TokenType op)
 {
     return precedence_map.at(get_bin_op_type(op));
 }
-
-// // <var_decl> ::= <basic_type> <id> "=" <expr> ";"
-// VarDecl *Parser::parse_var_decl()
-// {
-//     TokenType var_type = current_token.type;
-//     advance();
-
-//     expect(TOKEN_IDENTIFIER);
-
-//     std::string var_identifier = current_token.text;
-
-//     advance();
-
-//     expect(TOKEN_ASSIGN);
-
-//     advance();
-
-//     ASTNode *expr = parse_expr({TOKEN_SEMICOLON});
-
-//     return new VarDecl(var_identifier, expr, var_type);
-// }
-
-// // <var_assign> ::= <id> "=" <expr> ";"
-// VarAssign *Parser::parse_var_assign()
-// {
-//     std::string var_identifier = current_token.text;
-
-//     advance();
-
-//     expect(TOKEN_ASSIGN);
-
-//     advance();
-
-//     ASTNode *expr = parse_expr({TOKEN_SEMICOLON});
-
-//     return new VarAssign(var_identifier, expr);
-// }
-
-// IfStmt *Parser::parse_if_stmt()
-// {
-//     advance();
-
-//     expect(TOKEN_LPAREN);
-
-//     advance();
-
-//     advance();
-
-//     expect(TOKEN_LBRACE);
-
-//     // Parse statements
-
-//     expect(TOKEN_RBRACE);
-
-//     return nullptr;
-// }
