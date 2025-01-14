@@ -52,13 +52,13 @@ struct TACInstruction
 class TacGenerator
 {
 public:
-    TacGenerator(SymbolTable &symbolTable);
+    TacGenerator(SymbolTable *symbolTable);
 
     std::vector<TACInstruction> generate_tac(ProgramNode *program);
     void print_tac();
 
 private:
-    SymbolTable &symbolTable;
+    SymbolTable *symbolTable;
     std::vector<TACInstruction> instructions;
 
     int tempCounter;

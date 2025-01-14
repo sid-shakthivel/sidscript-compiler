@@ -6,12 +6,12 @@
 class SemanticAnalyser
 {
 public:
-    SemanticAnalyser(SymbolTable &symbolTable);
+    SemanticAnalyser(SymbolTable *symbolTable);
 
     void analyse(ProgramNode *program);
 
 private:
-    SymbolTable &symbolTable;
+    SymbolTable *symbolTable;
 
     void analyse_func(FuncNode *func);
     void analyse_node(ASTNode *node);

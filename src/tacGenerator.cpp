@@ -46,7 +46,7 @@ TACOp convert_UnaryOpType_to_TACOp(UnaryOpType op)
     }
 }
 
-TacGenerator::TacGenerator(SymbolTable &symbolTable) : symbolTable(symbolTable), tempCounter(0), labelCounter(0) {}
+TacGenerator::TacGenerator(SymbolTable *symbolTable) : symbolTable(symbolTable), tempCounter(0), labelCounter(0) {}
 
 std::string TacGenerator::gen_new_temp_var()
 {
@@ -66,12 +66,10 @@ std::vector<TACInstruction> TacGenerator::generate_tac(ProgramNode *program)
 
 void TacGenerator::generate_tac_func(FuncNode *func)
 {
-    symbolTable.enterScope();
     instructions.emplace_back(TACOp::FUNC_BEGIN, func->name);
     for (auto element : func->elements)
         generate_tac_element(element);
     instructions.emplace_back(TACOp::FUNC_END);
-    symbolTable.exitScope();
 }
 
 void TacGenerator::generate_tac_element(ASTNode *element)
@@ -126,7 +124,7 @@ std::string TacGenerator::generate_tac_expr(ASTNode *expr)
         UnaryNode *unary = (UnaryNode *)expr;
         std::string result = generate_tac_expr(unary->value);
         std::string temp_var = gen_new_temp_var();
-        symbolTable.declareVariable(temp_var, true);
+        symbolTable->add_temporary_variable(temp_var);
         instructions.emplace_back(convert_UnaryOpType_to_TACOp(unary->op), result, "", temp_var);
         return temp_var;
     }
@@ -136,7 +134,7 @@ std::string TacGenerator::generate_tac_expr(ASTNode *expr)
         std::string arg1 = generate_tac_expr(binary->left);
         std::string arg2 = generate_tac_expr(binary->right);
         std::string temp_var = gen_new_temp_var();
-        symbolTable.declareVariable(temp_var, true);
+        symbolTable->add_temporary_variable(temp_var);
         instructions.emplace_back(convert_BinOpType_to_TACOp(binary->op), arg1, arg2, temp_var);
         return temp_var;
     }

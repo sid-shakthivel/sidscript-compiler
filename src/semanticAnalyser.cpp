@@ -1,6 +1,6 @@
 #include "../include/semanticAnalyser.h"
 
-SemanticAnalyser::SemanticAnalyser(SymbolTable &symbolTable) : symbolTable(symbolTable) {}
+SemanticAnalyser::SemanticAnalyser(SymbolTable *symbolTable) : symbolTable(symbolTable) {}
 
 void SemanticAnalyser::analyse(ProgramNode *program)
 {
@@ -9,10 +9,10 @@ void SemanticAnalyser::analyse(ProgramNode *program)
 
 void SemanticAnalyser::analyse_func(FuncNode *func)
 {
-    symbolTable.enterScope();
+    symbolTable->enter_scope();
     for (auto element : func->elements)
         analyse_node(element);
-    symbolTable.exitScope();
+    symbolTable->exit_scope();
 }
 
 void SemanticAnalyser::analyse_node(ASTNode *node)
@@ -35,14 +35,14 @@ void SemanticAnalyser::analyse_node(ASTNode *node)
 
 void SemanticAnalyser::analyse_var_decl(VarDeclNode *node)
 {
-    symbolTable.declareVariable(node->var->name);
+    symbolTable->declare_variable(node->var->name);
     if (node->value)
         analyse_node(node->value);
 }
 
 void SemanticAnalyser::analyser_var_assign(VarAssignNode *node)
 {
-    symbolTable.resolveVariable(node->var->name);
+    symbolTable->resolve_variable(node->var->name);
     analyse_node(node->value);
 }
 
@@ -56,17 +56,17 @@ void SemanticAnalyser::analyse_if_stmt(IfNode *node)
 {
     analyse_node(node->condition);
 
-    symbolTable.enterScope();
+    symbolTable->enter_scope();
     for (auto stmt : node->then_elements)
         analyse_node(stmt);
-    symbolTable.exitScope();
+    symbolTable->exit_scope();
 
     if (!node->else_elements.empty())
     {
-        symbolTable.enterScope();
+        symbolTable->enter_scope();
         for (auto stmt : node->else_elements)
             analyse_node(stmt);
-        symbolTable.exitScope();
+        symbolTable->exit_scope();
     }
 }
 
@@ -83,5 +83,5 @@ void SemanticAnalyser::analyse_unary(UnaryNode *node)
 
 void SemanticAnalyser::analyse_var(VarNode *node)
 {
-    symbolTable.resolveVariable(node->name);
+    symbolTable->resolve_variable(node->name);
 }
