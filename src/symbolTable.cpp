@@ -7,6 +7,8 @@ Symbol::Symbol(std::string n, int o, bool t) : name(n), stack_offset(o), is_temp
 {
     if (is_temporary)
         unique_id = stack_offset / -4;
+
+    // std::cout << "Symbol: " << name << " " << stack_offset << std::endl;
 }
 
 std::string Symbol::gen_unique_name()

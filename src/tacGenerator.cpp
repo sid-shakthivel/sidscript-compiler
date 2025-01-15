@@ -55,7 +55,7 @@ std::string TacGenerator::gen_new_temp_var()
 
 std::string TacGenerator::gen_new_label(std::string label)
 {
-    return "L" + label + std::to_string(labelCounter++);
+    return ".L" + label + std::to_string(labelCounter++);
 }
 
 std::vector<TACInstruction> TacGenerator::generate_tac(ProgramNode *program)
@@ -94,7 +94,10 @@ void TacGenerator::generate_tac_element(ASTNode *element)
         std::string label_success = gen_new_label();
         std::string label_failure = gen_new_label();
 
-        instructions.emplace_back(TACOp::IF, condition_res, "", label_success);
+        TACInstruction if_instruction(TACOp::IF, condition_res, "", label_success);
+        if_instruction.op2 = convert_BinOpType_to_TACOp(if_stmt->condition->op);
+
+        instructions.emplace_back(if_instruction);
         instructions.emplace_back(TACOp::GOTO, "", "", label_failure);
 
         instructions.emplace_back(TACOp::LABEL, label_success);

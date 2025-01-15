@@ -32,6 +32,7 @@ enum class TACOp
     DEALLOC_STACK,
     NEGATE,
     COMPLEMENT,
+    NOP,
 };
 
 TACOp convert_UnaryOpType_to_TACOp(UnaryOpType op);
@@ -44,9 +45,11 @@ struct TACInstruction
     std::string arg2;   // Second argument (optional)
     std::string result; // Result variable or temporary
 
+    TACOp op2;
+
     TACInstruction(TACOp op, const std::string &arg1 = "",
                    const std::string &arg2 = "", const std::string &result = "")
-        : op(op), arg1(arg1), arg2(arg2), result(result) {}
+        : op(op), arg1(arg1), arg2(arg2), result(result), op2(TACOp::NOP) {}
 };
 
 class TacGenerator
