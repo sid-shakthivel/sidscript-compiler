@@ -29,9 +29,14 @@ private:
     FuncNode *parse_func();
     RtnNode *parse_rtn();
     VarDeclNode *parse_var_decl();
+    VarAssignNode *parse_var_assign();
     ASTNode *parse_factor();
-    ASTNode *parse_expr(int min_precedence);
+    ASTNode *parse_expr(int min_precedence = 0);
     IfNode *parse_if_stmt();
+    WhileNode *parse_while_stmt();
+    ForNode *parse_for_stmt();
+    ASTNode *parse_for_init();
+    ASTNode *parse_loop_modifier();
 
     int get_precedence(TokenType op);
 };

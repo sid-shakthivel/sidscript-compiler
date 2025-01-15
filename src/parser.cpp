@@ -24,7 +24,7 @@ std::unordered_map<BinOpType, int> precedence_map = {
 
 std::vector<TokenType> bin_op_tokens = {TOKEN_PLUS, TOKEN_MINUS, TOKEN_STAR, TOKEN_SLASH, TOKEN_PERCENT, TOKEN_EQUALS, TOKEN_NOT_EQUALS, TOKEN_LT, TOKEN_GT, TOKEN_LE, TOKEN_GE, TOKEN_AND, TOKEN_OR};
 
-Parser::Parser(Lexer *l) : lexer(l), current_token(TOKEN_EOF, "")
+Parser::Parser(Lexer *l) : lexer(l), current_token(TOKEN_EOF, "", 1)
 {
     advance();
 }
@@ -61,7 +61,7 @@ void Parser::retreat()
 
 void Parser::error(const std::string &message)
 {
-    throw std::runtime_error("Parser Error: " + message + " but found " + current_token.text);
+    throw std::runtime_error("Parser Error: " + message + " but found " + current_token.text + " on line " + std::to_string(current_token.line));
 }
 
 void Parser::expect(TokenType token_type)
@@ -125,9 +125,15 @@ std::vector<ASTNode *> Parser::parse_block()
         else if (match(TOKEN_INT_TEXT))
             elements.emplace_back(parse_var_decl());
         else if (match(TOKEN_IDENTIFIER))
-            elements.emplace_back(parse_expr(0));
+            elements.emplace_back(parse_var_assign());
         else if (match(TOKEN_IF))
             elements.emplace_back(parse_if_stmt());
+        else if (match(TOKEN_WHILE))
+            elements.emplace_back(parse_while_stmt());
+        else if (match(TOKEN_FOR))
+            elements.emplace_back(parse_for_stmt());
+        else if (match(TOKEN_CONTINUE) || match(TOKEN_BREAK))
+            elements.emplace_back(parse_loop_modifier());
         else
             error("Expected an element");
 
@@ -143,7 +149,7 @@ RtnNode *Parser::parse_rtn()
 {
     advance();
 
-    ASTNode *expr = parse_expr(0);
+    ASTNode *expr = parse_expr();
 
     expect(TOKEN_SEMICOLON);
 
@@ -156,7 +162,7 @@ IfNode *Parser::parse_if_stmt()
 
     expect_and_advance(TOKEN_LPAREN);
 
-    ASTNode *expr = parse_expr(0);
+    ASTNode *expr = parse_expr();
 
     expect_and_advance(TOKEN_RPAREN);
 
@@ -174,6 +180,68 @@ IfNode *Parser::parse_if_stmt()
         retreat();
 
     return new IfNode((BinaryNode *)expr, then_elements, else_elements);
+}
+
+WhileNode *Parser::parse_while_stmt()
+{
+    advance();
+
+    expect_and_advance(TOKEN_LPAREN);
+
+    ASTNode *expr = parse_expr();
+
+    expect_and_advance(TOKEN_RPAREN);
+
+    std::vector<ASTNode *> elements = parse_block();
+
+    return new WhileNode((BinaryNode *)expr, elements);
+}
+
+ForNode *Parser::parse_for_stmt()
+{
+    advance();
+
+    expect_and_advance(TOKEN_LPAREN);
+
+    ASTNode *init = parse_for_init();
+
+    advance();
+
+    BinaryNode *condition = (BinaryNode *)parse_expr();
+
+    expect_and_advance(TOKEN_SEMICOLON);
+
+    ASTNode *post = parse_expr();
+
+    expect_and_advance(TOKEN_RPAREN);
+
+    std::vector<ASTNode *> elements = parse_block();
+
+    return new ForNode(init, condition, post, elements);
+}
+
+ASTNode *Parser::parse_for_init()
+{
+    if (match(TOKEN_INT_TEXT))
+        return parse_var_decl();
+    else if (match(TOKEN_IDENTIFIER))
+        return parse_var_assign();
+    else
+        error("Parser Error: Expected valid for init");
+}
+
+ASTNode *Parser::parse_loop_modifier()
+{
+    TokenType token_type = current_token.type;
+
+    advance();
+
+    expect(TOKEN_SEMICOLON);
+
+    if (token_type == TOKEN_CONTINUE)
+        return new ContinueNode("");
+    else if (token_type == TOKEN_BREAK)
+        return new BreakNode("");
 }
 
 VarDeclNode *Parser::parse_var_decl()
@@ -194,7 +262,7 @@ VarDeclNode *Parser::parse_var_decl()
     {
         advance();
 
-        ASTNode *expr = parse_expr(0);
+        ASTNode *expr = parse_expr();
 
         expect(TOKEN_SEMICOLON);
 
@@ -204,20 +272,24 @@ VarDeclNode *Parser::parse_var_decl()
     return new VarDeclNode(var, nullptr);
 }
 
-ASTNode *Parser::parse_expr(int min_presedence = 0)
+VarAssignNode *Parser::parse_var_assign()
+{
+    VarNode *var = (VarNode *)parse_factor();
+
+    advance();
+
+    expect_and_advance(TOKEN_ASSIGN);
+
+    ASTNode *expr = parse_expr();
+
+    return new VarAssignNode(var, expr);
+}
+
+ASTNode *Parser::parse_expr(int min_presedence)
 {
     ASTNode *left = parse_factor();
 
     advance();
-
-    if (match(TOKEN_ASSIGN))
-    {
-        advance();
-
-        ASTNode *expr = parse_expr(0);
-
-        return new VarAssignNode((VarNode *)left, expr);
-    }
 
     while (match(bin_op_tokens) && get_precedence(current_token.type) >= min_presedence)
     {
@@ -240,7 +312,7 @@ ASTNode *Parser::parse_factor()
 
         return new IntegerLiteral(number);
     }
-    else if (match(TOKEN_TILDA) || match(TOKEN_MINUS))
+    else if (match(TOKEN_TILDA) || match(TOKEN_MINUS) || match(TOKEN_INCREMENT) || match(TOKEN_DECREMENT))
     {
         auto op = current_token.type;
 
@@ -254,7 +326,7 @@ ASTNode *Parser::parse_factor()
     {
         advance();
 
-        ASTNode *expr = parse_expr(0);
+        ASTNode *expr = parse_expr();
 
         return expr;
     }

@@ -12,6 +12,10 @@ UnaryOpType get_unary_op_type(const TokenType &t)
         return UnaryOpType::NEGATE;
     case TOKEN_TILDA:
         return UnaryOpType::COMPLEMENT;
+    case TOKEN_INCREMENT:
+        return UnaryOpType::INCREMENT;
+    case TOKEN_DECREMENT:
+        return UnaryOpType::DECREMENT;
     default:
         return UnaryOpType::DECREMENT;
     }
@@ -196,4 +200,42 @@ void IfNode::print(int tabs)
     std::cout << std::string(tabs + 1, ' ') << "Else Stms:" << std::endl;
     for (auto statement : else_elements)
         statement->print(tabs + 2);
+}
+
+WhileNode::WhileNode(BinaryNode *c, std::vector<ASTNode *> &e) : ASTNode(NODE_WHILE), condition(c), elements(e) {}
+
+void WhileNode::print(int tabs)
+{
+    std::cout << std::string(tabs, ' ') << "While: " << std::endl;
+    condition->print(tabs + 1);
+    std::cout << std::string(tabs + 1, ' ') << "While Elements:" << std::endl;
+    for (auto element : elements)
+        element->print(tabs + 2);
+}
+
+ForNode::ForNode(ASTNode *i, BinaryNode *c, ASTNode *p, std::vector<ASTNode *> &e) : ASTNode(NODE_FOR), init(i), condition(c), post(p), elements(e) {}
+
+void ForNode::print(int tabs)
+{
+    std::cout << std::string(tabs, ' ') << "For: " << std::endl;
+    init->print(tabs + 1);
+    condition->print(tabs + 1);
+    post->print(tabs + 1);
+    std::cout << std::string(tabs + 1, ' ') << "For Elements:" << std::endl;
+    for (auto element : elements)
+        element->print(tabs + 2);
+}
+
+ContinueNode::ContinueNode(std::string l) : ASTNode(NODE_CONTINUE), label(l) {}
+
+void ContinueNode::print(int tabs)
+{
+    std::cout << std::string(tabs, ' ') << "Continue " << label << std::endl;
+}
+
+BreakNode::BreakNode(std::string l) : ASTNode(NODE_BREAK), label(l) {}
+
+void BreakNode::print(int tabs)
+{
+    std::cout << std::string(tabs, ' ') << "Break " << label << std::endl;
 }

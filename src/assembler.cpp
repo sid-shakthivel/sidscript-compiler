@@ -116,9 +116,9 @@ void Assembler::assemble_tac(TACInstruction &instruction, FILE *file)
 		case TACOp::GTE:
 			return "jne";
 		case TACOp::AND:
-			return "jz";
+			return "jne";
 		case TACOp::OR:
-			return "jnz";
+			return "jne";
 		default:
 			return "";
 		};
@@ -263,5 +263,17 @@ void Assembler::assemble_tac(TACInstruction &instruction, FILE *file)
 	else if (instruction.op == TACOp::LABEL)
 	{
 		fprintf(file, "\n%s:\n", instruction.arg1.c_str());
+	}
+	else if (instruction.op == TACOp::AND)
+	{
+		load_to_reg(instruction.arg1, "%r10d");
+		bin_op_to_reg(instruction.arg2, "%r10d", "andl");
+		store_from_reg(instruction.result, "%r10d");
+	}
+	else if (instruction.op == TACOp::OR)
+	{
+		load_to_reg(instruction.arg1, "%r10d");
+		bin_op_to_reg(instruction.arg2, "%r10d", "orl");
+		store_from_reg(instruction.result, "%r10d");
 	}
 }

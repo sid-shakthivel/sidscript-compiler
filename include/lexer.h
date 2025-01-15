@@ -45,6 +45,8 @@ enum TokenType
     TOKEN_ARROW,
     TOKEN_QUESTION_MARK,
     TOKEN_COLON,
+    TOKEN_CONTINUE,
+    TOKEN_BREAK,
     TOKEN_UNKNOWN_SYMBOL,
 };
 
@@ -56,8 +58,9 @@ struct Token
 public:
     TokenType type;
     std::string text;
+    size_t line;
 
-    Token(TokenType t, const std::string &txt) : type(t), text(txt) {}
+    Token(TokenType t, const std::string &txt, size_t l) : type(t), text(txt), line(l) {}
 };
 
 class Lexer
@@ -72,6 +75,7 @@ private:
     std::string source;
     size_t index;
     size_t shadow_index;
+    size_t line = 1;
 
     std::string process_number();
     std::string process_identifier();

@@ -1,9 +1,14 @@
 fn main() -> int {
-    int a = 4;
-    int b = 3;
-    if (a < 5 && b == 3)
+    int a = 5;
+    
+    for (int b = 0; b < 5; ++b)
     {
-        a = 3;
+        a = a + 1;
+        if (a == 5)
+        {
+            continue;
+        }
     }
+
     return a;
 }

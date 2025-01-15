@@ -42,6 +42,8 @@ std::unordered_map<std::string, TokenType> string_to_token = {
     {"?", TOKEN_QUESTION_MARK},
     {":", TOKEN_COLON},
     {"->", TOKEN_ARROW},
+    {"continue", TOKEN_CONTINUE},
+    {"break", TOKEN_BREAK},
 };
 
 std::string token_to_string(TokenType token_type)
@@ -97,13 +99,16 @@ std::string Lexer::process_symbol()
 Token Lexer::get_next_token()
 {
     if (index >= source.length())
-        return Token(TOKEN_EOF, "");
+        return Token(TOKEN_EOF, "", line);
 
     shadow_index = index;
     char c = source[index];
 
+    if (c == '\n')
+        line++;
+
     if (isdigit(c))
-        return Token(TOKEN_INT, process_number());
+        return Token(TOKEN_INT, process_number(), line);
     else if (isalpha(c))
     {
         std::string temp_identifier = process_identifier();
@@ -111,7 +116,7 @@ Token Lexer::get_next_token()
         auto it = string_to_token.find(temp_identifier);
         TokenType token_type = (it != string_to_token.end()) ? it->second : TOKEN_IDENTIFIER;
 
-        return Token(token_type, temp_identifier);
+        return Token(token_type, temp_identifier, line);
     }
     else if (!isspace(c))
     {
@@ -123,7 +128,7 @@ Token Lexer::get_next_token()
         if (token_type == TOKEN_UNKNOWN_SYMBOL)
             std::cout << "Lexer Error: Unknown symbol\n";
 
-        return Token(token_type, temp_symbol);
+        return Token(token_type, temp_symbol, line);
     }
 
     index++;

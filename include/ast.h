@@ -10,6 +10,7 @@ enum UnaryOpType
     NEGATE,
     COMPLEMENT,
     DECREMENT,
+    INCREMENT,
 };
 
 enum BinOpType
@@ -41,6 +42,10 @@ enum NodeType
     NODE_VAR_ASSIGN,
     NODE_VAR_DECL,
     NODE_IF,
+    NODE_WHILE,
+    NODE_FOR,
+    NODE_BREAK,
+    NODE_CONTINUE
 };
 
 UnaryOpType get_unary_op_type(const TokenType &t);
@@ -93,7 +98,7 @@ public:
     FuncNode *func;
 
     ProgramNode(FuncNode *f);
-    void print(int tabs) override;
+    void print(int tabs = 0) override;
 };
 
 class UnaryNode : public ASTNode
@@ -154,5 +159,45 @@ public:
     std::vector<ASTNode *> else_elements;
 
     IfNode(BinaryNode *c, std::vector<ASTNode *> &t, std::vector<ASTNode *> &e);
+    void print(int tabs) override;
+};
+
+class WhileNode : public ASTNode
+{
+public:
+    BinaryNode *condition;
+    std::vector<ASTNode *> elements;
+
+    WhileNode(BinaryNode *c, std::vector<ASTNode *> &e);
+    void print(int tabs) override;
+};
+
+class ForNode : public ASTNode
+{
+public:
+    ASTNode *init;
+    BinaryNode *condition;
+    ASTNode *post;
+    std::vector<ASTNode *> elements;
+
+    ForNode(ASTNode *i, BinaryNode *c, ASTNode *p, std::vector<ASTNode *> &e);
+    void print(int tabs) override;
+};
+
+class BreakNode : public ASTNode
+{
+public:
+    std::string label;
+
+    BreakNode(std::string l);
+    void print(int tabs) override;
+};
+
+class ContinueNode : public ASTNode
+{
+public:
+    std::string label;
+
+    ContinueNode(std::string l);
     void print(int tabs) override;
 };

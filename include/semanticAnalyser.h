@@ -22,4 +22,6 @@ private:
     void analyse_binary(BinaryNode *node);
     void analyse_unary(UnaryNode *node);
     void analyse_var(VarNode *node);
+    void analyse_while_stmt(WhileNode *node);
+    void analyse_for_stmt(ForNode *node);
 };

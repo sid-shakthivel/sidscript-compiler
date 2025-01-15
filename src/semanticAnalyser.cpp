@@ -70,6 +70,27 @@ void SemanticAnalyser::analyse_if_stmt(IfNode *node)
     }
 }
 
+void SemanticAnalyser::analyse_while_stmt(WhileNode *node)
+{
+    analyse_node(node->condition);
+
+    symbolTable->enter_scope();
+    for (auto stmt : node->elements)
+        analyse_node(stmt);
+    symbolTable->exit_scope();
+}
+
+void SemanticAnalyser::analyse_for_stmt(ForNode *node)
+{
+    symbolTable->enter_scope();
+    analyse_node(node->init);
+    analyse_node(node->condition);
+    analyse_node(node->post);
+    for (auto stmt : node->elements)
+        analyse_node(stmt);
+    symbolTable->exit_scope();
+}
+
 void SemanticAnalyser::analyse_binary(BinaryNode *node)
 {
     analyse_node(node->left);
