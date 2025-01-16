@@ -104,9 +104,9 @@ void Assembler::assemble_tac(TACInstruction &instruction, FILE *file)
 		switch (op)
 		{
 		case TACOp::EQUAL:
-			return "je";
+			return "jne";
 		case TACOp::NOT_EQUAL:
-			return "je";
+			return "jne";
 		case TACOp::LT:
 			return "jne";
 		case TACOp::LTE:
@@ -126,6 +126,7 @@ void Assembler::assemble_tac(TACInstruction &instruction, FILE *file)
 
 	if (instruction.op == TACOp::FUNC_BEGIN)
 	{
+		current_func = instruction.arg1;
 		fprintf(file, "_%s:\n", instruction.arg1.c_str());
 		/*
 			Pushes rbp onto stack (this saves caller's base pointer allowing it to be restored back later)
@@ -144,6 +145,7 @@ void Assembler::assemble_tac(TACInstruction &instruction, FILE *file)
 	}
 	else if (instruction.op == TACOp::FUNC_END)
 	{
+		fprintf(file, ".L%s_end:\n", current_func.c_str());
 		int stack_space = symbolTable->get_var_count() * 8;
 		fprintf(file, "\n\taddq	$%d, %%rsp\n", stack_space);
 		fprintf(file, "\tpopq	%%rbp\n");
@@ -172,6 +174,7 @@ void Assembler::assemble_tac(TACInstruction &instruction, FILE *file)
 	else if (instruction.op == TACOp::RETURN)
 	{
 		load_to_reg(instruction.arg1, "%eax");
+		fprintf(file, "\tjmp\t.L%s_end\n", current_func.c_str());
 	}
 	else if (instruction.op == TACOp::ADD)
 	{
@@ -275,5 +278,9 @@ void Assembler::assemble_tac(TACInstruction &instruction, FILE *file)
 		load_to_reg(instruction.arg1, "%r10d");
 		bin_op_to_reg(instruction.arg2, "%r10d", "orl");
 		store_from_reg(instruction.result, "%r10d");
+	}
+	else if (instruction.op == TACOp::NOP)
+	{
+		fprintf(file, "\n");
 	}
 }

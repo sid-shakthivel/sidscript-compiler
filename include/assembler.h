@@ -14,6 +14,7 @@ public:
 
 private:
     SymbolTable *symbolTable;
+    std::string current_func = "";
 
     void assemble_tac(TACInstruction &instruction, FILE *file);
 };

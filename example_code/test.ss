@@ -1,14 +1,15 @@
 fn main() -> int {
-    int a = 5;
-    
-    for (int b = 0; b < 5; ++b)
+    int b = 0;
+
+    while (b < 5)
     {
-        a = a + 1;
-        if (a == 5)
+        b = b + 1;
+
+        if (b == 4)
         {
-            continue;
+            break;
         }
     }
 
-    return a;
+    return b;
 }

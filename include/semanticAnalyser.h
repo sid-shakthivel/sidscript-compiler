@@ -13,6 +13,13 @@ public:
 private:
     SymbolTable *symbolTable;
 
+    unsigned int loop_label_counter = 0;
+    std::string gen_new_loop_label();
+    std::stack<std::string> loop_scopes;
+
+    void enter_loop_scope(std::string label);
+    void exit_loop_scope();
+
     void analyse_func(FuncNode *func);
     void analyse_node(ASTNode *node);
     void analyse_var_decl(VarDeclNode *node);
@@ -24,4 +31,5 @@ private:
     void analyse_var(VarNode *node);
     void analyse_while_stmt(WhileNode *node);
     void analyse_for_stmt(ForNode *node);
+    void analyser_loop_mod(ASTNode *node);
 };

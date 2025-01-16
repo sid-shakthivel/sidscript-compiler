@@ -168,6 +168,8 @@ public:
     BinaryNode *condition;
     std::vector<ASTNode *> elements;
 
+    std::string label = "";
+
     WhileNode(BinaryNode *c, std::vector<ASTNode *> &e);
     void print(int tabs) override;
 };
@@ -179,6 +181,8 @@ public:
     BinaryNode *condition;
     ASTNode *post;
     std::vector<ASTNode *> elements;
+
+    std::string label = "";
 
     ForNode(ASTNode *i, BinaryNode *c, ASTNode *p, std::vector<ASTNode *> &e);
     void print(int tabs) override;

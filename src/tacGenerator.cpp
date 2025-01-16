@@ -74,6 +74,27 @@ void TacGenerator::generate_tac_func(FuncNode *func)
 
 void TacGenerator::generate_tac_element(ASTNode *element)
 {
+    auto switch_condition = [](BinaryNode *node) -> BinOpType
+    {
+        switch (node->op)
+        {
+        case BinOpType::EQUAL:
+            return BinOpType::NOT_EQUAL;
+        case BinOpType::NOT_EQUAL:
+            return BinOpType::EQUAL;
+        case BinOpType::LESS_THAN:
+            return BinOpType::GREATER_OR_EQUAL;
+        case BinOpType::LESS_OR_EQUAL:
+            return BinOpType::GREATER_THAN;
+        case BinOpType::GREATER_THAN:
+            return BinOpType::LESS_OR_EQUAL;
+        case BinOpType::GREATER_OR_EQUAL:
+            return BinOpType::LESS_THAN;
+        default:
+            return node->op;
+        }
+    };
+
     if (element->type == NodeType::NODE_RETURN)
     {
         RtnNode *rtn = (RtnNode *)element;
@@ -109,6 +130,74 @@ void TacGenerator::generate_tac_element(ASTNode *element)
 
         for (auto element : if_stmt->else_elements)
             generate_tac_element(element);
+    }
+    else if (element->type == NodeType::NODE_WHILE)
+    {
+        WhileNode *while_stmt = (WhileNode *)element;
+
+        std::string start = while_stmt->label + "_start";
+        std::string post = while_stmt->label + "_post";
+        std::string end = while_stmt->label + "_end";
+
+        instructions.emplace_back(TACOp::LABEL, start);
+
+        while_stmt->condition->op = switch_condition(while_stmt->condition);
+        std::string condition_res = generate_tac_expr(while_stmt->condition);
+
+        TACInstruction if_instruction(TACOp::IF, condition_res, "", end);
+        if_instruction.op2 = convert_BinOpType_to_TACOp(while_stmt->condition->op);
+        instructions.emplace_back(if_instruction);
+
+        instructions.emplace_back(TACOp::NOP);
+
+        for (auto element : while_stmt->elements)
+            generate_tac_element(element);
+
+        instructions.emplace_back(TACOp::LABEL, post);
+        instructions.emplace_back(TACOp::GOTO, "", "", start);
+
+        instructions.emplace_back(TACOp::NOP);
+
+        instructions.emplace_back(TACOp::LABEL, end);
+    }
+    else if (element->type == NodeType::NODE_FOR)
+    {
+        // ForNode *for_stmt = (ForNode *)element;
+
+        // generate_tac_element(for_stmt->init);
+
+        // std::string start = for_stmt->label + "_start";
+        // std::string post = for_stmt->label + "_post";
+        // std::string end = for_stmt->label + "_end";
+
+        // instructions.emplace_back(TACOp::LABEL, start);
+
+        // std::string condition_res = generate_tac_expr(for_stmt->condition);
+
+        // TACInstruction if_instruction(TACOp::IF, condition_res, "", end);
+        // if_instruction.op2 = convert_BinOpType_to_TACOp(for_stmt->condition->op);
+        // instructions.emplace_back(if_instruction);
+
+        // instructions.emplace_back(TACOp::NOP);
+
+        // for (auto element : for_stmt->elements)
+        //     generate_tac_element(element);
+
+        // instructions.emplace_back(TACOp::LABEL, post);
+        // generate_tac_element(for_stmt->post);
+        // instructions.emplace_back(TACOp::GOTO, start);
+
+        // instructions.emplace_back(TACOp::NOP);
+
+        // instructions.emplace_back(TACOp::LABEL, end);
+    }
+    else if (element->type == NodeType::NODE_BREAK)
+    {
+        instructions.emplace_back(TACOp::GOTO, "", "", ((BreakNode *)element)->label + "_end");
+    }
+    else if (element->type == NodeType::NODE_CONTINUE)
+    {
+        instructions.emplace_back(TACOp::GOTO, "", "", ((ContinueNode *)element)->label + "_post");
     }
 }
 
@@ -197,6 +286,8 @@ void TacGenerator::print_tac()
             return "NEGATE";
         case TACOp::COMPLEMENT:
             return "COMPLEMENT";
+        case TACOp::NOP:
+            return "NOP";
         default:
             return "UNKNOWN";
         }
