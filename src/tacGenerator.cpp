@@ -162,34 +162,35 @@ void TacGenerator::generate_tac_element(ASTNode *element)
     }
     else if (element->type == NodeType::NODE_FOR)
     {
-        // ForNode *for_stmt = (ForNode *)element;
+        ForNode *for_stmt = (ForNode *)element;
 
-        // generate_tac_element(for_stmt->init);
+        generate_tac_element(for_stmt->init);
 
-        // std::string start = for_stmt->label + "_start";
-        // std::string post = for_stmt->label + "_post";
-        // std::string end = for_stmt->label + "_end";
+        std::string start = for_stmt->label + "_start";
+        std::string post = for_stmt->label + "_post";
+        std::string end = for_stmt->label + "_end";
 
-        // instructions.emplace_back(TACOp::LABEL, start);
+        instructions.emplace_back(TACOp::LABEL, start);
 
-        // std::string condition_res = generate_tac_expr(for_stmt->condition);
+        for_stmt->condition->op = switch_condition(for_stmt->condition);
+        std::string condition_res = generate_tac_expr(for_stmt->condition);
 
-        // TACInstruction if_instruction(TACOp::IF, condition_res, "", end);
-        // if_instruction.op2 = convert_BinOpType_to_TACOp(for_stmt->condition->op);
-        // instructions.emplace_back(if_instruction);
+        TACInstruction if_instruction(TACOp::IF, condition_res, "", end);
+        if_instruction.op2 = convert_BinOpType_to_TACOp(for_stmt->condition->op);
+        instructions.emplace_back(if_instruction);
 
-        // instructions.emplace_back(TACOp::NOP);
+        instructions.emplace_back(TACOp::NOP);
 
-        // for (auto element : for_stmt->elements)
-        //     generate_tac_element(element);
+        for (auto element : for_stmt->elements)
+            generate_tac_element(element);
 
-        // instructions.emplace_back(TACOp::LABEL, post);
-        // generate_tac_element(for_stmt->post);
-        // instructions.emplace_back(TACOp::GOTO, start);
+        instructions.emplace_back(TACOp::LABEL, post);
+        generate_tac_element(for_stmt->post);
+        instructions.emplace_back(TACOp::GOTO, "", "", start);
 
-        // instructions.emplace_back(TACOp::NOP);
+        instructions.emplace_back(TACOp::NOP);
 
-        // instructions.emplace_back(TACOp::LABEL, end);
+        instructions.emplace_back(TACOp::LABEL, end);
     }
     else if (element->type == NodeType::NODE_BREAK)
     {
@@ -198,6 +199,15 @@ void TacGenerator::generate_tac_element(ASTNode *element)
     else if (element->type == NodeType::NODE_CONTINUE)
     {
         instructions.emplace_back(TACOp::GOTO, "", "", ((ContinueNode *)element)->label + "_post");
+    }
+    else if (element->type == NodeType::NODE_UNARY)
+    {
+        UnaryNode *unary = (UnaryNode *)element;
+        if (unary->op == UnaryOpType::INCREMENT)
+        {
+            std::string result = generate_tac_expr(unary->value);
+            instructions.emplace_back(TACOp::ADD, result, "1", result);
+        }
     }
 }
 

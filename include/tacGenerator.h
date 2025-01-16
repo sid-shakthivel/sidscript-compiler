@@ -33,6 +33,8 @@ enum class TACOp
     NEGATE,
     COMPLEMENT,
     NOP,
+    INCREMENT,
+    DECREMENT
 };
 
 TACOp convert_UnaryOpType_to_TACOp(UnaryOpType op);
