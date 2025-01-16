@@ -26,7 +26,9 @@ private:
     void error(const std::string &message);
 
     std::vector<ASTNode *> parse_block();
-    FuncNode *parse_func();
+    FuncNode *parse_func_decl();
+    void parse_param_list(FuncNode *func);
+    void parse_args_list(FuncCallNode *func_call);
     RtnNode *parse_rtn();
     VarDeclNode *parse_var_decl();
     VarAssignNode *parse_var_assign();
@@ -36,7 +38,7 @@ private:
     WhileNode *parse_while_stmt();
     ForNode *parse_for_stmt();
     ASTNode *parse_for_init();
-    ASTNode *parse_loop_modifier();
+    ASTNode *parse_loop_control();
 
     int get_precedence(TokenType op);
 };

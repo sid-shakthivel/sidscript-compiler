@@ -1,8 +1,8 @@
+fn foo(int a) -> int {
+    return a + 2;
+}
+
 fn main() -> int {
-    int a = 0;
-    for (int b = 0; b < 10; ++b)
-    {
-        a = a + 1;
-    }
+    int a = foo(5);
     return a;
 }

@@ -8,6 +8,7 @@ std::unordered_map<std::string, TokenType> string_to_token = {
     {"int", TOKEN_INT_TEXT},
     {"float", TOKEN_FLOAT_TEXT},
     {"bool", TOKEN_BOOL_TEXT},
+    {"void", TOKEN_VOID},
     {"if", TOKEN_IF},
     {"else", TOKEN_ELSE},
     {"while", TOKEN_WHILE},
@@ -43,6 +44,7 @@ std::unordered_map<std::string, TokenType> string_to_token = {
     {":", TOKEN_COLON},
     {"->", TOKEN_ARROW},
     {"continue", TOKEN_CONTINUE},
+    {",", TOKEN_COMMA},
     {"break", TOKEN_BREAK},
 };
 

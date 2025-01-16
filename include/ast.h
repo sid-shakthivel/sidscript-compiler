@@ -2,6 +2,7 @@
 
 #include <string>
 #include <vector>
+#include <unordered_map>
 
 #include "lexer.h"
 
@@ -45,7 +46,8 @@ enum NodeType
     NODE_WHILE,
     NODE_FOR,
     NODE_BREAK,
-    NODE_CONTINUE
+    NODE_CONTINUE,
+    NODE_FUNC_CALL
 };
 
 UnaryOpType get_unary_op_type(const TokenType &t);
@@ -85,19 +87,29 @@ class FuncNode : public ASTNode
 {
 public:
     std::string name;
-    std::vector<ASTNode *> args;
+    std::vector<ASTNode *> params;
     std::vector<ASTNode *> elements;
 
-    FuncNode(const std::string &n, std::vector<ASTNode *> &s);
+    FuncNode(const std::string &n);
+    void print(int tabs) override;
+};
+
+class FuncCallNode : public ASTNode
+{
+public:
+    std::string name;
+    std::vector<ASTNode *> args;
+
+    FuncCallNode(const std::string &n);
     void print(int tabs) override;
 };
 
 class ProgramNode : public ASTNode
 {
 public:
-    FuncNode *func;
+    std::unordered_map<std::string, FuncNode *> functions;
 
-    ProgramNode(FuncNode *f);
+    ProgramNode();
     void print(int tabs = 0) override;
 };
 

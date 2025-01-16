@@ -47,6 +47,8 @@ enum TokenType
     TOKEN_COLON,
     TOKEN_CONTINUE,
     TOKEN_BREAK,
+    TOKEN_COMMA,
+    TOKEN_VOID,
     TOKEN_UNKNOWN_SYMBOL,
 };
 

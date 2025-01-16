@@ -71,7 +71,7 @@ void RtnNode::print(int tabs)
     value->print(tabs + 1);
 }
 
-FuncNode::FuncNode(const std::string &n, std::vector<ASTNode *> &s) : ASTNode(NODE_FUNCTION), name(n), elements(s) {}
+FuncNode::FuncNode(const std::string &n) : ASTNode(NODE_FUNCTION), name(n) {}
 
 void FuncNode::print(int tabs)
 {
@@ -80,17 +80,25 @@ void FuncNode::print(int tabs)
     std::cout << std::string(tabs + 1, ' ') << "Body: " << std::endl;
 
     for (auto stmt : elements)
-    {
         stmt->print(tabs + 2);
-    }
 }
 
-ProgramNode::ProgramNode(FuncNode *f) : ASTNode(NODE_PROGRAM), func(f) {}
+FuncCallNode::FuncCallNode(const std::string &n) : ASTNode(NODE_FUNC_CALL), name(n) {}
+
+void FuncCallNode::print(int tabs)
+{
+    std::cout << std::string(tabs, ' ') << "FuncCall: " << name << std::endl;
+    for (auto arg : args)
+        arg->print(tabs + 1);
+}
+
+ProgramNode::ProgramNode() : ASTNode(NODE_PROGRAM) {}
 
 void ProgramNode::print(int tabs)
 {
     std::cout << std::string(tabs, ' ') << "Program: " << std::endl;
-    func->print(tabs + 1);
+    for (auto func : functions)
+        func.second->print(tabs + 1);
 }
 
 UnaryNode::UnaryNode(UnaryOpType o, ASTNode *v) : ASTNode(NODE_UNARY), op(o), value(v) {}
@@ -107,6 +115,8 @@ void UnaryNode::print(int tabs)
             return "COMPLEMENT";
         case UnaryOpType::DECREMENT:
             return "DECREMENT";
+        case UnaryOpType::INCREMENT:
+            return "INCREMENT";
         }
         return "";
     };

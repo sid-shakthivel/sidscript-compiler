@@ -60,7 +60,7 @@ std::string TacGenerator::gen_new_label(std::string label)
 
 std::vector<TACInstruction> TacGenerator::generate_tac(ProgramNode *program)
 {
-    generate_tac_func(program->func);
+    // generate_tac_func(program->func);
     return instructions;
 }
 

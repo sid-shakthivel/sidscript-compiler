@@ -29,14 +29,6 @@ Parser::Parser(Lexer *l) : lexer(l), current_token(TOKEN_EOF, "", 1)
     advance();
 }
 
-ProgramNode *Parser::parse()
-{
-    FuncNode *main_func = parse_func();
-    ProgramNode *program = new ProgramNode(main_func);
-
-    return program;
-}
-
 bool Parser::match(TokenType type)
 {
     return current_token.type == type;
@@ -89,7 +81,22 @@ void Parser::expect_and_advance(TokenType token_type)
     advance();
 }
 
-FuncNode *Parser::parse_func()
+ProgramNode *Parser::parse()
+{
+    ProgramNode *program = new ProgramNode();
+
+    while (current_token.type != TOKEN_EOF)
+    {
+        FuncNode *func = parse_func_decl();
+        program->functions[func->name] = func;
+
+        advance();
+    }
+
+    return program;
+}
+
+FuncNode *Parser::parse_func_decl()
 {
     expect_and_advance(TOKEN_FN);
 
@@ -97,19 +104,59 @@ FuncNode *Parser::parse_func()
 
     std::string func_name = current_token.text;
 
+    FuncNode *func = new FuncNode(func_name);
+
     advance();
 
     expect_and_advance(TOKEN_LPAREN);
+
+    parse_param_list(func);
 
     expect_and_advance(TOKEN_RPAREN);
 
     expect_and_advance(TOKEN_ARROW);
 
+    std::vector<TokenType> accepted_tokens = {TOKEN_INT_TEXT, TOKEN_VOID};
+    expect(accepted_tokens);
+    advance();
+
+    std::vector<ASTNode *> elements = parse_block();
+
+    func->elements = elements;
+
+    return func;
+}
+
+void Parser::parse_param_list(FuncNode *func)
+{
+    if (match(TOKEN_RPAREN))
+        return;
+
     expect_and_advance(TOKEN_INT_TEXT);
 
-    std::vector<ASTNode *> stmts = parse_block();
+    expect(TOKEN_IDENTIFIER);
 
-    return new FuncNode(func_name, stmts);
+    func->params.emplace_back(new VarNode(current_token.text));
+
+    advance();
+
+    if (match(TOKEN_RPAREN))
+        return;
+
+    while (current_token.type != TOKEN_RPAREN)
+    {
+        expect_and_advance(TOKEN_COMMA);
+
+        expect_and_advance(TOKEN_INT_TEXT);
+
+        expect(TOKEN_IDENTIFIER);
+
+        func->params.emplace_back(new VarNode(current_token.text));
+
+        advance();
+    }
+
+    return;
 }
 
 std::vector<ASTNode *> Parser::parse_block()
@@ -133,7 +180,7 @@ std::vector<ASTNode *> Parser::parse_block()
         else if (match(TOKEN_FOR))
             elements.emplace_back(parse_for_stmt());
         else if (match(TOKEN_CONTINUE) || match(TOKEN_BREAK))
-            elements.emplace_back(parse_loop_modifier());
+            elements.emplace_back(parse_loop_control());
         else
             error("Expected an element");
 
@@ -230,7 +277,7 @@ ASTNode *Parser::parse_for_init()
         error("Parser Error: Expected valid for init");
 }
 
-ASTNode *Parser::parse_loop_modifier()
+ASTNode *Parser::parse_loop_control()
 {
     TokenType token_type = current_token.type;
 
@@ -333,10 +380,40 @@ ASTNode *Parser::parse_factor()
     else if (match(TOKEN_IDENTIFIER))
     {
         std::string var_identifier = current_token.text;
-        return new VarNode(var_identifier);
+
+        advance();
+
+        if (match(TOKEN_LPAREN))
+        {
+            FuncCallNode *func_call = new FuncCallNode(var_identifier);
+            parse_args_list(func_call);
+            expect(TOKEN_RPAREN);
+            return func_call;
+        }
+        else
+        {
+            retreat();
+            return new VarNode(var_identifier);
+        }
     }
     else
         error("Expected expression");
+}
+
+void Parser::parse_args_list(FuncCallNode *func_call)
+{
+    advance();
+
+    ASTNode *expr = parse_expr();
+
+    func_call->args.push_back(expr);
+
+    while (match(TOKEN_COMMA))
+    {
+        advance();
+        expr = parse_expr();
+        func_call->args.push_back(expr);
+    }
 }
 
 int Parser::get_precedence(TokenType op)

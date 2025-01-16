@@ -6,7 +6,8 @@ SemanticAnalyser::SemanticAnalyser(SymbolTable *symbolTable) : symbolTable(symbo
 
 void SemanticAnalyser::analyse(ProgramNode *program)
 {
-    analyse_func(program->func);
+    for (auto func : program->functions)
+        analyse_func(func.second);
 }
 
 void SemanticAnalyser::analyse_func(FuncNode *func)
@@ -38,7 +39,7 @@ void SemanticAnalyser::analyse_node(ASTNode *node)
     else if (node->type == NodeType::NODE_FOR)
         analyse_for_stmt((ForNode *)node);
     else if (node->type == NodeType::NODE_BREAK || node->type == NodeType::NODE_CONTINUE)
-        analyser_loop_mod(node);
+        analyser_loop_control(node);
 }
 
 void SemanticAnalyser::analyse_var_decl(VarDeclNode *node)
@@ -150,7 +151,7 @@ void SemanticAnalyser::exit_loop_scope()
     loop_scopes.pop();
 }
 
-void SemanticAnalyser::analyser_loop_mod(ASTNode *node)
+void SemanticAnalyser::analyser_loop_control(ASTNode *node)
 {
     if (node->type == NodeType::NODE_CONTINUE)
         ((ContinueNode *)node)->label = loop_scopes.top();
