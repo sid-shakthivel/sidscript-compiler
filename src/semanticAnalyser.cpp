@@ -14,29 +14,19 @@ void SemanticAnalyser::analyse_func(FuncNode *func)
 {
     // Check for duplicate function names
     if (symbolTable->func_symbols[func->name])
-        throw std::runtime_error("Semantic Error:Duplicate function name: " + func->name);
-
-    std::cout << "test\n";
+        throw std::runtime_error("Semantic Error: Duplicate function name: " + func->name);
 
     std::vector<Type> arg_types;
 
     for (auto param : func->params)
         arg_types.push_back(infer_type(((VarDeclNode *)param)->var));
 
-    std::cout << "hey\n";
-
     symbolTable->func_symbols[func->name] = new FuncSymbol(func->name, func->params.size(), arg_types, func->return_type);
-
-    std::cout << "ok\n";
 
     symbolTable->enter_scope();
 
-    std::cout << "here\n";
-
     for (auto param : func->params)
         symbolTable->declare_variable(((VarDeclNode *)param)->var->name);
-
-    std::cout << "out\n";
 
     for (auto element : func->elements)
         analyse_node(element);

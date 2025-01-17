@@ -3,6 +3,6 @@ fn foo(int a) -> int {
 }
 
 fn main() -> int {
-    int a = foo(5);
+    int a = hellothere(2);
     return a;
 }

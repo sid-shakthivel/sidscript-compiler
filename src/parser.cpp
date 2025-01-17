@@ -138,7 +138,8 @@ void Parser::parse_param_list(FuncNode *func)
 
     expect(TOKEN_IDENTIFIER);
 
-    func->params.emplace_back(new VarNode(current_token.text, Type::INT));
+    VarNode *var = new VarNode(current_token.text, Type::INT);
+    func->params.emplace_back(new VarDeclNode(var, nullptr));
 
     advance();
 
@@ -153,7 +154,8 @@ void Parser::parse_param_list(FuncNode *func)
 
         expect(TOKEN_IDENTIFIER);
 
-        func->params.emplace_back(new VarNode(current_token.text, Type::INT));
+        var = new VarNode(current_token.text, Type::INT);
+        func->params.emplace_back(new VarDeclNode(var, nullptr));
 
         advance();
     }
