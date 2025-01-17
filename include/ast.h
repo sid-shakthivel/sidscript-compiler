@@ -50,8 +50,16 @@ enum NodeType
     NODE_FUNC_CALL
 };
 
-UnaryOpType get_unary_op_type(const TokenType &t);
+enum class Type
+{
+    INT,
+    VOID
+};
+
+UnaryOpType
+get_unary_op_type(const TokenType &t);
 BinOpType get_bin_op_type(const TokenType &t);
+Type get_type(const TokenType &t);
 
 class ASTNode
 {
@@ -69,6 +77,7 @@ class IntegerLiteral : public ASTNode
 {
 public:
     int value;
+    Type type;
 
     IntegerLiteral(int v);
     void print(int tabs) override;
@@ -89,6 +98,7 @@ public:
     std::string name;
     std::vector<ASTNode *> params;
     std::vector<ASTNode *> elements;
+    Type return_type;
 
     FuncNode(const std::string &n);
     void print(int tabs) override;
@@ -107,7 +117,7 @@ public:
 class ProgramNode : public ASTNode
 {
 public:
-    std::unordered_map<std::string, FuncNode *> functions;
+    std::vector<FuncNode *> functions;
 
     ProgramNode();
     void print(int tabs = 0) override;
@@ -138,8 +148,9 @@ class VarNode : public ASTNode
 {
 public:
     std::string name;
+    Type type;
 
-    VarNode(const std::string &n);
+    VarNode(const std::string &n, Type t);
     void print(int tabs) override;
 };
 

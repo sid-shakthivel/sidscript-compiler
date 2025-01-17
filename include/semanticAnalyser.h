@@ -31,5 +31,8 @@ private:
     void analyse_var(VarNode *node);
     void analyse_while_stmt(WhileNode *node);
     void analyse_for_stmt(ForNode *node);
-    void analyser_loop_control(ASTNode *node);
+    void analyse_loop_control(ASTNode *node);
+    void analyse_func_call(FuncCallNode *node);
+
+    Type infer_type(ASTNode *node);
 };

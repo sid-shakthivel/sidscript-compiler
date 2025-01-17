@@ -7,14 +7,40 @@ SemanticAnalyser::SemanticAnalyser(SymbolTable *symbolTable) : symbolTable(symbo
 void SemanticAnalyser::analyse(ProgramNode *program)
 {
     for (auto func : program->functions)
-        analyse_func(func.second);
+        analyse_func(func);
 }
 
 void SemanticAnalyser::analyse_func(FuncNode *func)
 {
+    // Check for duplicate function names
+    if (symbolTable->func_symbols[func->name])
+        throw std::runtime_error("Semantic Error:Duplicate function name: " + func->name);
+
+    std::cout << "test\n";
+
+    std::vector<Type> arg_types;
+
+    for (auto param : func->params)
+        arg_types.push_back(infer_type(((VarDeclNode *)param)->var));
+
+    std::cout << "hey\n";
+
+    symbolTable->func_symbols[func->name] = new FuncSymbol(func->name, func->params.size(), arg_types, func->return_type);
+
+    std::cout << "ok\n";
+
     symbolTable->enter_scope();
+
+    std::cout << "here\n";
+
+    for (auto param : func->params)
+        symbolTable->declare_variable(((VarDeclNode *)param)->var->name);
+
+    std::cout << "out\n";
+
     for (auto element : func->elements)
         analyse_node(element);
+
     symbolTable->exit_scope();
 }
 
@@ -39,7 +65,9 @@ void SemanticAnalyser::analyse_node(ASTNode *node)
     else if (node->type == NodeType::NODE_FOR)
         analyse_for_stmt((ForNode *)node);
     else if (node->type == NodeType::NODE_BREAK || node->type == NodeType::NODE_CONTINUE)
-        analyser_loop_control(node);
+        analyse_loop_control(node);
+    else if (node->type == NodeType::NODE_FUNC_CALL)
+        analyse_func_call((FuncCallNode *)node);
 }
 
 void SemanticAnalyser::analyse_var_decl(VarDeclNode *node)
@@ -151,10 +179,62 @@ void SemanticAnalyser::exit_loop_scope()
     loop_scopes.pop();
 }
 
-void SemanticAnalyser::analyser_loop_control(ASTNode *node)
+void SemanticAnalyser::analyse_loop_control(ASTNode *node)
 {
     if (node->type == NodeType::NODE_CONTINUE)
         ((ContinueNode *)node)->label = loop_scopes.top();
     else if (node->type == NodeType::NODE_BREAK)
         ((BreakNode *)node)->label = loop_scopes.top();
+}
+
+void SemanticAnalyser::analyse_func_call(FuncCallNode *node)
+{
+    FuncSymbol *func = symbolTable->resolve_func(node->name);
+
+    if (func->arg_count != node->args.size())
+        throw std::runtime_error("Semantic Error: Function '" + node->name + "' has " + std::to_string(func->arg_count) + " arguments, but " + std::to_string(node->args.size()) + " were provided");
+
+    for (int i = 0; i < node->args.size(); i++)
+        analyse_node(node->args[i]);
+
+    for (int i = 0; i < node->args.size(); i++)
+    {
+        Type arg_type = infer_type(node->args[i]);
+        Type param_type = func->arg_types[i];
+
+        if (arg_type != param_type)
+            throw std::runtime_error("Semantic Error: Cannot infer type of node of type " + std::to_string(node->type));
+    }
+}
+
+Type SemanticAnalyser::infer_type(ASTNode *node)
+{
+    switch (node->type)
+    {
+    case NodeType::NODE_INTEGER:
+        return ((IntegerLiteral *)node)->type;
+    case NodeType::NODE_VAR:
+        return ((VarNode *)node)->type;
+    case NodeType::NODE_FUNC_CALL:
+    {
+        FuncSymbol *func = symbolTable->resolve_func(((FuncCallNode *)node)->name);
+        return func->return_type;
+    }
+    case NodeType::NODE_BINARY:
+    {
+        Type left = infer_type(((BinaryNode *)node)->left);
+        Type right = infer_type(((BinaryNode *)node)->right);
+
+        if (left != right)
+            throw std::runtime_error("Semantic Error: Cannot infer type of node of type " + std::to_string(node->type));
+
+        return left;
+    }
+    case NodeType::NODE_UNARY:
+    {
+        return infer_type(((UnaryNode *)node)->value);
+    }
+    default:
+        throw std::runtime_error("Semantic Error: Cannot infer type of node of type " + std::to_string(node->type));
+    }
 }

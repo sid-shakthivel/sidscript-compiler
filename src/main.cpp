@@ -34,11 +34,11 @@ int main()
     Parser parser(&lexer);
 
     ProgramNode *program = parser.parse();
-    program->print();
+    // program->print();
 
-    // SymbolTable *symbolTable = new SymbolTable();
-    // SemanticAnalyser semanticAnalyser(symbolTable);
-    // semanticAnalyser.analyse(program);
+    SymbolTable *symbolTable = new SymbolTable();
+    SemanticAnalyser semanticAnalyser(symbolTable);
+    semanticAnalyser.analyse(program);
 
     // TacGenerator tacGenerator(symbolTable);
     // std::vector<TACInstruction> tacInstructions = tacGenerator.generate_tac(program);

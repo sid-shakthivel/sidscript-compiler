@@ -1,18 +1,3 @@
-### Current ASDL
-
-need to recognise tilda, negation, decrement
-
-program = Program(function_definition)
-func_decl = Function(identifier name, element\* body)
-element = Decl(decl) | Stmt(stmt)
-decl = VarDecl(identifier name, expr? value) | VarAssign(identifier, expr)
-stmt = Return(exp) | If(expr condition, element then, element? else)
-expr = Literal(int) | Unary(un_opr, expr) | Binary(bin_apr, exp, exp) | Var(identifier)
-un_opr = Complement | Negate | Decrement, Increment
-bin_opr = Add | Subtract | Multiply | Divide | Remainder | And | Or
-| Equal | NotEqual | LessThan | LessOrEqual
-| GreaterThan | GreaterOrEqual
-
 ### Current Grammar
 
 <program> ::= { <func_decl> }

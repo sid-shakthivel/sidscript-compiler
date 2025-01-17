@@ -88,7 +88,7 @@ ProgramNode *Parser::parse()
     while (current_token.type != TOKEN_EOF)
     {
         FuncNode *func = parse_func_decl();
-        program->functions[func->name] = func;
+        program->functions.emplace_back(func);
 
         advance();
     }
@@ -120,6 +120,8 @@ FuncNode *Parser::parse_func_decl()
     expect(accepted_tokens);
     advance();
 
+    func->return_type = get_type(current_token.type);
+
     std::vector<ASTNode *> elements = parse_block();
 
     func->elements = elements;
@@ -136,7 +138,7 @@ void Parser::parse_param_list(FuncNode *func)
 
     expect(TOKEN_IDENTIFIER);
 
-    func->params.emplace_back(new VarNode(current_token.text));
+    func->params.emplace_back(new VarNode(current_token.text, Type::INT));
 
     advance();
 
@@ -151,7 +153,7 @@ void Parser::parse_param_list(FuncNode *func)
 
         expect(TOKEN_IDENTIFIER);
 
-        func->params.emplace_back(new VarNode(current_token.text));
+        func->params.emplace_back(new VarNode(current_token.text, Type::INT));
 
         advance();
     }
@@ -298,7 +300,7 @@ VarDeclNode *Parser::parse_var_decl()
     expect(TOKEN_IDENTIFIER);
 
     std::string var_identifier = current_token.text;
-    VarNode *var = new VarNode(var_identifier);
+    VarNode *var = new VarNode(var_identifier, Type::INT);
 
     advance();
 
@@ -393,7 +395,7 @@ ASTNode *Parser::parse_factor()
         else
         {
             retreat();
-            return new VarNode(var_identifier);
+            return new VarNode(var_identifier, Type::INT);
         }
     }
     else

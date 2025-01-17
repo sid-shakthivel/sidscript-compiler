@@ -56,7 +56,20 @@ BinOpType get_bin_op_type(const TokenType &t)
     }
 }
 
-IntegerLiteral::IntegerLiteral(int v) : ASTNode(NODE_INTEGER), value(v) {}
+Type get_type(const TokenType &t)
+{
+    switch (t)
+    {
+    case TOKEN_INT_TEXT:
+        return Type::INT;
+    case TOKEN_VOID:
+        return Type::VOID;
+    default:
+        return Type::VOID;
+    }
+}
+
+IntegerLiteral::IntegerLiteral(int v) : ASTNode(NODE_INTEGER), value(v), type(Type::INT) {}
 
 void IntegerLiteral::print(int tabs)
 {
@@ -77,6 +90,12 @@ void FuncNode::print(int tabs)
 {
     std::cout << std::string(tabs, ' ') << "Func: " << std::endl;
     std::cout << std::string(tabs + 1, ' ') << "Name: " << name << std::endl;
+
+    std::cout << std::string(tabs + 1, ' ') << "Params: " << std::endl;
+
+    for (auto param : params)
+        param->print(tabs + 2);
+
     std::cout << std::string(tabs + 1, ' ') << "Body: " << std::endl;
 
     for (auto stmt : elements)
@@ -98,7 +117,7 @@ void ProgramNode::print(int tabs)
 {
     std::cout << std::string(tabs, ' ') << "Program: " << std::endl;
     for (auto func : functions)
-        func.second->print(tabs + 1);
+        func->print(tabs + 1);
 }
 
 UnaryNode::UnaryNode(UnaryOpType o, ASTNode *v) : ASTNode(NODE_UNARY), op(o), value(v) {}
@@ -170,7 +189,7 @@ void BinaryNode::print(int tabs)
     right->print(tabs + 1);
 }
 
-VarNode::VarNode(const std::string &n) : ASTNode(NODE_VAR), name(n) {}
+VarNode::VarNode(const std::string &n, Type t) : ASTNode(NODE_VAR), name(n), type(t) {}
 
 void VarNode::print(int tabs)
 {

@@ -11,6 +11,8 @@ Symbol::Symbol(std::string n, int o, bool t) : name(n), stack_offset(o), is_temp
     // std::cout << "Symbol: " << name << " " << stack_offset << std::endl;
 }
 
+FuncSymbol::FuncSymbol(std::string n, int ac, std::vector<Type> &at, Type rt) : Symbol(n, 0, false), arg_count(ac), arg_types(at), return_type(rt) {}
+
 std::string Symbol::gen_unique_name()
 {
     if (is_temporary)
@@ -34,7 +36,7 @@ void SymbolTable::exit_scope()
     auto &current_scope = scopes.top();
     for (auto it = current_scope.begin(); it != current_scope.end();)
     {
-        all_symbols[it->first] = it->second; // Use unique name
+        var_symbols[it->first] = it->second; // Use unique name
         it = current_scope.erase(it);
     }
 
@@ -72,10 +74,18 @@ int SymbolTable::get_var_count()
 
 Symbol *SymbolTable::find_symbol(const std::string &name)
 {
-    return all_symbols[name];
+    return var_symbols[name];
 }
 
 void SymbolTable::add_temporary_variable(const std::string &name)
 {
-    all_symbols[name] = new Symbol(name, var_count++ * -4, true);
+    var_symbols[name] = new Symbol(name, var_count++ * -4, true);
+}
+
+FuncSymbol *SymbolTable::resolve_func(const std::string &name)
+{
+    if (!func_symbols.count(name))
+        throw std::runtime_error("Semantic Error: Function '" + name + "' is not declared (yet)");
+
+    return func_symbols[name];
 }
