@@ -34,7 +34,10 @@ enum class TACOp
     COMPLEMENT,
     NOP,
     INCREMENT,
-    DECREMENT
+    DECREMENT,
+    MOV_REG,
+    PUSH,
+    CALL,
 };
 
 TACOp convert_UnaryOpType_to_TACOp(UnaryOpType op);
@@ -65,6 +68,8 @@ public:
 private:
     SymbolTable *symbolTable;
     std::vector<TACInstruction> instructions;
+
+    std::array<std::string, 6> registers = {"rsi", "rdi", "rdx", "rcx", "r8", "r9"};
 
     int tempCounter;
     int labelCounter;

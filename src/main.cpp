@@ -40,9 +40,9 @@ int main()
     SemanticAnalyser semanticAnalyser(symbolTable);
     semanticAnalyser.analyse(program);
 
-    // TacGenerator tacGenerator(symbolTable);
-    // std::vector<TACInstruction> tacInstructions = tacGenerator.generate_tac(program);
-    // tacGenerator.print_tac();
+    TacGenerator tacGenerator(symbolTable);
+    std::vector<TACInstruction> tacInstructions = tacGenerator.generate_tac(program);
+    tacGenerator.print_tac();
 
     // Assembler assembler(symbolTable);
     // assembler.assemble(tacInstructions, "test.s");

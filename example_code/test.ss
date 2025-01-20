@@ -1,8 +1,12 @@
 fn foo(int a) -> int {
-    return a + 2;
+    return a + 1;
+}
+
+fn bar(int b) -> int {
+    return foo(b) + b;
 }
 
 fn main() -> int {
-    int a = hellothere(2);
+    int a = bar(5);
     return a;
 }

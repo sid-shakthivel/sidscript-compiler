@@ -60,7 +60,9 @@ std::string TacGenerator::gen_new_label(std::string label)
 
 std::vector<TACInstruction> TacGenerator::generate_tac(ProgramNode *program)
 {
-    // generate_tac_func(program->func);
+    for (auto func : program->functions)
+        generate_tac_func(func);
+
     return instructions;
 }
 
@@ -74,6 +76,7 @@ void TacGenerator::generate_tac_func(FuncNode *func)
 
 void TacGenerator::generate_tac_element(ASTNode *element)
 {
+    // Explain this (used for loops)
     auto switch_condition = [](BinaryNode *node) -> BinOpType
     {
         switch (node->op)
@@ -239,6 +242,39 @@ std::string TacGenerator::generate_tac_expr(ASTNode *expr)
         symbolTable->add_temporary_variable(temp_var);
         instructions.emplace_back(convert_BinOpType_to_TACOp(binary->op), arg1, arg2, temp_var);
         return temp_var;
+    }
+    else if (expr->type == NodeType::NODE_FUNC_CALL)
+    {
+        FuncCallNode *func = (FuncCallNode *)expr;
+
+        for (int i = 0; i < func->args.size(); i++)
+        {
+            if (i < 6)
+            {
+                instructions.emplace_back(TACOp::MOV_REG, registers[i], func->args[i]);
+            }
+            else
+            {
+                // Need to consider what happens when pushing a variable - need to reference the bit of memory
+                instructions.emplace_back(TACOp::PUSH, func->args[i]);
+            }
+        }
+
+        int stack_offset = (func->args.size() - 6);
+
+        if (stack_offset % 2 != 0)
+        {
+            instructions.emplace_back(TACOp::DEALLOC_STACK, 8);
+        }
+
+        instructions.emplace_back(TACOp::CALL, func->name);
+
+        if (stack_offset % 2 != 0)
+        {
+            instructions.emplace_back(TACOp::ALLOC_STACK, 8);
+        }
+
+        return "hey there";
     }
 }
 
