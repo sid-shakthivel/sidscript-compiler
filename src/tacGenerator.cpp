@@ -68,7 +68,23 @@ std::vector<TACInstruction> TacGenerator::generate_tac(ProgramNode *program)
 
 void TacGenerator::generate_tac_func(FuncNode *func)
 {
+    // FuncSymbol *func_symbol = symbolTable->resolve_func(func->name);
+
     instructions.emplace_back(TACOp::FUNC_BEGIN, func->name);
+
+    for (int i = 0; i < func->params.size(); i++)
+    {
+        if (i < 6)
+        {
+            instructions.emplace_back(TACOp::MOV, func->get_param_name(i), registers[i]);
+        }
+        else
+        {
+            // don't know how to do this yet
+            // instructions.emplace_back(TACOp::MOV, registers[i], );
+        }
+    }
+
     for (auto element : func->elements)
         generate_tac_element(element);
     instructions.emplace_back(TACOp::FUNC_END);
@@ -251,30 +267,39 @@ std::string TacGenerator::generate_tac_expr(ASTNode *expr)
         {
             if (i < 6)
             {
-                instructions.emplace_back(TACOp::MOV_REG, registers[i], func->args[i]);
+                if (func->args[i]->type == NodeType::NODE_INTEGER)
+                {
+                    instructions.emplace_back(TACOp::MOV, registers[i], "$" + std::to_string(((IntegerLiteral *)func->args[i])->value));
+                }
+                // instructions.emplace_back(TACOp::MOV, registers[i], func->args[i]);
             }
             else
             {
                 // Need to consider what happens when pushing a variable - need to reference the bit of memory
-                instructions.emplace_back(TACOp::PUSH, func->args[i]);
+                // instructions.emplace_back(TACOp::PUSH, func->args[i], "", "");
             }
         }
 
         int stack_offset = (func->args.size() - 6);
 
-        if (stack_offset % 2 != 0)
+        if (stack_offset % 2 != 0 && stack_offset > 0)
         {
-            instructions.emplace_back(TACOp::DEALLOC_STACK, 8);
+            instructions.emplace_back(TACOp::DEALLOC_STACK, "8");
         }
 
         instructions.emplace_back(TACOp::CALL, func->name);
 
-        if (stack_offset % 2 != 0)
+        if (stack_offset % 2 != 0 && stack_offset > 0)
         {
-            instructions.emplace_back(TACOp::ALLOC_STACK, 8);
+            instructions.emplace_back(TACOp::ALLOC_STACK, "8");
         }
 
-        return "hey there";
+        std::string temp_var = gen_new_temp_var();
+        symbolTable->add_temporary_variable(temp_var);
+
+        instructions.emplace_back(TACOp::MOV, "%eax", temp_var);
+
+        return temp_var;
     }
 }
 
@@ -323,7 +348,7 @@ void TacGenerator::print_tac()
         case TACOp::FUNC_BEGIN:
             return "FUNC_BEGIN";
         case TACOp::FUNC_END:
-            return "FUNC_END";
+            return "FUNC_END\n";
         case TACOp::ALLOC_STACK:
             return "ALLOC_STACK";
         case TACOp::DEALLOC_STACK:
@@ -334,6 +359,16 @@ void TacGenerator::print_tac()
             return "COMPLEMENT";
         case TACOp::NOP:
             return "NOP";
+        case TACOp::PUSH:
+            return "PUSH";
+        case TACOp::CALL:
+            return "CALL";
+        case TACOp::MOV:
+            return "MOV";
+        case TACOp::INCREMENT:
+            return "INCREMENT";
+        case TACOp::DECREMENT:
+            return "DECREMENT";
         default:
             return "UNKNOWN";
         }

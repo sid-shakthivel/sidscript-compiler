@@ -102,6 +102,13 @@ void FuncNode::print(int tabs)
         stmt->print(tabs + 2);
 }
 
+std::string FuncNode::get_param_name(int i)
+{
+    VarDeclNode *var_decl = (VarDeclNode *)params[i];
+    VarNode *var = var_decl->var;
+    return var->name;
+}
+
 FuncCallNode::FuncCallNode(const std::string &n) : ASTNode(NODE_FUNC_CALL), name(n) {}
 
 void FuncCallNode::print(int tabs)

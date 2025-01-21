@@ -35,7 +35,7 @@ enum class TACOp
     NOP,
     INCREMENT,
     DECREMENT,
-    MOV_REG,
+    MOV,
     PUSH,
     CALL,
 };
@@ -69,7 +69,7 @@ private:
     SymbolTable *symbolTable;
     std::vector<TACInstruction> instructions;
 
-    std::array<std::string, 6> registers = {"rsi", "rdi", "rdx", "rcx", "r8", "r9"};
+    std::array<std::string, 6> registers = {"%esi", "%edi", "%edx", "%ecx", "%r8", "%r9"};
 
     int tempCounter;
     int labelCounter;

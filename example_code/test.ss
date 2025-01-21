@@ -1,9 +1,5 @@
-fn foo(int a) -> int {
-    return a + 1;
-}
-
 fn bar(int b) -> int {
-    return foo(b) + b;
+    return b + 1;
 }
 
 fn main() -> int {

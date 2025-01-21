@@ -44,8 +44,8 @@ int main()
     std::vector<TACInstruction> tacInstructions = tacGenerator.generate_tac(program);
     tacGenerator.print_tac();
 
-    // Assembler assembler(symbolTable);
-    // assembler.assemble(tacInstructions, "test.s");
+    Assembler assembler(symbolTable);
+    assembler.assemble(tacInstructions, "test.s");
 
     return 0;
 }

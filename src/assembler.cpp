@@ -145,11 +145,11 @@ void Assembler::assemble_tac(TACInstruction &instruction, FILE *file)
 	}
 	else if (instruction.op == TACOp::FUNC_END)
 	{
-		fprintf(file, ".L%s_end:\n", current_func.c_str());
+		fprintf(file, "\n.L%s_end:", current_func.c_str());
 		int stack_space = symbolTable->get_var_count() * 8;
 		fprintf(file, "\n\taddq	$%d, %%rsp\n", stack_space);
 		fprintf(file, "\tpopq	%%rbp\n");
-		fprintf(file, "\tretq\n");
+		fprintf(file, "\tretq\n\n");
 	}
 	else if (instruction.op == TACOp::ASSIGN)
 	{
@@ -278,6 +278,24 @@ void Assembler::assemble_tac(TACInstruction &instruction, FILE *file)
 		load_to_reg(instruction.arg1, "%r10d");
 		bin_op_to_reg(instruction.arg2, "%r10d", "orl");
 		store_from_reg(instruction.result, "%r10d");
+	}
+	else if (instruction.op == TACOp::CALL)
+	{
+		fprintf(file, "\tcall\t_%s\n", instruction.arg1.c_str());
+	}
+	else if (instruction.op == TACOp::MOV)
+	{
+		Symbol *potential_var = symbolTable->find_symbol(instruction.arg1);
+		Symbol *potential_var_2 = symbolTable->find_symbol(instruction.arg2);
+
+		if (potential_var == nullptr && potential_var_2 == nullptr)
+			fprintf(file, "\tmovl\t%s, %s\n", instruction.arg2.c_str(), instruction.arg1.c_str());
+		else if (potential_var_2 != nullptr && potential_var == nullptr)
+			fprintf(file, "\tmovl\t%d(%%rsp), %s\n", potential_var_2->stack_offset, instruction.arg1.c_str());
+		else if (potential_var != nullptr && potential_var_2 == nullptr)
+			fprintf(file, "\tmovl\t%s, %d(%%rsp)\n", instruction.arg2.c_str(), potential_var->stack_offset);
+		else
+			fprintf(file, "\tmovl\t%d(%%rsp), %d(%%rsp)\n", potential_var_2->stack_offset, potential_var->stack_offset);
 	}
 	else if (instruction.op == TACOp::NOP)
 	{

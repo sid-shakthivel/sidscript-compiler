@@ -102,6 +102,7 @@ public:
 
     FuncNode(const std::string &n);
     void print(int tabs) override;
+    std::string get_param_name(int i);
 };
 
 class FuncCallNode : public ASTNode
