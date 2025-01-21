@@ -2,7 +2,7 @@
 
 #include <iostream>
 
-SemanticAnalyser::SemanticAnalyser(SymbolTable *symbolTable) : symbolTable(symbolTable) {}
+SemanticAnalyser::SemanticAnalyser(GlobalSymbolTable *gst) : gst(gst) {}
 
 void SemanticAnalyser::analyse(ProgramNode *program)
 {
@@ -13,25 +13,32 @@ void SemanticAnalyser::analyse(ProgramNode *program)
 void SemanticAnalyser::analyse_func(FuncNode *func)
 {
     // Check for duplicate function names
-    if (symbolTable->func_symbols[func->name])
+    if (gst->functions.find(func->name) != gst->functions.end())
         throw std::runtime_error("Semantic Error: Duplicate function name: " + func->name);
 
+    // Find and create new function symbol using params
     std::vector<Type> arg_types;
-
     for (auto param : func->params)
         arg_types.push_back(infer_type(((VarDeclNode *)param)->var));
 
-    symbolTable->func_symbols[func->name] = new FuncSymbol(func->name, func->params.size(), arg_types, func->return_type);
+    FuncSymbol *func_symbol = new FuncSymbol(func->name, func->params.size(), arg_types, func->return_type);
+    SymbolTable *symbol_table = new SymbolTable();
 
-    symbolTable->enter_scope();
+    current_st = symbol_table;
+
+    symbol_table->enter_scope();
 
     for (auto param : func->params)
-        symbolTable->declare_variable(((VarDeclNode *)param)->var->name);
+        symbol_table->declare_variable(((VarDeclNode *)param)->var->name);
 
     for (auto element : func->elements)
         analyse_node(element);
 
-    symbolTable->exit_scope();
+    symbol_table->exit_scope();
+
+    gst->functions[func->name] = std::make_tuple(func_symbol, symbol_table);
+
+    current_st = nullptr;
 }
 
 void SemanticAnalyser::analyse_node(ASTNode *node)
@@ -62,14 +69,14 @@ void SemanticAnalyser::analyse_node(ASTNode *node)
 
 void SemanticAnalyser::analyse_var_decl(VarDeclNode *node)
 {
-    symbolTable->declare_variable(node->var->name);
+    current_st->declare_variable(node->var->name);
     if (node->value)
         analyse_node(node->value);
 }
 
 void SemanticAnalyser::analyser_var_assign(VarAssignNode *node)
 {
-    symbolTable->resolve_variable(node->var->name);
+    current_st->resolve_variable(node->var->name);
     analyse_node(node->value);
 }
 
@@ -83,17 +90,17 @@ void SemanticAnalyser::analyse_if_stmt(IfNode *node)
 {
     analyse_node(node->condition);
 
-    symbolTable->enter_scope();
+    current_st->enter_scope();
     for (auto stmt : node->then_elements)
         analyse_node(stmt);
-    symbolTable->exit_scope();
+    current_st->exit_scope();
 
     if (!node->else_elements.empty())
     {
-        symbolTable->enter_scope();
+        current_st->enter_scope();
         for (auto stmt : node->else_elements)
             analyse_node(stmt);
-        symbolTable->exit_scope();
+        current_st->exit_scope();
     }
 }
 
@@ -107,11 +114,11 @@ void SemanticAnalyser::analyse_while_stmt(WhileNode *node)
     std::cout << label << std::endl;
 
     enter_loop_scope(label);
-    symbolTable->enter_scope();
+    current_st->enter_scope();
 
     for (auto stmt : node->elements)
         analyse_node(stmt);
-    symbolTable->exit_scope();
+    current_st->exit_scope();
 
     exit_loop_scope();
 }
@@ -122,7 +129,7 @@ void SemanticAnalyser::analyse_for_stmt(ForNode *node)
     node->label = label;
 
     enter_loop_scope(label);
-    symbolTable->enter_scope();
+    current_st->enter_scope();
 
     analyse_node(node->init);
     analyse_node(node->condition);
@@ -131,7 +138,7 @@ void SemanticAnalyser::analyse_for_stmt(ForNode *node)
     for (auto stmt : node->elements)
         analyse_node(stmt);
 
-    symbolTable->exit_scope();
+    current_st->exit_scope();
     exit_loop_scope();
 }
 
@@ -148,7 +155,7 @@ void SemanticAnalyser::analyse_unary(UnaryNode *node)
 
 void SemanticAnalyser::analyse_var(VarNode *node)
 {
-    symbolTable->resolve_variable(node->name);
+    current_st->resolve_variable(node->name);
 }
 
 std::string SemanticAnalyser::gen_new_loop_label()
@@ -179,7 +186,7 @@ void SemanticAnalyser::analyse_loop_control(ASTNode *node)
 
 void SemanticAnalyser::analyse_func_call(FuncCallNode *node)
 {
-    FuncSymbol *func = symbolTable->resolve_func(node->name);
+    FuncSymbol *func = gst->resolve_func(node->name);
 
     if (func->arg_count != node->args.size())
         throw std::runtime_error("Semantic Error: Function '" + node->name + "' has " + std::to_string(func->arg_count) + " arguments, but " + std::to_string(node->args.size()) + " were provided");
@@ -207,7 +214,7 @@ Type SemanticAnalyser::infer_type(ASTNode *node)
         return ((VarNode *)node)->type;
     case NodeType::NODE_FUNC_CALL:
     {
-        FuncSymbol *func = symbolTable->resolve_func(((FuncCallNode *)node)->name);
+        FuncSymbol *func = gst->resolve_func(((FuncCallNode *)node)->name);
         return func->return_type;
     }
     case NodeType::NODE_BINARY:

@@ -29,18 +29,18 @@ struct FuncSymbol : public Symbol
 class SymbolTable
 {
 public:
-    std::unordered_map<std::string, FuncSymbol *> func_symbols;
+    // std::unordered_map<std::string, FuncSymbol *> func_symbols;
 
     SymbolTable();
 
     void enter_scope();
     void exit_scope();
-    void declare_variable(const std::string &name, bool is_temporary = false);
+    void declare_variable(const std::string &name);
     void resolve_variable(const std::string &name);
     int get_var_count();
     Symbol *find_symbol(const std::string &name);
-    void add_temporary_variable(const std::string &name);
-    FuncSymbol *resolve_func(const std::string &name);
+    void declare_temp_variable(const std::string &name);
+    // FuncSymbol *resolve_func(const std::string &name);
 
 private:
     std::stack<std::unordered_map<std::string, Symbol *>> scopes;

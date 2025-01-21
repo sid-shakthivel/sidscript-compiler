@@ -3,6 +3,6 @@ fn bar(int b) -> int {
 }
 
 fn main() -> int {
-    int a = bar(5);
+    int a = bar(7);
     return a;
 }

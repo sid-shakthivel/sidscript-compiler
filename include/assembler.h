@@ -4,16 +4,18 @@
 #include <cstdio>
 
 #include "symbolTable.h"
+#include "globalSymbolTable.h"
 #include "tacGenerator.h"
 
 class Assembler
 {
 public:
-    Assembler(SymbolTable *symbolTable);
+    Assembler(GlobalSymbolTable *gst);
     void assemble(std::vector<TACInstruction> instructions, std::string filename);
 
 private:
-    SymbolTable *symbolTable;
+    GlobalSymbolTable *gst;
+    SymbolTable *current_st = nullptr;
     std::string current_func = "";
 
     void assemble_tac(TACInstruction &instruction, FILE *file);

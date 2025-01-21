@@ -11,6 +11,7 @@ set(SOURCES
     ../src/parser.cpp
     ../src/assembler.cpp
     ../src/symbolTable.cpp
+    ../src/globalSymbolTable.cpp
     ../src/semanticAnalyser.cpp
     ../src/tacGenerator.cpp
     ../src/main.cpp

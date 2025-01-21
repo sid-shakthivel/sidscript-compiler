@@ -46,7 +46,7 @@ TACOp convert_UnaryOpType_to_TACOp(UnaryOpType op)
     }
 }
 
-TacGenerator::TacGenerator(SymbolTable *symbolTable) : symbolTable(symbolTable), tempCounter(0), labelCounter(0) {}
+TacGenerator::TacGenerator(GlobalSymbolTable *gst) : gst(gst), tempCounter(0), labelCounter(0) {}
 
 std::string TacGenerator::gen_new_temp_var()
 {
@@ -68,9 +68,9 @@ std::vector<TACInstruction> TacGenerator::generate_tac(ProgramNode *program)
 
 void TacGenerator::generate_tac_func(FuncNode *func)
 {
-    // FuncSymbol *func_symbol = symbolTable->resolve_func(func->name);
-
     instructions.emplace_back(TACOp::FUNC_BEGIN, func->name);
+
+    current_st = gst->get_symbol_table(func->name);
 
     for (int i = 0; i < func->params.size(); i++)
     {
@@ -88,6 +88,8 @@ void TacGenerator::generate_tac_func(FuncNode *func)
     for (auto element : func->elements)
         generate_tac_element(element);
     instructions.emplace_back(TACOp::FUNC_END);
+
+    current_st = nullptr;
 }
 
 void TacGenerator::generate_tac_element(ASTNode *element)
@@ -245,7 +247,7 @@ std::string TacGenerator::generate_tac_expr(ASTNode *expr)
         UnaryNode *unary = (UnaryNode *)expr;
         std::string result = generate_tac_expr(unary->value);
         std::string temp_var = gen_new_temp_var();
-        symbolTable->add_temporary_variable(temp_var);
+        current_st->declare_temp_variable(temp_var);
         instructions.emplace_back(convert_UnaryOpType_to_TACOp(unary->op), result, "", temp_var);
         return temp_var;
     }
@@ -255,7 +257,7 @@ std::string TacGenerator::generate_tac_expr(ASTNode *expr)
         std::string arg1 = generate_tac_expr(binary->left);
         std::string arg2 = generate_tac_expr(binary->right);
         std::string temp_var = gen_new_temp_var();
-        symbolTable->add_temporary_variable(temp_var);
+        current_st->declare_temp_variable(temp_var);
         instructions.emplace_back(convert_BinOpType_to_TACOp(binary->op), arg1, arg2, temp_var);
         return temp_var;
     }
@@ -295,9 +297,9 @@ std::string TacGenerator::generate_tac_expr(ASTNode *expr)
         }
 
         std::string temp_var = gen_new_temp_var();
-        symbolTable->add_temporary_variable(temp_var);
+        current_st->declare_temp_variable(temp_var);
 
-        instructions.emplace_back(TACOp::MOV, "%eax", temp_var);
+        instructions.emplace_back(TACOp::MOV, temp_var, "%eax");
 
         return temp_var;
     }

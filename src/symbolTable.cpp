@@ -43,7 +43,7 @@ void SymbolTable::exit_scope()
     scopes.pop();
 }
 
-void SymbolTable::declare_variable(const std::string &name, bool is_temporary)
+void SymbolTable::declare_variable(const std::string &name)
 {
     if (scopes.empty())
         throw std::runtime_error("Semantic Error: No scope available");
@@ -53,8 +53,7 @@ void SymbolTable::declare_variable(const std::string &name, bool is_temporary)
     if (current_scope.count(name))
         throw std::runtime_error("Semantic Error: Variable '" + name + "' is already declared in this scope");
 
-    Symbol *test_symbol = new Symbol(name, var_count++ * -4, is_temporary);
-    current_scope[name] = test_symbol;
+    current_scope[name] = new Symbol(name, var_count++ * -4, false);
 }
 
 void SymbolTable::resolve_variable(const std::string &name)
@@ -68,7 +67,6 @@ void SymbolTable::resolve_variable(const std::string &name)
 
 int SymbolTable::get_var_count()
 {
-    // return all_symbols.size();
     return var_count - 1;
 }
 
@@ -77,15 +75,15 @@ Symbol *SymbolTable::find_symbol(const std::string &name)
     return var_symbols[name];
 }
 
-void SymbolTable::add_temporary_variable(const std::string &name)
+void SymbolTable::declare_temp_variable(const std::string &name)
 {
     var_symbols[name] = new Symbol(name, var_count++ * -4, true);
 }
 
-FuncSymbol *SymbolTable::resolve_func(const std::string &name)
-{
-    if (!func_symbols.count(name))
-        throw std::runtime_error("Semantic Error: Function '" + name + "' is not declared (yet)");
+// FuncSymbol *SymbolTable::resolve_func(const std::string &name)
+// {
+//     if (!func_symbols.count(name))
+//         throw std::runtime_error("Semantic Error: Function '" + name + "' is not declared (yet)");
 
-    return func_symbols[name];
-}
+//     return func_symbols[name];
+// }

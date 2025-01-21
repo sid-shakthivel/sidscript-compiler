@@ -3,6 +3,7 @@
 #include <vector>
 #include <string>
 
+#include "globalSymbolTable.h"
 #include "symbolTable.h"
 #include "ast.h"
 
@@ -60,13 +61,15 @@ struct TACInstruction
 class TacGenerator
 {
 public:
-    TacGenerator(SymbolTable *symbolTable);
+    TacGenerator(GlobalSymbolTable *gst);
 
     std::vector<TACInstruction> generate_tac(ProgramNode *program);
     void print_tac();
 
 private:
-    SymbolTable *symbolTable;
+    GlobalSymbolTable *gst;
+    SymbolTable *current_st = nullptr;
+
     std::vector<TACInstruction> instructions;
 
     std::array<std::string, 6> registers = {"%esi", "%edi", "%edx", "%ecx", "%r8", "%r9"};

@@ -7,7 +7,7 @@
 #include "../include/assembler.h"
 #include "../include/parser.h"
 
-Assembler::Assembler(SymbolTable *symbolTable) : symbolTable(symbolTable) {};
+Assembler::Assembler(GlobalSymbolTable *gst) : gst(gst) {};
 
 void Assembler::assemble(std::vector<TACInstruction> instructions, std::string filename)
 {
@@ -52,7 +52,7 @@ void Assembler::assemble_tac(TACInstruction &instruction, FILE *file)
 	*/
 	auto load_to_reg = [file, this](const std::string &operand, const char *reg)
 	{
-		Symbol *potential_var = symbolTable->find_symbol(operand);
+		Symbol *potential_var = current_st->find_symbol(operand);
 		if (potential_var == nullptr)
 			fprintf(file, "\tmovl\t$%s, %s\n", operand.c_str(), reg);
 		else
@@ -61,7 +61,7 @@ void Assembler::assemble_tac(TACInstruction &instruction, FILE *file)
 
 	auto store_from_reg = [file, this](const std::string &operand, const char *reg)
 	{
-		Symbol *potential_var = symbolTable->find_symbol(operand);
+		Symbol *potential_var = current_st->find_symbol(operand);
 		if (potential_var == nullptr)
 			fprintf(file, "\tmovl\t%s, $%s\n", reg, operand.c_str());
 		else
@@ -70,7 +70,7 @@ void Assembler::assemble_tac(TACInstruction &instruction, FILE *file)
 
 	auto bin_op_to_reg = [file, this](const std::string &operand, const char *reg, const std::string &op)
 	{
-		Symbol *potential_var = symbolTable->find_symbol(operand);
+		Symbol *potential_var = current_st->find_symbol(operand);
 
 		if (potential_var == nullptr)
 			fprintf(file, "\t%s\t$%s, %s\n", op.c_str(), operand.c_str(), reg);
@@ -82,7 +82,7 @@ void Assembler::assemble_tac(TACInstruction &instruction, FILE *file)
 	{
 		load_to_reg(operand_a, reg);
 
-		Symbol *potential_var_b = symbolTable->find_symbol(operand_b);
+		Symbol *potential_var_b = current_st->find_symbol(operand_b);
 
 		if (potential_var_b == nullptr)
 			fprintf(file, "\tcmpl\t$%s, %s\n", operand_b.c_str(), reg);
@@ -126,6 +126,7 @@ void Assembler::assemble_tac(TACInstruction &instruction, FILE *file)
 
 	if (instruction.op == TACOp::FUNC_BEGIN)
 	{
+		current_st = gst->get_symbol_table(instruction.arg1);
 		current_func = instruction.arg1;
 		fprintf(file, "_%s:\n", instruction.arg1.c_str());
 		/*
@@ -140,16 +141,17 @@ void Assembler::assemble_tac(TACInstruction &instruction, FILE *file)
 			Note that this should eventually involve a hashmap of function names and symbol tables
 			to retrieve the correct amount of space
 		*/
-		int stack_space = symbolTable->get_var_count() * 8;
+		int stack_space = current_st->get_var_count() * 8;
 		fprintf(file, "\tsubq	$%d, %%rsp\n\n", stack_space);
 	}
 	else if (instruction.op == TACOp::FUNC_END)
 	{
 		fprintf(file, "\n.L%s_end:", current_func.c_str());
-		int stack_space = symbolTable->get_var_count() * 8;
+		int stack_space = current_st->get_var_count() * 8;
 		fprintf(file, "\n\taddq	$%d, %%rsp\n", stack_space);
 		fprintf(file, "\tpopq	%%rbp\n");
 		fprintf(file, "\tretq\n\n");
+		current_st = nullptr;
 	}
 	else if (instruction.op == TACOp::ASSIGN)
 	{
@@ -158,8 +160,8 @@ void Assembler::assemble_tac(TACInstruction &instruction, FILE *file)
 			- arg1 is the variable name (this should exist)
 			- arg2 is the value to be assigned (variable or constant)
 		*/
-		Symbol *var = symbolTable->find_symbol(instruction.arg1);
-		Symbol *potential_var = symbolTable->find_symbol(instruction.arg2);
+		Symbol *var = current_st->find_symbol(instruction.arg1);
+		Symbol *potential_var = current_st->find_symbol(instruction.arg2);
 
 		if (potential_var == nullptr)
 		{
@@ -250,7 +252,7 @@ void Assembler::assemble_tac(TACInstruction &instruction, FILE *file)
 	}
 	else if (instruction.op == TACOp::IF)
 	{
-		Symbol *potential_var = symbolTable->find_symbol(instruction.arg1);
+		Symbol *potential_var = current_st->find_symbol(instruction.arg1);
 
 		if (potential_var == nullptr)
 			fprintf(file, "\tcmpl\t$0, %s\n", instruction.arg1.c_str());
@@ -285,8 +287,8 @@ void Assembler::assemble_tac(TACInstruction &instruction, FILE *file)
 	}
 	else if (instruction.op == TACOp::MOV)
 	{
-		Symbol *potential_var = symbolTable->find_symbol(instruction.arg1);
-		Symbol *potential_var_2 = symbolTable->find_symbol(instruction.arg2);
+		Symbol *potential_var = current_st->find_symbol(instruction.arg1);
+		Symbol *potential_var_2 = current_st->find_symbol(instruction.arg2);
 
 		if (potential_var == nullptr && potential_var_2 == nullptr)
 			fprintf(file, "\tmovl\t%s, %s\n", instruction.arg2.c_str(), instruction.arg1.c_str());

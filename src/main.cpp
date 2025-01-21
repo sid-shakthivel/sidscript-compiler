@@ -36,15 +36,15 @@ int main()
     ProgramNode *program = parser.parse();
     // program->print();
 
-    SymbolTable *symbolTable = new SymbolTable();
-    SemanticAnalyser semanticAnalyser(symbolTable);
+    GlobalSymbolTable *gst = new GlobalSymbolTable();
+    SemanticAnalyser semanticAnalyser(gst);
     semanticAnalyser.analyse(program);
 
-    TacGenerator tacGenerator(symbolTable);
+    TacGenerator tacGenerator(gst);
     std::vector<TACInstruction> tacInstructions = tacGenerator.generate_tac(program);
     tacGenerator.print_tac();
 
-    Assembler assembler(symbolTable);
+    Assembler assembler(gst);
     assembler.assemble(tacInstructions, "test.s");
 
     return 0;

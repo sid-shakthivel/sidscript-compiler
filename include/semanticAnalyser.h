@@ -1,17 +1,19 @@
 #pragma once
 
+#include "globalSymbolTable.h"
 #include "symbolTable.h"
 #include "ast.h"
 
 class SemanticAnalyser
 {
 public:
-    SemanticAnalyser(SymbolTable *symbolTable);
+    SemanticAnalyser(GlobalSymbolTable *gst);
 
     void analyse(ProgramNode *program);
 
 private:
-    SymbolTable *symbolTable;
+    GlobalSymbolTable *gst;
+    SymbolTable *current_st;
 
     unsigned int loop_label_counter = 0;
     std::string gen_new_loop_label();
