@@ -87,8 +87,20 @@ ProgramNode *Parser::parse()
 
     while (current_token.type != TOKEN_EOF)
     {
-        FuncNode *func = parse_func_decl();
-        program->functions.emplace_back(func);
+        if (match(TOKEN_FN))
+            program->decls.emplace_back(parse_func_decl());
+        else if (match(TOKEN_INT_TEXT))
+            program->decls.emplace_back(parse_var_decl());
+        else if (match(TOKEN_STATIC) || match(TOKEN_EXTERN))
+        {
+            TokenType qualifier = current_token.type;
+            advance();
+
+            if (match(TOKEN_FN))
+                program->decls.emplace_back(parse_func_decl(qualifier));
+            else if (match(TOKEN_INT_TEXT))
+                program->decls.emplace_back(parse_var_decl(qualifier));
+        }
 
         advance();
     }
@@ -96,21 +108,9 @@ ProgramNode *Parser::parse()
     return program;
 }
 
-FuncNode *Parser::parse_func_decl()
+FuncNode *Parser::parse_func_decl(TokenType specifier)
 {
-    std::vector<TokenType> excepted_tokens = std::vector<TokenType>{TOKEN_FN, TOKEN_STATIC, TOKEN_EXTERN};
-    expect(excepted_tokens);
-
-    TokenType specifier = TOKEN_EOF;
-
-    if (match(TOKEN_STATIC) || match(TOKEN_EXTERN))
-    {
-        specifier = current_token.type;
-        advance();
-        expect(TOKEN_FN);
-    }
-
-    advance();
+    expect_and_advance(TOKEN_FN);
 
     expect(TOKEN_IDENTIFIER);
 

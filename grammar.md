@@ -1,6 +1,6 @@
 ### Current Grammar
 
-<program> ::= { <func_decl> }
+<program> ::= { <func_decl> | <var_decl> }
 <block> ::= "{" { <element> } "}"
 
 <element> ::= <stmt> | <decl>

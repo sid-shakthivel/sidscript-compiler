@@ -145,8 +145,8 @@ ProgramNode::ProgramNode() : ASTNode(NODE_PROGRAM) {}
 void ProgramNode::print(int tabs)
 {
     std::cout << std::string(tabs, ' ') << "Program: " << std::endl;
-    for (auto func : functions)
-        func->print(tabs + 1);
+    for (auto decl : decls)
+        decl->print(tabs + 1);
 }
 
 UnaryNode::UnaryNode(UnaryOpType o, ASTNode *v) : ASTNode(NODE_UNARY), op(o), value(v) {}

@@ -60,8 +60,13 @@ std::string TacGenerator::gen_new_label(std::string label)
 
 std::vector<TACInstruction> TacGenerator::generate_tac(ProgramNode *program)
 {
-    for (auto func : program->functions)
-        generate_tac_func(func);
+    for (auto decl : program->decls)
+    {
+        if (decl->type == NodeType::NODE_FUNCTION)
+            generate_tac_func((FuncNode *)decl);
+        else if (decl->type == NodeType::NODE_VAR_DECL)
+            generate_tac_element(decl);
+    }
 
     return instructions;
 }
@@ -73,17 +78,8 @@ void TacGenerator::generate_tac_func(FuncNode *func)
     current_st = gst->get_symbol_table(func->name);
 
     for (int i = 0; i < func->params.size(); i++)
-    {
         if (i < 6)
-        {
             instructions.emplace_back(TACOp::MOV, func->get_param_name(i), registers[i]);
-        }
-        else
-        {
-            // don't know how to do this yet
-            // instructions.emplace_back(TACOp::MOV, registers[i], );
-        }
-    }
 
     for (auto element : func->elements)
         generate_tac_element(element);
@@ -125,8 +121,11 @@ void TacGenerator::generate_tac_element(ASTNode *element)
     else if (element->type == NodeType::NODE_VAR_DECL || element->type == NodeType::NODE_VAR_ASSIGN)
     {
         VarAssignNode *var_decl = (VarAssignNode *)element;
-        std::string result = generate_tac_expr(var_decl->value);
-        instructions.emplace_back(TACOp::ASSIGN, var_decl->var->name, result);
+        if (var_decl->value != nullptr)
+        {
+            std::string result = generate_tac_expr(var_decl->value);
+            instructions.emplace_back(TACOp::ASSIGN, var_decl->var->name, result);
+        }
     }
     else if (element->type == NodeType::NODE_IF)
     {
@@ -308,7 +307,13 @@ std::string TacGenerator::generate_tac_expr(ASTNode *expr)
     }
 }
 
-void TacGenerator::print_tac()
+void TacGenerator::print_all_tac()
+{
+    for (auto &instr : instructions)
+        std::cout << gen_tac_str(instr);
+}
+
+std::string TacGenerator::gen_tac_str(TACInstruction &instr)
 {
     auto tacOpToString = [](TACOp op) -> std::string
     {
@@ -379,15 +384,14 @@ void TacGenerator::print_tac()
         }
     };
 
-    for (const auto &instr : instructions)
-    {
-        std::cout << tacOpToString(instr.op);
-        if (!instr.arg1.empty())
-            std::cout << " " << instr.arg1;
-        if (!instr.arg2.empty())
-            std::cout << ", " << instr.arg2;
-        if (!instr.result.empty())
-            std::cout << " -> " << instr.result;
-        std::cout << std::endl;
-    }
+    std::string str = tacOpToString(instr.op);
+
+    if (!instr.arg1.empty())
+        str += " " + instr.arg1;
+    if (!instr.arg2.empty())
+        str += ", " + instr.arg2;
+    if (!instr.result.empty())
+        str += " -> " + instr.result;
+
+    return str + "\n";
 }

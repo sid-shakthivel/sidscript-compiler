@@ -42,7 +42,7 @@ int main()
 
     TacGenerator tacGenerator(gst);
     std::vector<TACInstruction> tacInstructions = tacGenerator.generate_tac(program);
-    tacGenerator.print_tac();
+    tacGenerator.print_all_tac();
 
     Assembler assembler(gst);
     assembler.assemble(tacInstructions, "test.s");

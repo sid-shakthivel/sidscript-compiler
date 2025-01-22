@@ -6,6 +6,7 @@
 
 #include "../include/assembler.h"
 #include "../include/parser.h"
+#include "../include/tacGenerator.h"
 
 Assembler::Assembler(GlobalSymbolTable *gst) : gst(gst) {};
 
@@ -99,36 +100,11 @@ void Assembler::assemble_tac(TACInstruction &instruction, FILE *file)
 		store_from_reg(result, reg);
 	};
 
-	auto get_jmp_from_op = [file, this](const TACOp &op)
-	{
-		switch (op)
-		{
-		case TACOp::EQUAL:
-			return "jne";
-		case TACOp::NOT_EQUAL:
-			return "jne";
-		case TACOp::LT:
-			return "jne";
-		case TACOp::LTE:
-			return "jne";
-		case TACOp::GT:
-			return "jne";
-		case TACOp::GTE:
-			return "jne";
-		case TACOp::AND:
-			return "jne";
-		case TACOp::OR:
-			return "jne";
-		default:
-			return "";
-		};
-	};
-
 	if (instruction.op == TACOp::FUNC_BEGIN)
 	{
 		current_st = gst->get_symbol_table(instruction.arg1);
 		current_func = instruction.arg1;
-		fprintf(file, "_%s:\n", instruction.arg1.c_str());
+		fprintf(file, "_%s: # %s\n", instruction.arg1.c_str(), TacGenerator::gen_tac_str(instruction).c_str());
 		/*
 			Pushes rbp onto stack (this saves caller's base pointer allowing it to be restored back later)
 			Copies the stack pointer into rbp to setup the base pointer for the current function's stack frame (for local variables/parameters)
@@ -146,9 +122,9 @@ void Assembler::assemble_tac(TACInstruction &instruction, FILE *file)
 	}
 	else if (instruction.op == TACOp::FUNC_END)
 	{
-		fprintf(file, "\n.L%s_end:", current_func.c_str());
+		fprintf(file, "\n.L%s_end: # %s", current_func.c_str(), TacGenerator::gen_tac_str(instruction).c_str());
 		int stack_space = current_st->get_var_count() * 8;
-		fprintf(file, "\n\taddq	$%d, %%rsp\n", stack_space);
+		fprintf(file, "\taddq	$%d, %%rsp\n", stack_space);
 		fprintf(file, "\tpopq	%%rbp\n");
 		fprintf(file, "\tretq\n\n");
 		current_st = nullptr;
@@ -165,39 +141,44 @@ void Assembler::assemble_tac(TACInstruction &instruction, FILE *file)
 
 		if (potential_var == nullptr)
 		{
-			fprintf(file, "\tmovl	$%s, %d(%%rbp)\n", instruction.arg2.c_str(), var->stack_offset);
+			fprintf(file, "\tmovl	$%s, %d(%%rbp) # %s\n", instruction.arg2.c_str(), var->stack_offset, TacGenerator::gen_tac_str(instruction).c_str());
 		}
 		else
 		{
-			fprintf(file, "\tmovl    %d(%%rbp), %%r10d\n", potential_var->stack_offset);
+			fprintf(file, "\tmovl    %d(%%rbp), %%r10d # %s\n", potential_var->stack_offset, TacGenerator::gen_tac_str(instruction).c_str());
 			fprintf(file, "\tmovl    %%r10d, %d(%%rbp)\n", var->stack_offset);
 		}
 	}
 	else if (instruction.op == TACOp::RETURN)
 	{
+		fprintf(file, "\t# %s\n", TacGenerator::gen_tac_str(instruction).c_str());
 		load_to_reg(instruction.arg1, "%eax");
 		fprintf(file, "\tjmp\t.L%s_end\n", current_func.c_str());
 	}
 	else if (instruction.op == TACOp::ADD)
 	{
+		fprintf(file, "\t# %s", TacGenerator::gen_tac_str(instruction).c_str());
 		load_to_reg(instruction.arg1, "%r10d");
 		bin_op_to_reg(instruction.arg2, "%r10d", "addl");
 		store_from_reg(instruction.result, "%r10d");
 	}
 	else if (instruction.op == TACOp::SUB)
 	{
+		fprintf(file, "\t# %s", TacGenerator::gen_tac_str(instruction).c_str());
 		load_to_reg(instruction.arg1, "%r10d");
 		bin_op_to_reg(instruction.arg2, "%r10d", "subl");
 		store_from_reg(instruction.result, "%r10d");
 	}
 	else if (instruction.op == TACOp::MUL)
 	{
+		fprintf(file, "\t# %s", TacGenerator::gen_tac_str(instruction).c_str());
 		load_to_reg(instruction.arg1, "%r10d");
 		bin_op_to_reg(instruction.arg2, "%r10d", "imull");
 		store_from_reg(instruction.result, "%r10d");
 	}
 	else if (instruction.op == TACOp::DIV)
 	{
+		fprintf(file, "\t# %s", TacGenerator::gen_tac_str(instruction).c_str());
 		load_to_reg(instruction.arg1, "%r10d");
 		fprintf(file, "\tcltd\n");
 		load_to_reg(instruction.arg2, "%r10d");
@@ -206,6 +187,7 @@ void Assembler::assemble_tac(TACInstruction &instruction, FILE *file)
 	}
 	else if (instruction.op == TACOp::MOD)
 	{
+		fprintf(file, "\t# %s", TacGenerator::gen_tac_str(instruction).c_str());
 		load_to_reg(instruction.arg1, "%r10d");
 		fprintf(file, "\tcltd\n");
 		load_to_reg(instruction.arg2, "%r10d");
@@ -215,43 +197,52 @@ void Assembler::assemble_tac(TACInstruction &instruction, FILE *file)
 	else if (instruction.op == TACOp::COMPLEMENT)
 	{
 		// Refactor into function
+		fprintf(file, "\t# %s", TacGenerator::gen_tac_str(instruction).c_str());
 		load_to_reg(instruction.arg1, "%r10d");
 		fprintf(file, "\notl\t%%r10d\n");
 		store_from_reg(instruction.result, "%r10d");
 	}
 	else if (instruction.op == TACOp::NEGATE)
 	{
+		fprintf(file, "\t# %s", TacGenerator::gen_tac_str(instruction).c_str());
 		load_to_reg(instruction.arg1, "%r10d");
 		fprintf(file, "\negl\t%%r10d\n");
 		store_from_reg(instruction.result, "%r10d");
 	}
 	else if (instruction.op == TACOp::LT)
 	{
+		fprintf(file, "\t# %s", TacGenerator::gen_tac_str(instruction).c_str());
 		// (const std::string &operand_a, const std::string &operand_b, const std::string &result, const char *reg, const std::string &op)
 		cmp_op_to_reg(instruction.arg1, instruction.arg2, instruction.result, "%r10d", "setl");
 	}
 	else if (instruction.op == TACOp::LTE)
 	{
+		fprintf(file, "\t# %s", TacGenerator::gen_tac_str(instruction).c_str());
 		cmp_op_to_reg(instruction.arg1, instruction.arg2, instruction.result, "%r10d", "setle");
 	}
 	else if (instruction.op == TACOp::GT)
 	{
+		fprintf(file, "\t# %s", TacGenerator::gen_tac_str(instruction).c_str());
 		cmp_op_to_reg(instruction.arg1, instruction.arg2, instruction.result, "%r10d", "setg");
 	}
 	else if (instruction.op == TACOp::GTE)
 	{
+		fprintf(file, "\t# %s", TacGenerator::gen_tac_str(instruction).c_str());
 		cmp_op_to_reg(instruction.arg1, instruction.arg2, instruction.result, "%r10d", "setge");
 	}
 	else if (instruction.op == TACOp::EQUAL)
 	{
+		fprintf(file, "\t# %s", TacGenerator::gen_tac_str(instruction).c_str());
 		cmp_op_to_reg(instruction.arg1, instruction.arg2, instruction.result, "%r10d", "sete");
 	}
 	else if (instruction.op == TACOp::NOT_EQUAL)
 	{
+		fprintf(file, "\t# %s", TacGenerator::gen_tac_str(instruction).c_str());
 		cmp_op_to_reg(instruction.arg1, instruction.arg2, instruction.result, "%r10d", "setne");
 	}
 	else if (instruction.op == TACOp::IF)
 	{
+		fprintf(file, "\t# %s", TacGenerator::gen_tac_str(instruction).c_str());
 		Symbol *potential_var = current_st->find_symbol(instruction.arg1);
 
 		if (potential_var == nullptr)
@@ -259,34 +250,37 @@ void Assembler::assemble_tac(TACInstruction &instruction, FILE *file)
 		else
 			fprintf(file, "\tcmpl\t$0, %d(%%rbp)\n", potential_var->stack_offset);
 
-		fprintf(file, "\t%s\t%s\n", get_jmp_from_op(instruction.op2), instruction.result.c_str());
+		fprintf(file, "\t%s\t%s\n", "jne", instruction.result.c_str());
 	}
 	else if (instruction.op == TACOp::GOTO)
 	{
-		fprintf(file, "\tjmp\t%s\n", instruction.result.c_str());
+		fprintf(file, "\tjmp\t%s # %s\n", instruction.result.c_str(), TacGenerator::gen_tac_str(instruction).c_str());
 	}
 	else if (instruction.op == TACOp::LABEL)
 	{
-		fprintf(file, "\n%s:\n", instruction.arg1.c_str());
+		fprintf(file, "\n%s: # %s\n", instruction.arg1.c_str(), TacGenerator::gen_tac_str(instruction).c_str());
 	}
 	else if (instruction.op == TACOp::AND)
 	{
+		fprintf(file, "\t# %s", TacGenerator::gen_tac_str(instruction).c_str());
 		load_to_reg(instruction.arg1, "%r10d");
 		bin_op_to_reg(instruction.arg2, "%r10d", "andl");
 		store_from_reg(instruction.result, "%r10d");
 	}
 	else if (instruction.op == TACOp::OR)
 	{
+		fprintf(file, "\t# %s", TacGenerator::gen_tac_str(instruction).c_str());
 		load_to_reg(instruction.arg1, "%r10d");
 		bin_op_to_reg(instruction.arg2, "%r10d", "orl");
 		store_from_reg(instruction.result, "%r10d");
 	}
 	else if (instruction.op == TACOp::CALL)
 	{
-		fprintf(file, "\tcall\t_%s\n", instruction.arg1.c_str());
+		fprintf(file, "\tcall\t_%s # %s\n", instruction.arg1.c_str(), TacGenerator::gen_tac_str(instruction).c_str());
 	}
 	else if (instruction.op == TACOp::MOV)
 	{
+		fprintf(file, "\t# %s", TacGenerator::gen_tac_str(instruction).c_str());
 		Symbol *potential_var = current_st->find_symbol(instruction.arg1);
 		Symbol *potential_var_2 = current_st->find_symbol(instruction.arg2);
 
@@ -301,6 +295,6 @@ void Assembler::assemble_tac(TACInstruction &instruction, FILE *file)
 	}
 	else if (instruction.op == TACOp::NOP)
 	{
-		fprintf(file, "\n");
+		fprintf(file, "# %s\n", TacGenerator::gen_tac_str(instruction).c_str());
 	}
 }

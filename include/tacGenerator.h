@@ -64,7 +64,8 @@ public:
     TacGenerator(GlobalSymbolTable *gst);
 
     std::vector<TACInstruction> generate_tac(ProgramNode *program);
-    void print_tac();
+    void print_all_tac();
+    static std::string gen_tac_str(TACInstruction &instruction);
 
 private:
     GlobalSymbolTable *gst;

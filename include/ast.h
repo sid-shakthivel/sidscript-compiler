@@ -127,7 +127,7 @@ public:
 class ProgramNode : public ASTNode
 {
 public:
-    std::vector<FuncNode *> functions;
+    std::vector<ASTNode *> decls;
 
     ProgramNode();
     void print(int tabs = 0) override;

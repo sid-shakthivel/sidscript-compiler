@@ -26,7 +26,7 @@ private:
     void error(const std::string &message);
 
     std::vector<ASTNode *> parse_block();
-    FuncNode *parse_func_decl();
+    FuncNode *parse_func_decl(TokenType specifier = TOKEN_EOF);
     void parse_param_list(FuncNode *func);
     void parse_args_list(FuncCallNode *func_call);
     RtnNode *parse_rtn();

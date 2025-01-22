@@ -6,8 +6,13 @@ SemanticAnalyser::SemanticAnalyser(GlobalSymbolTable *gst) : gst(gst) {}
 
 void SemanticAnalyser::analyse(ProgramNode *program)
 {
-    for (auto func : program->functions)
-        analyse_func(func);
+    for (auto decl : program->decls)
+    {
+        if (decl->type == NodeType::NODE_FUNCTION)
+            analyse_func((FuncNode *)decl);
+        else if (decl->type == NodeType::NODE_VAR_DECL)
+            analyse_var_decl((VarDeclNode *)decl);
+    }
 }
 
 void SemanticAnalyser::analyse_func(FuncNode *func)

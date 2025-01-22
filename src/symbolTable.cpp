@@ -11,15 +11,18 @@ Symbol::Symbol(std::string n, int o, bool t) : name(n), stack_offset(o), is_temp
     // std::cout << "Symbol: " << name << " " << stack_offset << std::endl;
 }
 
+void Symbol::set_linkage(Linkage l) { linkage = l; }
+void Symbol::set_storage_duration(StorageDuration sd) { storage_duration = sd; }
+
 FuncSymbol::FuncSymbol(std::string n, int ac, std::vector<Type> &at, Type rt) : Symbol(n, 0, false), arg_count(ac), arg_types(at), return_type(rt) {}
 
-std::string Symbol::gen_unique_name()
-{
-    if (is_temporary)
-        return name;
-    else
-        return name + "_" + std::to_string(unique_id);
-}
+// std::string Symbol::gen_unique_name()
+// {
+//     if (is_temporary)
+//         return name;
+//     else
+//         return name + "_" + std::to_string(unique_id);
+// }
 
 SymbolTable::SymbolTable() {}
 
@@ -79,11 +82,3 @@ void SymbolTable::declare_temp_variable(const std::string &name)
 {
     var_symbols[name] = new Symbol(name, var_count++ * -4, true);
 }
-
-// FuncSymbol *SymbolTable::resolve_func(const std::string &name)
-// {
-//     if (!func_symbols.count(name))
-//         throw std::runtime_error("Semantic Error: Function '" + name + "' is not declared (yet)");
-
-//     return func_symbols[name];
-// }
