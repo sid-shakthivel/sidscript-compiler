@@ -24,6 +24,8 @@ void SemanticAnalyser::analyse_func(FuncNode *func)
     FuncSymbol *func_symbol = new FuncSymbol(func->name, func->params.size(), arg_types, func->return_type);
     SymbolTable *symbol_table = new SymbolTable();
 
+    gst->functions[func->name] = std::make_tuple(func_symbol, symbol_table);
+
     current_st = symbol_table;
 
     symbol_table->enter_scope();
@@ -35,8 +37,6 @@ void SemanticAnalyser::analyse_func(FuncNode *func)
         analyse_node(element);
 
     symbol_table->exit_scope();
-
-    gst->functions[func->name] = std::make_tuple(func_symbol, symbol_table);
 
     current_st = nullptr;
 }

@@ -69,6 +69,19 @@ Type get_type(const TokenType &t)
     }
 }
 
+Specifier get_specifier(const TokenType &t)
+{
+    switch (t)
+    {
+    case TOKEN_STATIC:
+        return Specifier::STATIC;
+    case TOKEN_EXTERN:
+        return Specifier::EXTERN;
+    default:
+        return Specifier::NONE;
+    }
+}
+
 IntegerLiteral::IntegerLiteral(int v) : ASTNode(NODE_INTEGER), value(v), type(Type::INT) {}
 
 void IntegerLiteral::print(int tabs)
@@ -84,12 +97,21 @@ void RtnNode::print(int tabs)
     value->print(tabs + 1);
 }
 
-FuncNode::FuncNode(const std::string &n) : ASTNode(NODE_FUNCTION), name(n) {}
+FuncNode::FuncNode(const std::string &n, Specifier s) : ASTNode(NODE_FUNCTION), name(n), specifier(s) {}
 
 void FuncNode::print(int tabs)
 {
     std::cout << std::string(tabs, ' ') << "Func: " << std::endl;
     std::cout << std::string(tabs + 1, ' ') << "Name: " << name << std::endl;
+
+    if (specifier == Specifier::STATIC)
+    {
+        std::cout << std::string(tabs + 1, ' ') << "Specifier: STATIC" << std::endl;
+    }
+    else if (specifier == Specifier::EXTERN)
+    {
+        std::cout << std::string(tabs + 1, ' ') << "Specifier: EXTERN" << std::endl;
+    }
 
     std::cout << std::string(tabs + 1, ' ') << "Params: " << std::endl;
 
@@ -196,11 +218,20 @@ void BinaryNode::print(int tabs)
     right->print(tabs + 1);
 }
 
-VarNode::VarNode(const std::string &n, Type t) : ASTNode(NODE_VAR), name(n), type(t) {}
+VarNode::VarNode(const std::string &n, Type t, Specifier s) : ASTNode(NODE_VAR), name(n), type(t), specifier(s) {}
 
 void VarNode::print(int tabs)
 {
     std::cout << std::string(tabs, ' ') << "Var: " << name << std::endl;
+
+    if (specifier == Specifier::STATIC)
+    {
+        std::cout << std::string(tabs + 1, ' ') << "Specifier: STATIC" << std::endl;
+    }
+    else if (specifier == Specifier::EXTERN)
+    {
+        std::cout << std::string(tabs + 1, ' ') << "Specifier: EXTERN" << std::endl;
+    }
 }
 
 VarAssignNode::VarAssignNode(VarNode *v, ASTNode *val) : ASTNode(NODE_VAR_ASSIGN), var(v), value(val) {}

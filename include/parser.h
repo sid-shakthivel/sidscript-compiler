@@ -30,7 +30,7 @@ private:
     void parse_param_list(FuncNode *func);
     void parse_args_list(FuncCallNode *func_call);
     RtnNode *parse_rtn();
-    VarDeclNode *parse_var_decl();
+    VarDeclNode *parse_var_decl(TokenType specifier = TOKEN_EOF);
     VarAssignNode *parse_var_assign();
     ASTNode *parse_factor();
     ASTNode *parse_expr(int min_precedence = 0);

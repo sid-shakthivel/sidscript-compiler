@@ -72,7 +72,7 @@ private:
 
     std::vector<TACInstruction> instructions;
 
-    std::array<std::string, 6> registers = {"%esi", "%edi", "%edx", "%ecx", "%r8", "%r9"};
+    std::array<std::string, 6> registers = {"%edi", "%esi", "%edx", "%ecx", "%r8", "%r9"};
 
     int tempCounter;
     int labelCounter;

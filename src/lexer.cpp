@@ -46,6 +46,8 @@ std::unordered_map<std::string, TokenType> string_to_token = {
     {"continue", TOKEN_CONTINUE},
     {",", TOKEN_COMMA},
     {"break", TOKEN_BREAK},
+    {"static", TOKEN_STATIC},
+    {"extern", TOKEN_EXTERN},
 };
 
 std::string token_to_string(TokenType token_type)

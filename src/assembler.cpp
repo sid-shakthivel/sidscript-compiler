@@ -56,7 +56,7 @@ void Assembler::assemble_tac(TACInstruction &instruction, FILE *file)
 		if (potential_var == nullptr)
 			fprintf(file, "\tmovl\t$%s, %s\n", operand.c_str(), reg);
 		else
-			fprintf(file, "\tmovl\t%d(%%rsp), %s\n", potential_var->stack_offset, reg);
+			fprintf(file, "\tmovl\t%d(%%rbp), %s\n", potential_var->stack_offset, reg);
 	};
 
 	auto store_from_reg = [file, this](const std::string &operand, const char *reg)
@@ -65,7 +65,7 @@ void Assembler::assemble_tac(TACInstruction &instruction, FILE *file)
 		if (potential_var == nullptr)
 			fprintf(file, "\tmovl\t%s, $%s\n", reg, operand.c_str());
 		else
-			fprintf(file, "\tmovl\t%s, %d(%%rsp)\n", reg, potential_var->stack_offset);
+			fprintf(file, "\tmovl\t%s, %d(%%rbp)\n", reg, potential_var->stack_offset);
 	};
 
 	auto bin_op_to_reg = [file, this](const std::string &operand, const char *reg, const std::string &op)
@@ -75,7 +75,7 @@ void Assembler::assemble_tac(TACInstruction &instruction, FILE *file)
 		if (potential_var == nullptr)
 			fprintf(file, "\t%s\t$%s, %s\n", op.c_str(), operand.c_str(), reg);
 		else
-			fprintf(file, "\t%s\t%d(%%rsp), %s\n", op.c_str(), potential_var->stack_offset, reg);
+			fprintf(file, "\t%s\t%d(%%rbp), %s\n", op.c_str(), potential_var->stack_offset, reg);
 	};
 
 	auto cmp_op_to_reg = [file, this, load_to_reg, store_from_reg](const std::string &operand_a, const std::string &operand_b, const std::string &result, const char *reg, const std::string &op)
@@ -87,7 +87,7 @@ void Assembler::assemble_tac(TACInstruction &instruction, FILE *file)
 		if (potential_var_b == nullptr)
 			fprintf(file, "\tcmpl\t$%s, %s\n", operand_b.c_str(), reg);
 		else
-			fprintf(file, "\tcmpl\t%d(%%rsp), %s\n", potential_var_b->stack_offset, reg);
+			fprintf(file, "\tcmpl\t%d(%%rbp), %s\n", potential_var_b->stack_offset, reg);
 
 		std::string reg_b = reg;
 		reg_b.pop_back();
@@ -165,12 +165,12 @@ void Assembler::assemble_tac(TACInstruction &instruction, FILE *file)
 
 		if (potential_var == nullptr)
 		{
-			fprintf(file, "\tmovl	$%s, %d(%%rsp)\n", instruction.arg2.c_str(), var->stack_offset);
+			fprintf(file, "\tmovl	$%s, %d(%%rbp)\n", instruction.arg2.c_str(), var->stack_offset);
 		}
 		else
 		{
-			fprintf(file, "\tmovl    %d(%%rsp), %%r10d\n", potential_var->stack_offset);
-			fprintf(file, "\tmovl    %%r10d, %d(%%rsp)\n", var->stack_offset);
+			fprintf(file, "\tmovl    %d(%%rbp), %%r10d\n", potential_var->stack_offset);
+			fprintf(file, "\tmovl    %%r10d, %d(%%rbp)\n", var->stack_offset);
 		}
 	}
 	else if (instruction.op == TACOp::RETURN)
@@ -257,7 +257,7 @@ void Assembler::assemble_tac(TACInstruction &instruction, FILE *file)
 		if (potential_var == nullptr)
 			fprintf(file, "\tcmpl\t$0, %s\n", instruction.arg1.c_str());
 		else
-			fprintf(file, "\tcmpl\t$0, %d(%%rsp)\n", potential_var->stack_offset);
+			fprintf(file, "\tcmpl\t$0, %d(%%rbp)\n", potential_var->stack_offset);
 
 		fprintf(file, "\t%s\t%s\n", get_jmp_from_op(instruction.op2), instruction.result.c_str());
 	}
@@ -293,11 +293,11 @@ void Assembler::assemble_tac(TACInstruction &instruction, FILE *file)
 		if (potential_var == nullptr && potential_var_2 == nullptr)
 			fprintf(file, "\tmovl\t%s, %s\n", instruction.arg2.c_str(), instruction.arg1.c_str());
 		else if (potential_var_2 != nullptr && potential_var == nullptr)
-			fprintf(file, "\tmovl\t%d(%%rsp), %s\n", potential_var_2->stack_offset, instruction.arg1.c_str());
+			fprintf(file, "\tmovl\t%d(%%rbp), %s\n", potential_var_2->stack_offset, instruction.arg1.c_str());
 		else if (potential_var != nullptr && potential_var_2 == nullptr)
-			fprintf(file, "\tmovl\t%s, %d(%%rsp)\n", instruction.arg2.c_str(), potential_var->stack_offset);
+			fprintf(file, "\tmovl\t%s, %d(%%rbp)\n", instruction.arg2.c_str(), potential_var->stack_offset);
 		else
-			fprintf(file, "\tmovl\t%d(%%rsp), %d(%%rsp)\n", potential_var_2->stack_offset, potential_var->stack_offset);
+			fprintf(file, "\tmovl\t%d(%%rbp), %d(%%rbp)\n", potential_var_2->stack_offset, potential_var->stack_offset);
 	}
 	else if (instruction.op == TACOp::NOP)
 	{

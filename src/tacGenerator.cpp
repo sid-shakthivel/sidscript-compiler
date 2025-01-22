@@ -273,7 +273,10 @@ std::string TacGenerator::generate_tac_expr(ASTNode *expr)
                 {
                     instructions.emplace_back(TACOp::MOV, registers[i], "$" + std::to_string(((IntegerLiteral *)func->args[i])->value));
                 }
-                // instructions.emplace_back(TACOp::MOV, registers[i], func->args[i]);
+                else if (func->args[i]->type == NodeType::NODE_VAR)
+                {
+                    instructions.emplace_back(TACOp::MOV, registers[i], ((VarNode *)func->args[i])->name);
+                }
             }
             else
             {
@@ -282,7 +285,7 @@ std::string TacGenerator::generate_tac_expr(ASTNode *expr)
             }
         }
 
-        int stack_offset = (func->args.size() - 6);
+        int stack_offset = (func->args.size() - 6) + current_st->get_var_count();
 
         if (stack_offset % 2 != 0 && stack_offset > 0)
         {

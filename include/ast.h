@@ -56,10 +56,18 @@ enum class Type
     VOID
 };
 
+enum class Specifier
+{
+    NONE,
+    STATIC,
+    EXTERN
+};
+
 UnaryOpType
 get_unary_op_type(const TokenType &t);
 BinOpType get_bin_op_type(const TokenType &t);
 Type get_type(const TokenType &t);
+Specifier get_specifier(const TokenType &t);
 
 class ASTNode
 {
@@ -99,8 +107,9 @@ public:
     std::vector<ASTNode *> params;
     std::vector<ASTNode *> elements;
     Type return_type;
+    Specifier specifier;
 
-    FuncNode(const std::string &n);
+    FuncNode(const std::string &n, Specifier s = Specifier::NONE);
     void print(int tabs) override;
     std::string get_param_name(int i);
 };
@@ -150,8 +159,9 @@ class VarNode : public ASTNode
 public:
     std::string name;
     Type type;
+    Specifier specifier;
 
-    VarNode(const std::string &n, Type t);
+    VarNode(const std::string &n, Type t, Specifier s = Specifier::NONE);
     void print(int tabs) override;
 };
 

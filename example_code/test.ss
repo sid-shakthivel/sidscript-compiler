@@ -1,8 +1,7 @@
-fn bar(int b) -> int {
-    return b + 1;
+static fn foo() -> void {
+    int a = 5;
 }
 
-fn main() -> int {
-    int a = bar(7);
-    return a;
+fn main() -> void {
+    static int b = 8;
 }

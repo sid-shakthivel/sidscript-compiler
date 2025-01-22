@@ -6,8 +6,8 @@
 <element> ::= <stmt> | <decl>
 
 <decl> ::= <var_decl> | <var_assign> | <func_decl>
-<var_decl> ::= "int" <identifier> [ "=" <expr> ] ";"
-<func_decl> ::= "fn" <identifier> "(" <param-list> ")" "->" ("int" | "void") <block>
+<var_decl> ::= <specifier>? "int" <identifier> [ "=" <expr> ] ";"
+<func_decl> ::= <specifier>? "fn" <identifier> "(" <param-list> ")" "->" ("int" | "void") <block>
 
 <var_assign> ::= <identifer> "=" <expr> ";"
 
@@ -26,6 +26,8 @@
 
 <expr> ::= <factor> | <expr> <binopr> <expr>
 <factor> ::= <int> | <identifier> | <unopr> <factor> | "(" <expr> ")" | <identifier> "(" [ <argument-list> ] ")"
+
+<specifier> ::= "static" | "extern"
 
 <binopr> ::= ::= "-" | "+" | "\*" | "/" | "%" | "&&" | "||"
 | "==" | "!=" | "<" | "<=" | ">" | ">="

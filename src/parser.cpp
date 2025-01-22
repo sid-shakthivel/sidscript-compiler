@@ -98,13 +98,25 @@ ProgramNode *Parser::parse()
 
 FuncNode *Parser::parse_func_decl()
 {
-    expect_and_advance(TOKEN_FN);
+    std::vector<TokenType> excepted_tokens = std::vector<TokenType>{TOKEN_FN, TOKEN_STATIC, TOKEN_EXTERN};
+    expect(excepted_tokens);
+
+    TokenType specifier = TOKEN_EOF;
+
+    if (match(TOKEN_STATIC) || match(TOKEN_EXTERN))
+    {
+        specifier = current_token.type;
+        advance();
+        expect(TOKEN_FN);
+    }
+
+    advance();
 
     expect(TOKEN_IDENTIFIER);
 
     std::string func_name = current_token.text;
 
-    FuncNode *func = new FuncNode(func_name);
+    FuncNode *func = new FuncNode(func_name, get_specifier(specifier));
 
     advance();
 
@@ -185,6 +197,12 @@ std::vector<ASTNode *> Parser::parse_block()
             elements.emplace_back(parse_for_stmt());
         else if (match(TOKEN_CONTINUE) || match(TOKEN_BREAK))
             elements.emplace_back(parse_loop_control());
+        else if (match(TOKEN_STATIC) || match(TOKEN_EXTERN))
+        {
+            TokenType specifier = current_token.type;
+            advance();
+            elements.emplace_back(parse_var_decl(specifier));
+        }
         else
             error("Expected an element");
 
@@ -295,14 +313,14 @@ ASTNode *Parser::parse_loop_control()
         return new BreakNode("");
 }
 
-VarDeclNode *Parser::parse_var_decl()
+VarDeclNode *Parser::parse_var_decl(TokenType specifier)
 {
     advance();
 
     expect(TOKEN_IDENTIFIER);
 
     std::string var_identifier = current_token.text;
-    VarNode *var = new VarNode(var_identifier, Type::INT);
+    VarNode *var = new VarNode(var_identifier, Type::INT, get_specifier(specifier));
 
     advance();
 
