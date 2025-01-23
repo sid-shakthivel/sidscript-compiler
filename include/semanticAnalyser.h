@@ -13,7 +13,7 @@ public:
 
 private:
     GlobalSymbolTable *gst;
-    SymbolTable *current_st;
+    std::string current_func_name = "";
 
     unsigned int loop_label_counter = 0;
     std::string gen_new_loop_label();

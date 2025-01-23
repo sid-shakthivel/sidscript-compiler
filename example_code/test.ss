@@ -1,6 +1,5 @@
+static int b;
 
 fn main() -> void {
-    int a;
-    a = 3;
-    return 6;
+    b = b + 2;
 }

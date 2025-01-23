@@ -57,11 +57,13 @@ public:
 
     void enter_scope();
     void exit_scope();
-    void declare_variable(const std::string &name);
-    void resolve_variable(const std::string &name);
-    int get_var_count();
-    Symbol *find_symbol(const std::string &name);
+
+    void declare_var(const std::string &name, bool is_static = false);
+    bool check_var_defined(const std::string &name);
     void declare_temp_variable(const std::string &name);
+
+    int get_var_count();
+    Symbol *get_symbol(const std::string &name);
 
 private:
     std::stack<std::unordered_map<std::string, Symbol *>> scopes;

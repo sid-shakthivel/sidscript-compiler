@@ -34,7 +34,7 @@ int main()
     Parser parser(&lexer);
 
     ProgramNode *program = parser.parse();
-    program->print();
+    // program->print();
 
     GlobalSymbolTable *gst = new GlobalSymbolTable();
     SemanticAnalyser semanticAnalyser(gst);

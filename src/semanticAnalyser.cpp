@@ -31,19 +31,19 @@ void SemanticAnalyser::analyse_func(FuncNode *func)
 
     gst->functions[func->name] = std::make_tuple(func_symbol, symbol_table);
 
-    current_st = symbol_table;
+    current_func_name = func->name;
 
     symbol_table->enter_scope();
 
     for (auto param : func->params)
-        symbol_table->declare_variable(((VarDeclNode *)param)->var->name);
+        symbol_table->declare_var(((VarDeclNode *)param)->var->name);
 
     for (auto element : func->elements)
         analyse_node(element);
 
     symbol_table->exit_scope();
 
-    current_st = nullptr;
+    current_func_name = "";
 }
 
 void SemanticAnalyser::analyse_node(ASTNode *node)
@@ -74,14 +74,14 @@ void SemanticAnalyser::analyse_node(ASTNode *node)
 
 void SemanticAnalyser::analyse_var_decl(VarDeclNode *node)
 {
-    current_st->declare_variable(node->var->name);
+    gst->declare_var(current_func_name, node->var);
     if (node->value)
         analyse_node(node->value);
 }
 
 void SemanticAnalyser::analyser_var_assign(VarAssignNode *node)
 {
-    current_st->resolve_variable(node->var->name);
+    gst->check_var_defined(current_func_name, node->var->name);
     analyse_node(node->value);
 }
 
@@ -95,17 +95,17 @@ void SemanticAnalyser::analyse_if_stmt(IfNode *node)
 {
     analyse_node(node->condition);
 
-    current_st->enter_scope();
+    gst->enter_scope(current_func_name);
     for (auto stmt : node->then_elements)
         analyse_node(stmt);
-    current_st->exit_scope();
+    gst->exit_scope(current_func_name);
 
     if (!node->else_elements.empty())
     {
-        current_st->enter_scope();
+        gst->enter_scope(current_func_name);
         for (auto stmt : node->else_elements)
             analyse_node(stmt);
-        current_st->exit_scope();
+        gst->exit_scope(current_func_name);
     }
 }
 
@@ -119,11 +119,11 @@ void SemanticAnalyser::analyse_while_stmt(WhileNode *node)
     std::cout << label << std::endl;
 
     enter_loop_scope(label);
-    current_st->enter_scope();
+    gst->enter_scope(current_func_name);
 
     for (auto stmt : node->elements)
         analyse_node(stmt);
-    current_st->exit_scope();
+    gst->exit_scope(current_func_name);
 
     exit_loop_scope();
 }
@@ -134,7 +134,7 @@ void SemanticAnalyser::analyse_for_stmt(ForNode *node)
     node->label = label;
 
     enter_loop_scope(label);
-    current_st->enter_scope();
+    gst->enter_scope(current_func_name);
 
     analyse_node(node->init);
     analyse_node(node->condition);
@@ -143,7 +143,7 @@ void SemanticAnalyser::analyse_for_stmt(ForNode *node)
     for (auto stmt : node->elements)
         analyse_node(stmt);
 
-    current_st->exit_scope();
+    gst->exit_scope(current_func_name);
     exit_loop_scope();
 }
 
@@ -160,7 +160,7 @@ void SemanticAnalyser::analyse_unary(UnaryNode *node)
 
 void SemanticAnalyser::analyse_var(VarNode *node)
 {
-    current_st->resolve_variable(node->name);
+    gst->check_var_defined(current_func_name, node->name);
 }
 
 std::string SemanticAnalyser::gen_new_loop_label()
@@ -191,7 +191,7 @@ void SemanticAnalyser::analyse_loop_control(ASTNode *node)
 
 void SemanticAnalyser::analyse_func_call(FuncCallNode *node)
 {
-    FuncSymbol *func = gst->resolve_func(node->name);
+    FuncSymbol *func = gst->get_func_symbol(node->name);
 
     if (func->arg_count != node->args.size())
         throw std::runtime_error("Semantic Error: Function '" + node->name + "' has " + std::to_string(func->arg_count) + " arguments, but " + std::to_string(node->args.size()) + " were provided");
@@ -219,7 +219,7 @@ Type SemanticAnalyser::infer_type(ASTNode *node)
         return ((VarNode *)node)->type;
     case NodeType::NODE_FUNC_CALL:
     {
-        FuncSymbol *func = gst->resolve_func(((FuncCallNode *)node)->name);
+        FuncSymbol *func = gst->get_func_symbol(((FuncCallNode *)node)->name);
         return func->return_type;
     }
     case NodeType::NODE_BINARY:

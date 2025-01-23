@@ -75,7 +75,7 @@ void TacGenerator::generate_tac_func(FuncNode *func)
 {
     instructions.emplace_back(TACOp::FUNC_BEGIN, func->name);
 
-    current_st = gst->get_symbol_table(func->name);
+    current_st = gst->get_func_st(func->name);
 
     for (int i = 0; i < func->params.size(); i++)
         if (i < 6)

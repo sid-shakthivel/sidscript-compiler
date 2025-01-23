@@ -15,7 +15,6 @@ public:
 
 private:
     GlobalSymbolTable *gst;
-    SymbolTable *current_st = nullptr;
     std::string current_func = "";
 
     void assemble_tac(TACInstruction &instruction, FILE *file);
