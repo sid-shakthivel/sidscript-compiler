@@ -32,9 +32,6 @@ void Assembler::assemble(std::vector<TACInstruction> instructions, std::string f
 	// Specifies the version of the OS (macOS Sonoma) and the SDK version
 	fprintf(file, "	.build_version macos, 15, 0	sdk_version 15, 1\n");
 
-	// Declares the entrypoint of the program when executed (what crt0 calls)
-	fprintf(file, "	.globl	_main\n");
-
 	/*
 		Aligns the _main function to a 16-byte boundary (2^4 = 16) for performance reasons
 		The 0x90 specifies that the padding, if needed, will be filled with NOP (no-operation) instructions to ensure alignment
@@ -103,6 +100,9 @@ void Assembler::assemble_tac(TACInstruction &instruction, FILE *file)
 	if (instruction.op == TACOp::FUNC_BEGIN)
 	{
 		current_func = instruction.arg1;
+
+		if (instruction.arg2 == "global")
+			fprintf(file, ".global	_%s\n", instruction.arg1.c_str());
 		fprintf(file, "_%s: # %s\n", instruction.arg1.c_str(), TacGenerator::gen_tac_str(instruction).c_str());
 		/*
 			Pushes rbp onto stack (this saves caller's base pointer allowing it to be restored back later)
@@ -130,22 +130,45 @@ void Assembler::assemble_tac(TACInstruction &instruction, FILE *file)
 	}
 	else if (instruction.op == TACOp::ASSIGN)
 	{
-		/*
+
+		if (current_var_type == VarType::REGULAR)
+		{
+			/*
 			For this instruction
 			- arg1 is the variable name (this should exist)
 			- arg2 is the value to be assigned (variable or constant)
 		*/
-		Symbol *var = gst->get_symbol(current_func, instruction.arg1);
-		Symbol *potential_var = gst->get_symbol(current_func, instruction.arg2);
+			Symbol *var = gst->get_symbol(current_func, instruction.arg1);
+			Symbol *potential_var = gst->get_symbol(current_func, instruction.arg2);
 
-		if (potential_var == nullptr)
-		{
-			fprintf(file, "\tmovl	$%s, %d(%%rbp) # %s\n", instruction.arg2.c_str(), var->stack_offset, TacGenerator::gen_tac_str(instruction).c_str());
+			if (potential_var == nullptr)
+			{
+				fprintf(file, "\tmovl	$%s, %d(%%rbp) # %s\n", instruction.arg2.c_str(), var->stack_offset, TacGenerator::gen_tac_str(instruction).c_str());
+			}
+			else
+			{
+				fprintf(file, "\tmovl    %d(%%rbp), %%r10d # %s\n", potential_var->stack_offset, TacGenerator::gen_tac_str(instruction).c_str());
+				fprintf(file, "\tmovl    %%r10d, %d(%%rbp)\n", var->stack_offset);
+			}
 		}
-		else
+		else if (current_var_type == VarType::BSS)
 		{
-			fprintf(file, "\tmovl    %d(%%rbp), %%r10d # %s\n", potential_var->stack_offset, TacGenerator::gen_tac_str(instruction).c_str());
-			fprintf(file, "\tmovl    %%r10d, %d(%%rbp)\n", var->stack_offset);
+			if (instruction.arg2 == "global")
+				fprintf(file, "\t.global	_%s\n", instruction.arg1.c_str());
+			fprintf(file, "\t_%s:\n", instruction.arg1.c_str());
+			fprintf(file, "\t.zero 4\n");
+		}
+		else if (current_var_type == VarType::DATA)
+		{
+			Symbol *potential_var = gst->get_symbol(current_func, instruction.result);
+
+			if (potential_var == nullptr)
+			{
+				if (instruction.arg2 == "global")
+					fprintf(file, "\t.global	_%s\n", instruction.arg1.c_str());
+				fprintf(file, "\t_%s:\n", instruction.arg1.c_str());
+				fprintf(file, "\t.long %s\n", instruction.result.c_str());
+			}
 		}
 	}
 	else if (instruction.op == TACOp::RETURN)
@@ -295,5 +318,22 @@ void Assembler::assemble_tac(TACInstruction &instruction, FILE *file)
 	else if (instruction.op == TACOp::NOP)
 	{
 		fprintf(file, "# %s\n", TacGenerator::gen_tac_str(instruction).c_str());
+	}
+	else if (instruction.op == TACOp::ENTER_TEXT)
+	{
+		fprintf(file, ".text\n");
+		current_var_type = VarType::REGULAR;
+	}
+	else if (instruction.op == TACOp::ENTER_BSS)
+	{
+		fprintf(file, ".bss\n");
+		fprintf(file, ".balign 4\n");
+		current_var_type = VarType::BSS;
+	}
+	else if (instruction.op == TACOp::ENTER_DATA)
+	{
+		fprintf(file, ".data\n");
+		fprintf(file, ".balign 4\n");
+		current_var_type = VarType::DATA;
 	}
 }

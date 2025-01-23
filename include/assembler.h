@@ -7,6 +7,13 @@
 #include "globalSymbolTable.h"
 #include "tacGenerator.h"
 
+enum class VarType
+{
+    BSS,
+    DATA,
+    REGULAR
+};
+
 class Assembler
 {
 public:
@@ -16,6 +23,7 @@ public:
 private:
     GlobalSymbolTable *gst;
     std::string current_func = "";
+    VarType current_var_type = VarType::REGULAR;
 
     void assemble_tac(TACInstruction &instruction, FILE *file);
 };

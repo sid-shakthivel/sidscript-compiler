@@ -1,5 +1,7 @@
-static int b;
+static int a;
+static int b = 4;
+int d;
 
 fn main() -> void {
-    b = b + 2;
+    static int c;
 }

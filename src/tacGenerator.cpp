@@ -68,12 +68,21 @@ std::vector<TACInstruction> TacGenerator::generate_tac(ProgramNode *program)
             generate_tac_element(decl);
     }
 
+    instructions.insert(instructions.begin(), TACInstruction(TACOp::ENTER_TEXT));
+
+    instructions.insert(instructions.begin(), data_vars.begin(), data_vars.end());
+    instructions.insert(instructions.begin(), TACInstruction(TACOp::ENTER_DATA));
+
+    instructions.insert(instructions.begin(), bss_vars.begin(), bss_vars.end());
+    instructions.insert(instructions.begin(), TACInstruction(TACOp::ENTER_BSS));
+
     return instructions;
 }
 
 void TacGenerator::generate_tac_func(FuncNode *func)
 {
-    instructions.emplace_back(TACOp::FUNC_BEGIN, func->name);
+    current_func = func->name;
+    instructions.emplace_back(TACOp::FUNC_BEGIN, func->name, func->specifier == Specifier::STATIC ? "static" : "global");
 
     current_st = gst->get_func_st(func->name);
 
@@ -86,6 +95,7 @@ void TacGenerator::generate_tac_func(FuncNode *func)
     instructions.emplace_back(TACOp::FUNC_END);
 
     current_st = nullptr;
+    current_func = "";
 }
 
 void TacGenerator::generate_tac_element(ASTNode *element)
@@ -121,6 +131,27 @@ void TacGenerator::generate_tac_element(ASTNode *element)
     else if (element->type == NodeType::NODE_VAR_DECL || element->type == NodeType::NODE_VAR_ASSIGN)
     {
         VarAssignNode *var_decl = (VarAssignNode *)element;
+
+        Symbol *var_symbol = gst->get_symbol(current_func, var_decl->var->name);
+
+        // Check if some sort of global/static
+        if (var_symbol->linkage != Linkage::None || var_symbol->storage_duration == StorageDuration::Static)
+        {
+            if (var_decl->value == nullptr)
+            {
+                // Place in BSS
+                bss_vars.emplace_back(TACOp::ASSIGN, var_decl->var->name, var_symbol->linkage == Linkage::External ? "global" : "", "0");
+            }
+            else
+            {
+                // Place in Data
+                std::string result = generate_tac_expr(var_decl->value);
+                data_vars.emplace_back(TACOp::ASSIGN, var_decl->var->name, var_symbol->linkage == Linkage::External ? "global" : "", result);
+            }
+
+            return;
+        }
+
         if (var_decl->value != nullptr)
         {
             std::string result = generate_tac_expr(var_decl->value);
@@ -379,6 +410,12 @@ std::string TacGenerator::gen_tac_str(TACInstruction &instr)
             return "INCREMENT";
         case TACOp::DECREMENT:
             return "DECREMENT";
+        case TACOp::ENTER_BSS:
+            return "ENTER_BSS";
+        case TACOp::ENTER_DATA:
+            return "ENTER_DATA";
+        case TACOp::ENTER_TEXT:
+            return "ENTER_TEXT";
         default:
             return "UNKNOWN";
         }

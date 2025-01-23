@@ -39,6 +39,9 @@ enum class TACOp
     MOV,
     PUSH,
     CALL,
+    ENTER_BSS,
+    ENTER_DATA,
+    ENTER_TEXT,
 };
 
 TACOp convert_UnaryOpType_to_TACOp(UnaryOpType op);
@@ -70,8 +73,11 @@ public:
 private:
     GlobalSymbolTable *gst;
     SymbolTable *current_st = nullptr;
+    std::string current_func = "";
 
     std::vector<TACInstruction> instructions;
+    std::vector<TACInstruction> bss_vars;
+    std::vector<TACInstruction> data_vars;
 
     std::array<std::string, 6> registers = {"%edi", "%esi", "%edx", "%ecx", "%r8", "%r9"};
 
