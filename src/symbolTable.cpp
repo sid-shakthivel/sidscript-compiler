@@ -5,9 +5,6 @@
 
 Symbol::Symbol(std::string n, int o, bool t) : name(n), stack_offset(o), is_temporary(t)
 {
-    if (is_temporary)
-        unique_id = stack_offset / -4;
-
     // std::cout << "Symbol: " << name << " " << stack_offset << std::endl;
 }
 
@@ -36,17 +33,17 @@ void SymbolTable::exit_scope()
     if (scopes.empty())
         throw std::runtime_error("Semantic Error: No scope to exit");
 
-    auto &current_scope = scopes.top();
-    for (auto it = current_scope.begin(); it != current_scope.end();)
-    {
-        var_symbols[it->first] = it->second; // Use unique name
-        it = current_scope.erase(it);
-    }
+    // auto &current_scope = scopes.top();
+    // for (auto it = current_scope.begin(); it != current_scope.end();)
+    // {
+    //     var_symbols[it->second->unique_name] = it->second; // Use unique name
+    //     it = current_scope.erase(it);
+    // }
 
     scopes.pop();
 }
 
-void SymbolTable::declare_var(const std::string &name, bool is_static)
+std::tuple<bool, std::string> SymbolTable::declare_var(const std::string &name, bool is_static)
 {
     if (scopes.empty())
         throw std::runtime_error("Semantic Error: No scope available");
@@ -66,16 +63,38 @@ void SymbolTable::declare_var(const std::string &name, bool is_static)
     Symbol *symbol = new Symbol(name, var_count++ * -4, false);
     symbol->set_storage_duration(is_static ? StorageDuration::Static : StorageDuration::Automatic);
     current_scope[name] = symbol;
+
+    bool has_name_changed = false;
+
+    auto it = var_symbols.find(name);
+    if (it != var_symbols.end())
+    {
+        std::cout << "hey there\n";
+        symbol->unique_name = name + std::to_string(var_count);
+        has_name_changed = true;
+    }
+    else
+    {
+        symbol->unique_name = name;
+    }
+
+    var_symbols[symbol->unique_name] = symbol;
+
+    return std::make_tuple(has_name_changed, symbol->unique_name);
 }
 
-bool SymbolTable::check_var_defined(const std::string &name)
+std::tuple<bool, std::string> SymbolTable::check_var_defined(const std::string &name)
 {
     auto &stack_container = scopes.__get_container(); // Non-standard but widely supported in STL
     for (auto it = stack_container.rbegin(); it != stack_container.rend(); ++it)
         if (it->count(name))
-            return true;
+        {
+            auto it2 = it->find(name);
+            if (it2 != it->end())
+                return std::make_tuple(true, it2->second->unique_name);
+        }
 
-    return false;
+    return std::make_tuple(false, "");
 }
 
 int SymbolTable::get_var_count()
@@ -91,4 +110,10 @@ Symbol *SymbolTable::get_symbol(const std::string &name)
 void SymbolTable::declare_temp_variable(const std::string &name)
 {
     var_symbols[name] = new Symbol(name, var_count++ * -4, true);
+}
+
+void SymbolTable::print()
+{
+    for (auto it = var_symbols.begin(); it != var_symbols.end(); ++it)
+        std::cout << " - " << it->first << std::endl;
 }

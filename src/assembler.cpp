@@ -27,17 +27,16 @@ void Assembler::assemble(std::vector<TACInstruction> instructions, std::string f
 			- placed in text section of binary
 			- normal and read-only
 	*/
-	fprintf(file, "	.section	__TEXT,__text,regular,pure_instructions\n");
+	fprintf(file, ".section	__TEXT,__text,regular,pure_instructions\n");
 
 	// Specifies the version of the OS (macOS Sonoma) and the SDK version
-	fprintf(file, "	.build_version macos, 15, 0	sdk_version 15, 1\n");
+	fprintf(file, ".build_version macos, 15, 0	sdk_version 15, 1\n");
 
 	/*
 		Aligns the _main function to a 16-byte boundary (2^4 = 16) for performance reasons
 		The 0x90 specifies that the padding, if needed, will be filled with NOP (no-operation) instructions to ensure alignment
 	*/
-	fprintf(file, "	.p2align	4, 0x90\n");
-	fprintf(file, "\n");
+	fprintf(file, ".p2align	4, 0x90\n\n");
 
 	for (auto &instruction : instructions)
 		assemble_tac(instruction, file);
@@ -154,9 +153,9 @@ void Assembler::assemble_tac(TACInstruction &instruction, FILE *file)
 		else if (current_var_type == VarType::BSS)
 		{
 			if (instruction.arg2 == "global")
-				fprintf(file, "\t.global	_%s\n", instruction.arg1.c_str());
-			fprintf(file, "\t_%s:\n", instruction.arg1.c_str());
-			fprintf(file, "\t.zero 4\n");
+				fprintf(file, ".global	_%s\n", instruction.arg1.c_str());
+			fprintf(file, "_%s:\n", instruction.arg1.c_str());
+			fprintf(file, "\t.zero 4\n\n");
 		}
 		else if (current_var_type == VarType::DATA)
 		{
@@ -165,9 +164,9 @@ void Assembler::assemble_tac(TACInstruction &instruction, FILE *file)
 			if (potential_var == nullptr)
 			{
 				if (instruction.arg2 == "global")
-					fprintf(file, "\t.global	_%s\n", instruction.arg1.c_str());
-				fprintf(file, "\t_%s:\n", instruction.arg1.c_str());
-				fprintf(file, "\t.long %s\n", instruction.result.c_str());
+					fprintf(file, ".global	_%s\n", instruction.arg1.c_str());
+				fprintf(file, "_%s:\n", instruction.arg1.c_str());
+				fprintf(file, "\t.long %s\n\n", instruction.result.c_str());
 			}
 		}
 	}
@@ -179,7 +178,7 @@ void Assembler::assemble_tac(TACInstruction &instruction, FILE *file)
 	}
 	else if (instruction.op == TACOp::ADD)
 	{
-		fprintf(file, "\t# %s", TacGenerator::gen_tac_str(instruction).c_str());
+		fprintf(file, "\t# %s\n", TacGenerator::gen_tac_str(instruction).c_str());
 		load_to_reg(instruction.arg1, "%r10d");
 		bin_op_to_reg(instruction.arg2, "%r10d", "addl");
 		store_from_reg(instruction.result, "%r10d");
@@ -254,7 +253,7 @@ void Assembler::assemble_tac(TACInstruction &instruction, FILE *file)
 	}
 	else if (instruction.op == TACOp::EQUAL)
 	{
-		fprintf(file, "\t# %s", TacGenerator::gen_tac_str(instruction).c_str());
+		fprintf(file, "\n\t# %s\n", TacGenerator::gen_tac_str(instruction).c_str());
 		cmp_op_to_reg(instruction.arg1, instruction.arg2, instruction.result, "%r10d", "sete");
 	}
 	else if (instruction.op == TACOp::NOT_EQUAL)
@@ -264,7 +263,7 @@ void Assembler::assemble_tac(TACInstruction &instruction, FILE *file)
 	}
 	else if (instruction.op == TACOp::IF)
 	{
-		fprintf(file, "\t# %s", TacGenerator::gen_tac_str(instruction).c_str());
+		fprintf(file, "\t# %s\n", TacGenerator::gen_tac_str(instruction).c_str());
 		Symbol *potential_var = gst->get_symbol(current_func, instruction.arg1);
 
 		if (potential_var == nullptr)
@@ -327,13 +326,13 @@ void Assembler::assemble_tac(TACInstruction &instruction, FILE *file)
 	else if (instruction.op == TACOp::ENTER_BSS)
 	{
 		fprintf(file, ".bss\n");
-		fprintf(file, ".balign 4\n");
+		fprintf(file, ".balign 4\n\n");
 		current_var_type = VarType::BSS;
 	}
 	else if (instruction.op == TACOp::ENTER_DATA)
 	{
 		fprintf(file, ".data\n");
-		fprintf(file, ".balign 4\n");
+		fprintf(file, ".balign 4\n\n");
 		current_var_type = VarType::DATA;
 	}
 }

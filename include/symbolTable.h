@@ -31,9 +31,9 @@ struct Symbol
     std::string name;
     int stack_offset;
     bool is_temporary;
-    int unique_id = 0;
     Linkage linkage = Linkage::None;
     StorageDuration storage_duration = StorageDuration::Automatic;
+    std::string unique_name;
 
     Symbol(std::string n, int o, bool t);
     void set_linkage(Linkage l);
@@ -58,12 +58,14 @@ public:
     void enter_scope();
     void exit_scope();
 
-    void declare_var(const std::string &name, bool is_static = false);
-    bool check_var_defined(const std::string &name);
+    std::tuple<bool, std::string> declare_var(const std::string &name, bool is_static = false);
+    std::tuple<bool, std::string> check_var_defined(const std::string &name);
     void declare_temp_variable(const std::string &name);
 
     int get_var_count();
     Symbol *get_symbol(const std::string &name);
+
+    void print();
 
 private:
     std::stack<std::unordered_map<std::string, Symbol *>> scopes;

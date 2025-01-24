@@ -34,7 +34,6 @@ int main()
     Parser parser(&lexer);
 
     ProgramNode *program = parser.parse();
-    // program->print();
 
     GlobalSymbolTable *gst = new GlobalSymbolTable();
     SemanticAnalyser semanticAnalyser(gst);
@@ -43,6 +42,9 @@ int main()
     TacGenerator tacGenerator(gst);
     std::vector<TACInstruction> tacInstructions = tacGenerator.generate_tac(program);
     tacGenerator.print_all_tac();
+
+    gst->print();
+    // program->print();
 
     Assembler assembler(gst);
     assembler.assemble(tacInstructions, "test.s");

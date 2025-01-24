@@ -81,7 +81,7 @@ void SemanticAnalyser::analyse_var_decl(VarDeclNode *node)
 
 void SemanticAnalyser::analyser_var_assign(VarAssignNode *node)
 {
-    gst->check_var_defined(current_func_name, node->var->name);
+    node->var->name = gst->check_var_defined(current_func_name, node->var->name);
     analyse_node(node->value);
 }
 
@@ -160,7 +160,7 @@ void SemanticAnalyser::analyse_unary(UnaryNode *node)
 
 void SemanticAnalyser::analyse_var(VarNode *node)
 {
-    gst->check_var_defined(current_func_name, node->name);
+    node->name = gst->check_var_defined(current_func_name, node->name);
 }
 
 std::string SemanticAnalyser::gen_new_loop_label()

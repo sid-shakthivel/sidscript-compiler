@@ -1,7 +1,11 @@
-static int a;
-static int b = 4;
-int d;
-
-fn main() -> void {
-    static int c;
+fn main() -> int {
+    int a = 4;
+    int b = 3;
+    if (b == 3)
+    {
+        int a = 5;
+        b = b + a;
+    }
+    b = b + a;
+    return b;
 }

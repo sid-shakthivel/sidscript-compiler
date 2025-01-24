@@ -1,3 +1,5 @@
+#include <iostream>
+
 #include "../include/globalSymbolTable.h"
 
 GlobalSymbolTable::GlobalSymbolTable() {}
@@ -88,28 +90,38 @@ void GlobalSymbolTable::declare_var(const std::string &func_name, VarNode *node)
 	if (it2 == functions.end())
 		throw std::runtime_error("Semantic Error: Function '" + func_name + "' is not declared");
 
-	std::get<1>(it2->second)->declare_var(node->name, node->specifier == Specifier::STATIC);
+	auto [has_name_changed, new_name] = std::get<1>(it2->second)->declare_var(node->name, node->specifier == Specifier::STATIC);
+
+	if (has_name_changed)
+		node->name = new_name;
 }
 
-void GlobalSymbolTable::check_var_defined(const std::string &func_name, const std::string &name)
+std::string GlobalSymbolTable::check_var_defined(const std::string &func_name, const std::string &name)
 {
 	auto it = functions.find(func_name);
 
+	// Check against global variables
 	if (it == functions.end())
 	{
 		auto it = global_variables.find(name);
 		if (it == global_variables.end())
 			throw std::runtime_error("Semantic Error: Variable '" + name + "' is not declared");
 
-		return;
+		return name;
 	}
 
-	if (!std::get<1>(it->second)->check_var_defined(name))
+	// Check against local variables
+
+	auto [var_exists, new_name] = std::get<1>(it->second)->check_var_defined(name);
+
+	if (!var_exists)
 	{
 		auto it = global_variables.find(name);
 		if (it == global_variables.end())
 			throw std::runtime_error("Semantic Error: Variable '" + name + "' is not declared");
 	}
+
+	return new_name;
 }
 
 Symbol *GlobalSymbolTable::get_symbol(const std::string &func_name, const std::string &name)
@@ -123,4 +135,16 @@ Symbol *GlobalSymbolTable::get_symbol(const std::string &func_name, const std::s
 		return it2->second;
 
 	return nullptr;
+}
+
+void GlobalSymbolTable::print()
+{
+	for (auto it = global_variables.begin(); it != global_variables.end(); ++it)
+		std::cout << it->first << std::endl;
+
+	for (auto it = functions.begin(); it != functions.end(); ++it)
+	{
+		std::cout << "Variables for *" << it->first << "* are: " << std::endl;
+		std::get<1>(it->second)->print();
+	}
 }

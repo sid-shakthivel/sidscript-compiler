@@ -70,11 +70,17 @@ std::vector<TACInstruction> TacGenerator::generate_tac(ProgramNode *program)
 
     instructions.insert(instructions.begin(), TACInstruction(TACOp::ENTER_TEXT));
 
-    instructions.insert(instructions.begin(), data_vars.begin(), data_vars.end());
-    instructions.insert(instructions.begin(), TACInstruction(TACOp::ENTER_DATA));
+    if (!data_vars.empty())
+    {
+        instructions.insert(instructions.begin(), data_vars.begin(), data_vars.end());
+        instructions.insert(instructions.begin(), TACInstruction(TACOp::ENTER_DATA));
+    }
 
-    instructions.insert(instructions.begin(), bss_vars.begin(), bss_vars.end());
-    instructions.insert(instructions.begin(), TACInstruction(TACOp::ENTER_BSS));
+    if (!bss_vars.empty())
+    {
+        instructions.insert(instructions.begin(), bss_vars.begin(), bss_vars.end());
+        instructions.insert(instructions.begin(), TACInstruction(TACOp::ENTER_BSS));
+    }
 
     return instructions;
 }
@@ -133,6 +139,9 @@ void TacGenerator::generate_tac_element(ASTNode *element)
         VarAssignNode *var_decl = (VarAssignNode *)element;
 
         Symbol *var_symbol = gst->get_symbol(current_func, var_decl->var->name);
+
+        if (var_symbol == nullptr)
+            printf("its null %s\n", var_decl->var->name.c_str());
 
         // Check if some sort of global/static
         if (var_symbol->linkage != Linkage::None || var_symbol->storage_duration == StorageDuration::Static)
@@ -341,7 +350,7 @@ std::string TacGenerator::generate_tac_expr(ASTNode *expr)
 void TacGenerator::print_all_tac()
 {
     for (auto &instr : instructions)
-        std::cout << gen_tac_str(instr);
+        std::cout << gen_tac_str(instr) << std::endl;
 }
 
 std::string TacGenerator::gen_tac_str(TACInstruction &instr)
@@ -430,5 +439,5 @@ std::string TacGenerator::gen_tac_str(TACInstruction &instr)
     if (!instr.result.empty())
         str += " -> " + instr.result;
 
-    return str + "\n";
+    return str;
 }

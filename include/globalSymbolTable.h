@@ -21,6 +21,8 @@ public:
     void enter_scope(const std::string &func_name);
     void exit_scope(const std::string &func_name);
 
-    void declare_var(const std::string &func_name, VarNode*node);
-    void check_var_defined(const std::string &func_name, const std::string &name);
+    void declare_var(const std::string &func_name, VarNode *node);
+    std::string check_var_defined(const std::string &func_name, const std::string &name);
+
+    void print();
 };
