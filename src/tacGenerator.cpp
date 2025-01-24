@@ -134,38 +134,42 @@ void TacGenerator::generate_tac_element(ASTNode *element)
         std::string result = generate_tac_expr(rtn->value);
         instructions.emplace_back(TACOp::RETURN, result);
     }
-    else if (element->type == NodeType::NODE_VAR_DECL || element->type == NodeType::NODE_VAR_ASSIGN)
+    else if (element->type == NodeType::NODE_VAR_DECL)
     {
-        VarAssignNode *var_decl = (VarAssignNode *)element;
-
+        VarDeclNode *var_decl = (VarDeclNode *)element;
         Symbol *var_symbol = gst->get_symbol(current_func, var_decl->var->name);
-
-        if (var_symbol == nullptr)
-            printf("its null %s\n", var_decl->var->name.c_str());
 
         // Check if some sort of global/static
         if (var_symbol->linkage != Linkage::None || var_symbol->storage_duration == StorageDuration::Static)
         {
+            // Place in BSS if not initialised
             if (var_decl->value == nullptr)
-            {
-                // Place in BSS
                 bss_vars.emplace_back(TACOp::ASSIGN, var_decl->var->name, var_symbol->linkage == Linkage::External ? "global" : "", "0");
-            }
             else
             {
                 // Place in Data
                 std::string result = generate_tac_expr(var_decl->value);
+
                 data_vars.emplace_back(TACOp::ASSIGN, var_decl->var->name, var_symbol->linkage == Linkage::External ? "global" : "", result);
             }
 
             return;
         }
 
+        // Only need to assign anything if initialised to a value otherwise ignore
         if (var_decl->value != nullptr)
         {
             std::string result = generate_tac_expr(var_decl->value);
             instructions.emplace_back(TACOp::ASSIGN, var_decl->var->name, result);
         }
+    }
+    else if (element->type == NodeType::NODE_VAR_ASSIGN)
+    {
+        VarAssignNode *var_assign = (VarAssignNode *)element;
+        Symbol *var_symbol = gst->get_symbol(current_func, var_assign->var->name);
+
+        std::string result = generate_tac_expr(var_assign->value);
+        instructions.emplace_back(TACOp::ASSIGN, var_assign->var->name, result);
     }
     else if (element->type == NodeType::NODE_IF)
     {

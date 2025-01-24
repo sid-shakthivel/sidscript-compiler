@@ -69,7 +69,6 @@ std::tuple<bool, std::string> SymbolTable::declare_var(const std::string &name, 
     auto it = var_symbols.find(name);
     if (it != var_symbols.end())
     {
-        std::cout << "hey there\n";
         symbol->unique_name = name + std::to_string(var_count);
         has_name_changed = true;
     }

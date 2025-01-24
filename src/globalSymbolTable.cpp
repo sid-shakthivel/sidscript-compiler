@@ -119,6 +119,8 @@ std::string GlobalSymbolTable::check_var_defined(const std::string &func_name, c
 		auto it = global_variables.find(name);
 		if (it == global_variables.end())
 			throw std::runtime_error("Semantic Error: Variable '" + name + "' is not declared");
+
+		return name;
 	}
 
 	return new_name;
@@ -128,7 +130,11 @@ Symbol *GlobalSymbolTable::get_symbol(const std::string &func_name, const std::s
 {
 	auto it = functions.find(func_name);
 	if (it != functions.end())
-		return std::get<1>(it->second)->get_symbol(name);
+	{
+		Symbol *symbol = std::get<1>(it->second)->get_symbol(name);
+		if (symbol != nullptr)
+			return symbol;
+	}
 
 	auto it2 = global_variables.find(name);
 	if (it2 != global_variables.end())

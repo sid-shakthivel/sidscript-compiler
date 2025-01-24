@@ -116,8 +116,6 @@ void SemanticAnalyser::analyse_while_stmt(WhileNode *node)
     std::string label = gen_new_loop_label();
     node->label = label;
 
-    std::cout << label << std::endl;
-
     enter_loop_scope(label);
     gst->enter_scope(current_func_name);
 

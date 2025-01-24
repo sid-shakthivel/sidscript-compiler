@@ -53,7 +53,12 @@ void Assembler::assemble_tac(TACInstruction &instruction, FILE *file)
 		if (potential_var == nullptr)
 			fprintf(file, "\tmovl\t$%s, %s\n", operand.c_str(), reg);
 		else
-			fprintf(file, "\tmovl\t%d(%%rbp), %s\n", potential_var->stack_offset, reg);
+		{
+			if (potential_var->storage_duration == StorageDuration::Static)
+				fprintf(file, "\tmovl\t_%s(%%rip), %s\n", potential_var->name.c_str(), reg);
+			else
+				fprintf(file, "\tmovl\t%d(%%rbp), %s\n", potential_var->stack_offset, reg);
+		}
 	};
 
 	auto store_from_reg = [file, this](const std::string &operand, const char *reg)
@@ -142,12 +147,32 @@ void Assembler::assemble_tac(TACInstruction &instruction, FILE *file)
 
 			if (potential_var == nullptr)
 			{
-				fprintf(file, "\tmovl	$%s, %d(%%rbp) # %s\n", instruction.arg2.c_str(), var->stack_offset, TacGenerator::gen_tac_str(instruction).c_str());
+				if (var->storage_duration == StorageDuration::Static)
+					fprintf(file, "\tmovl	$%s, _%s(%%rip) # %s\n", instruction.arg2.c_str(), var->name.c_str(), TacGenerator::gen_tac_str(instruction).c_str());
+				else
+					fprintf(file, "\tmovl	$%s, %d(%%rbp) # %s\n", instruction.arg2.c_str(), var->stack_offset, TacGenerator::gen_tac_str(instruction).c_str());
 			}
 			else
 			{
-				fprintf(file, "\tmovl    %d(%%rbp), %%r10d # %s\n", potential_var->stack_offset, TacGenerator::gen_tac_str(instruction).c_str());
-				fprintf(file, "\tmovl    %%r10d, %d(%%rbp)\n", var->stack_offset);
+				if (var->storage_duration == StorageDuration::Static)
+				{
+					if (potential_var->storage_duration == StorageDuration::Static)
+						fprintf(file, "\tmovl     %%r10d, _%s(%%rip)\n", potential_var->name.c_str());
+					else
+						fprintf(file, "\tmovl    %%r10d, %d(%%rbp)\n", potential_var->stack_offset);
+
+					fprintf(file, "\tmovl    %%r10d, _%s(%%rip) # %s\n", var->name.c_str(), TacGenerator::gen_tac_str(instruction).c_str());
+				}
+				else
+				{
+					fprintf(file, "\tmovl    %d(%%rbp), %%r10d # %s\n", potential_var->stack_offset, TacGenerator::gen_tac_str(instruction).c_str());
+					// fprintf(file, "\tmovl    %%r10d, %d(%%rbp)\n", var->stack_offset);
+
+					if (potential_var->storage_duration == StorageDuration::Static)
+						fprintf(file, "\tmovl     %%r10d, _%s(%%rip)\n", potential_var->name.c_str());
+					else
+						fprintf(file, "\tmovl    %%r10d, %d(%%rbp)\n", potential_var->stack_offset);
+				}
 			}
 		}
 		else if (current_var_type == VarType::BSS)
