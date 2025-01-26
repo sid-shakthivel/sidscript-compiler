@@ -89,7 +89,7 @@ void IntegerLiteral::print(int tabs)
     std::cout << std::string(tabs, ' ') << "Literal: " + std::to_string(value) << std::endl;
 }
 
-RtnNode::RtnNode(ASTNode *v) : ASTNode(NODE_RETURN), value(v) {}
+RtnNode::RtnNode(std::unique_ptr<ASTNode> v) : ASTNode(NODE_RETURN), value(std::move(v)) {}
 
 void RtnNode::print(int tabs)
 {
@@ -105,30 +105,27 @@ void FuncNode::print(int tabs)
     std::cout << std::string(tabs + 1, ' ') << "Name: " << name << std::endl;
 
     if (specifier == Specifier::STATIC)
-    {
         std::cout << std::string(tabs + 1, ' ') << "Specifier: STATIC" << std::endl;
-    }
     else if (specifier == Specifier::EXTERN)
-    {
         std::cout << std::string(tabs + 1, ' ') << "Specifier: EXTERN" << std::endl;
-    }
 
     std::cout << std::string(tabs + 1, ' ') << "Params: " << std::endl;
 
-    for (auto param : params)
+    for (auto &param : params)
         param->print(tabs + 2);
 
     std::cout << std::string(tabs + 1, ' ') << "Body: " << std::endl;
 
-    for (auto stmt : elements)
+    for (auto &stmt : elements)
         stmt->print(tabs + 2);
 }
 
 std::string FuncNode::get_param_name(int i)
 {
-    VarDeclNode *var_decl = (VarDeclNode *)params[i];
-    VarNode *var = var_decl->var;
-    return var->name;
+    // VarDeclNode *var_decl = (VarDeclNode *)params[i];
+    // VarNode *var = var_decl->var;
+    // return var->name;
+    return "";
 }
 
 FuncCallNode::FuncCallNode(const std::string &n) : ASTNode(NODE_FUNC_CALL), name(n) {}
@@ -136,7 +133,7 @@ FuncCallNode::FuncCallNode(const std::string &n) : ASTNode(NODE_FUNC_CALL), name
 void FuncCallNode::print(int tabs)
 {
     std::cout << std::string(tabs, ' ') << "FuncCall: " << name << std::endl;
-    for (auto arg : args)
+    for (auto &arg : args)
         arg->print(tabs + 1);
 }
 
@@ -145,11 +142,11 @@ ProgramNode::ProgramNode() : ASTNode(NODE_PROGRAM) {}
 void ProgramNode::print(int tabs)
 {
     std::cout << std::string(tabs, ' ') << "Program: " << std::endl;
-    for (auto decl : decls)
+    for (auto &decl : decls)
         decl->print(tabs + 1);
 }
 
-UnaryNode::UnaryNode(UnaryOpType o, ASTNode *v) : ASTNode(NODE_UNARY), op(o), value(v) {}
+UnaryNode::UnaryNode(UnaryOpType o, std::unique_ptr<ASTNode> v) : ASTNode(NODE_UNARY), op(o), value(std::move(v)) {}
 
 void UnaryNode::print(int tabs)
 {
@@ -174,7 +171,7 @@ void UnaryNode::print(int tabs)
     value->print(tabs + 1);
 }
 
-BinaryNode::BinaryNode(BinOpType o, ASTNode *l, ASTNode *r) : ASTNode(NODE_BINARY), op(o), left(l), right(r) {}
+BinaryNode::BinaryNode(BinOpType o, std::unique_ptr<ASTNode> l, std::unique_ptr<ASTNode> r) : ASTNode(NODE_BINARY), op(o), left(std::move(l)), right(std::move(r)) {}
 
 void BinaryNode::print(int tabs)
 {
@@ -225,16 +222,12 @@ void VarNode::print(int tabs)
     std::cout << std::string(tabs, ' ') << "Var: " << name << std::endl;
 
     if (specifier == Specifier::STATIC)
-    {
         std::cout << std::string(tabs + 1, ' ') << "Specifier: STATIC" << std::endl;
-    }
     else if (specifier == Specifier::EXTERN)
-    {
         std::cout << std::string(tabs + 1, ' ') << "Specifier: EXTERN" << std::endl;
-    }
 }
 
-VarAssignNode::VarAssignNode(VarNode *v, ASTNode *val) : ASTNode(NODE_VAR_ASSIGN), var(v), value(val) {}
+VarAssignNode::VarAssignNode(std::unique_ptr<VarNode> v, std::unique_ptr<ASTNode> val) : ASTNode(NODE_VAR_ASSIGN), var(std::move(v)), value(std::move(val)) {}
 
 void VarAssignNode::print(int tabs)
 {
@@ -243,7 +236,7 @@ void VarAssignNode::print(int tabs)
     value->print(tabs + 1);
 }
 
-VarDeclNode::VarDeclNode(VarNode *v, ASTNode *val) : ASTNode(NODE_VAR_DECL), var(v), value(val) {}
+VarDeclNode::VarDeclNode(std::unique_ptr<VarNode> v, std::unique_ptr<ASTNode> val) : ASTNode(NODE_VAR_DECL), var(std::move(v)), value(std::move(val)) {}
 
 void VarDeclNode::print(int tabs)
 {
@@ -253,7 +246,7 @@ void VarDeclNode::print(int tabs)
         value->print(tabs + 1);
 }
 
-IfNode::IfNode(BinaryNode *c, std::vector<ASTNode *> &t, std::vector<ASTNode *> &e) : ASTNode(NODE_IF), condition(c), then_elements(t), else_elements(e) {}
+IfNode::IfNode(std::unique_ptr<BinaryNode> c, std::vector<std::unique_ptr<ASTNode>> t, std::vector<std::unique_ptr<ASTNode>> e) : ASTNode(NODE_IF), condition(std::move(c)), then_elements(std::move(t)), else_elements(std::move(t)) {}
 
 void IfNode::print(int tabs)
 {
@@ -261,26 +254,26 @@ void IfNode::print(int tabs)
     condition->print(tabs + 1);
 
     std::cout << std::string(tabs + 1, ' ') << "If Stms:" << std::endl;
-    for (auto statement : then_elements)
+    for (auto &statement : then_elements)
         statement->print(tabs + 2);
 
     std::cout << std::string(tabs + 1, ' ') << "Else Stms:" << std::endl;
-    for (auto statement : else_elements)
+    for (auto &statement : else_elements)
         statement->print(tabs + 2);
 }
 
-WhileNode::WhileNode(BinaryNode *c, std::vector<ASTNode *> &e) : ASTNode(NODE_WHILE), condition(c), elements(e) {}
+WhileNode::WhileNode(std::unique_ptr<BinaryNode> c, std::vector<std::unique_ptr<ASTNode>> e) : ASTNode(NODE_WHILE), condition(std::move(c)), elements(std::move(e)) {}
 
 void WhileNode::print(int tabs)
 {
     std::cout << std::string(tabs, ' ') << "While: " << std::endl;
     condition->print(tabs + 1);
     std::cout << std::string(tabs + 1, ' ') << "While Elements:" << std::endl;
-    for (auto element : elements)
+    for (auto &element : elements)
         element->print(tabs + 2);
 }
 
-ForNode::ForNode(ASTNode *i, BinaryNode *c, ASTNode *p, std::vector<ASTNode *> &e) : ASTNode(NODE_FOR), init(i), condition(c), post(p), elements(e) {}
+ForNode::ForNode(std::unique_ptr<ASTNode> i, std::unique_ptr<BinaryNode> c, std::unique_ptr<ASTNode> p, std::vector<std::unique_ptr<ASTNode>> e) : ASTNode(NODE_FOR), init(std::move(i)), condition(std::move(c)), post(std::move(p)), elements(std::move(e)) {}
 
 void ForNode::print(int tabs)
 {
@@ -289,7 +282,7 @@ void ForNode::print(int tabs)
     condition->print(tabs + 1);
     post->print(tabs + 1);
     std::cout << std::string(tabs + 1, ' ') << "For Elements:" << std::endl;
-    for (auto element : elements)
+    for (auto &element : elements)
         element->print(tabs + 2);
 }
 

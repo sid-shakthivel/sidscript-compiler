@@ -13,14 +13,6 @@ void Symbol::set_storage_duration(StorageDuration sd) { storage_duration = sd; }
 
 FuncSymbol::FuncSymbol(std::string n, int ac, std::vector<Type> &at, Type rt) : Symbol(n, 0, false), arg_count(ac), arg_types(at), return_type(rt) {}
 
-// std::string Symbol::gen_unique_name()
-// {
-//     if (is_temporary)
-//         return name;
-//     else
-//         return name + "_" + std::to_string(unique_id);
-// }
-
 SymbolTable::SymbolTable() {}
 
 void SymbolTable::enter_scope()
@@ -32,13 +24,6 @@ void SymbolTable::exit_scope()
 {
     if (scopes.empty())
         throw std::runtime_error("Semantic Error: No scope to exit");
-
-    // auto &current_scope = scopes.top();
-    // for (auto it = current_scope.begin(); it != current_scope.end();)
-    // {
-    //     var_symbols[it->second->unique_name] = it->second; // Use unique name
-    //     it = current_scope.erase(it);
-    // }
 
     scopes.pop();
 }
@@ -73,9 +58,7 @@ std::tuple<bool, std::string> SymbolTable::declare_var(const std::string &name, 
         has_name_changed = true;
     }
     else
-    {
         symbol->unique_name = name;
-    }
 
     var_symbols[symbol->unique_name] = symbol;
 

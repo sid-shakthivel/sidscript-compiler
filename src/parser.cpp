@@ -81,9 +81,9 @@ void Parser::expect_and_advance(TokenType token_type)
     advance();
 }
 
-ProgramNode *Parser::parse()
+std::shared_ptr<ProgramNode> Parser::parse()
 {
-    ProgramNode *program = new ProgramNode();
+    std::shared_ptr<ProgramNode> program = std::make_shared<ProgramNode>();
 
     while (current_token.type != TOKEN_EOF)
     {
@@ -108,7 +108,7 @@ ProgramNode *Parser::parse()
     return program;
 }
 
-FuncNode *Parser::parse_func_decl(TokenType specifier)
+std::unique_ptr<FuncNode> Parser::parse_func_decl(TokenType specifier)
 {
     expect_and_advance(TOKEN_FN);
 
@@ -116,7 +116,7 @@ FuncNode *Parser::parse_func_decl(TokenType specifier)
 
     std::string func_name = current_token.text;
 
-    FuncNode *func = new FuncNode(func_name, get_specifier(specifier));
+    std::unique_ptr<FuncNode> func = std::make_unique<FuncNode>(func_name, get_specifier(specifier));
 
     advance();
 
@@ -134,14 +134,15 @@ FuncNode *Parser::parse_func_decl(TokenType specifier)
 
     func->return_type = get_type(current_token.type);
 
-    std::vector<ASTNode *> elements = parse_block();
+    std::vector<std::unique_ptr<ASTNode>> elements = parse_block();
 
-    func->elements = elements;
+    for (auto &element : elements)
+        func->elements.push_back(std::move(element));
 
     return func;
 }
 
-void Parser::parse_param_list(FuncNode *func)
+void Parser::parse_param_list(std::unique_ptr<FuncNode> &func)
 {
     if (match(TOKEN_RPAREN))
         return;
@@ -150,8 +151,8 @@ void Parser::parse_param_list(FuncNode *func)
 
     expect(TOKEN_IDENTIFIER);
 
-    VarNode *var = new VarNode(current_token.text, Type::INT);
-    func->params.emplace_back(new VarDeclNode(var, nullptr));
+    std::unique_ptr<VarNode> var = std::make_unique<VarNode>(current_token.text, Type::INT);
+    func->params.emplace_back(std::make_unique<VarDeclNode>(std::move(var), nullptr));
 
     advance();
 
@@ -166,8 +167,8 @@ void Parser::parse_param_list(FuncNode *func)
 
         expect(TOKEN_IDENTIFIER);
 
-        var = new VarNode(current_token.text, Type::INT);
-        func->params.emplace_back(new VarDeclNode(var, nullptr));
+        std::unique_ptr<VarNode> var = std::make_unique<VarNode>(current_token.text, Type::INT);
+        func->params.emplace_back(std::make_unique<VarDeclNode>(std::move(var), nullptr));
 
         advance();
     }
@@ -175,11 +176,11 @@ void Parser::parse_param_list(FuncNode *func)
     return;
 }
 
-std::vector<ASTNode *> Parser::parse_block()
+std::vector<std::unique_ptr<ASTNode>> Parser::parse_block()
 {
     expect_and_advance(TOKEN_LBRACE);
 
-    std::vector<ASTNode *> elements;
+    std::vector<std::unique_ptr<ASTNode>> elements = {};
 
     while (current_token.type != TOKEN_RBRACE)
     {
@@ -214,29 +215,29 @@ std::vector<ASTNode *> Parser::parse_block()
     return elements;
 }
 
-RtnNode *Parser::parse_rtn()
+std::unique_ptr<RtnNode> Parser::parse_rtn()
 {
     advance();
 
-    ASTNode *expr = parse_expr();
+    std::unique_ptr<ASTNode> expr = parse_expr();
 
     expect(TOKEN_SEMICOLON);
 
-    return new RtnNode(expr);
+    return std::make_unique<RtnNode>(std::move(expr));
 }
 
-IfNode *Parser::parse_if_stmt()
+std::unique_ptr<IfNode> Parser::parse_if_stmt()
 {
     advance();
-
     expect_and_advance(TOKEN_LPAREN);
 
-    ASTNode *expr = parse_expr();
+    std::unique_ptr<ASTNode> expr = parse_expr();
+    std::unique_ptr<BinaryNode> binary_expr = std::unique_ptr<BinaryNode>(dynamic_cast<BinaryNode *>(expr.release()));
 
     expect_and_advance(TOKEN_RPAREN);
 
-    std::vector<ASTNode *> then_elements = parse_block();
-    std::vector<ASTNode *> else_elements;
+    std::vector<std::unique_ptr<ASTNode>> then_elements = parse_block();
+    std::vector<std::unique_ptr<ASTNode>> else_elements;
 
     advance();
 
@@ -248,48 +249,50 @@ IfNode *Parser::parse_if_stmt()
     else
         retreat();
 
-    return new IfNode((BinaryNode *)expr, then_elements, else_elements);
+    return std::make_unique<IfNode>(std::move(binary_expr), std::move(then_elements), std::move(else_elements));
 }
 
-WhileNode *Parser::parse_while_stmt()
+std::unique_ptr<WhileNode> Parser::parse_while_stmt()
 {
     advance();
 
     expect_and_advance(TOKEN_LPAREN);
 
-    ASTNode *expr = parse_expr();
+    std::unique_ptr<ASTNode> expr = parse_expr();
+    std::unique_ptr<BinaryNode> bin_expr = std::unique_ptr<BinaryNode>(dynamic_cast<BinaryNode *>(expr.release()));
 
     expect_and_advance(TOKEN_RPAREN);
 
-    std::vector<ASTNode *> elements = parse_block();
+    std::vector<std::unique_ptr<ASTNode>> elements = parse_block();
 
-    return new WhileNode((BinaryNode *)expr, elements);
+    return std::make_unique<WhileNode>(std::move(bin_expr), std::move(elements));
 }
 
-ForNode *Parser::parse_for_stmt()
+std::unique_ptr<ForNode> Parser::parse_for_stmt()
 {
     advance();
 
     expect_and_advance(TOKEN_LPAREN);
 
-    ASTNode *init = parse_for_init();
+    std::unique_ptr<ASTNode> init = parse_for_init();
 
     advance();
 
-    BinaryNode *condition = (BinaryNode *)parse_expr();
+    std::unique_ptr<ASTNode> expr = parse_expr();
+    std::unique_ptr<BinaryNode> condition = std::unique_ptr<BinaryNode>(dynamic_cast<BinaryNode *>(expr.release()));
 
     expect_and_advance(TOKEN_SEMICOLON);
 
-    ASTNode *post = parse_expr();
+    std::unique_ptr<ASTNode> post = parse_expr();
 
     expect_and_advance(TOKEN_RPAREN);
 
-    std::vector<ASTNode *> elements = parse_block();
+    std::vector<std::unique_ptr<ASTNode>> elements = parse_block();
 
-    return new ForNode(init, condition, post, elements);
+    return std::make_unique<ForNode>(std::move(init), std::move(condition), std::move(post), std::move(elements));
 }
 
-ASTNode *Parser::parse_for_init()
+std::unique_ptr<ASTNode> Parser::parse_for_init()
 {
     if (match(TOKEN_INT_TEXT))
         return parse_var_decl();
@@ -299,7 +302,7 @@ ASTNode *Parser::parse_for_init()
         error("Parser Error: Expected valid for init");
 }
 
-ASTNode *Parser::parse_loop_control()
+std::unique_ptr<ASTNode> Parser::parse_loop_control()
 {
     TokenType token_type = current_token.type;
 
@@ -308,19 +311,18 @@ ASTNode *Parser::parse_loop_control()
     expect(TOKEN_SEMICOLON);
 
     if (token_type == TOKEN_CONTINUE)
-        return new ContinueNode("");
+        return std::make_unique<ContinueNode>("");
     else if (token_type == TOKEN_BREAK)
-        return new BreakNode("");
+        return std::make_unique<BreakNode>("");
 }
 
-VarDeclNode *Parser::parse_var_decl(TokenType specifier)
+std::unique_ptr<VarDeclNode> Parser::parse_var_decl(TokenType specifier)
 {
     advance();
 
     expect(TOKEN_IDENTIFIER);
 
-    std::string var_identifier = current_token.text;
-    VarNode *var = new VarNode(var_identifier, Type::INT, get_specifier(specifier));
+    std::unique_ptr<VarNode> var = std::make_unique<VarNode>(current_token.text, Type::INT, get_specifier(specifier));
 
     advance();
 
@@ -331,32 +333,33 @@ VarDeclNode *Parser::parse_var_decl(TokenType specifier)
     {
         advance();
 
-        ASTNode *expr = parse_expr();
+        std::unique_ptr<ASTNode> expr = parse_expr();
 
         expect(TOKEN_SEMICOLON);
 
-        return new VarDeclNode(var, expr);
+        return std::make_unique<VarDeclNode>(std::move(var), std::move(expr));
     }
 
-    return new VarDeclNode(var, nullptr);
+    return std::make_unique<VarDeclNode>(std::move(var), nullptr);
 }
 
-VarAssignNode *Parser::parse_var_assign()
+std::unique_ptr<VarAssignNode> Parser::parse_var_assign()
 {
-    VarNode *var = (VarNode *)parse_factor();
+    std::unique_ptr<ASTNode> factor = parse_factor();
+    std::unique_ptr<VarNode> var = std::unique_ptr<VarNode>(dynamic_cast<VarNode *>(factor.release()));
 
     advance();
 
     expect_and_advance(TOKEN_ASSIGN);
 
-    ASTNode *expr = parse_expr();
+    std::unique_ptr<ASTNode> expr = parse_expr();
 
-    return new VarAssignNode(var, expr);
+    return std::make_unique<VarAssignNode>(std::move(var), std::move(expr));
 }
 
-ASTNode *Parser::parse_expr(int min_presedence)
+std::unique_ptr<ASTNode> Parser::parse_expr(int min_presedence)
 {
-    ASTNode *left = parse_factor();
+    std::unique_ptr<ASTNode> left = parse_factor();
 
     advance();
 
@@ -366,20 +369,20 @@ ASTNode *Parser::parse_expr(int min_presedence)
 
         advance();
 
-        ASTNode *right = parse_expr(get_precedence(op) + 1);
-        left = new BinaryNode(get_bin_op_type(op), left, right);
+        std::unique_ptr<ASTNode> right = parse_expr(get_precedence(op) + 1);
+        // left = new BinaryNode(get_bin_op_type(op), left, right);
+        left = std::make_unique<BinaryNode>(get_bin_op_type(op), std::move(left), std::move(right));
     }
 
     return left;
 }
 
-ASTNode *Parser::parse_factor()
+std::unique_ptr<ASTNode> Parser::parse_factor()
 {
     if (match(TOKEN_INT))
     {
         int number = std::stoi(current_token.text);
-
-        return new IntegerLiteral(number);
+        return std::make_unique<IntegerLiteral>(number);
     }
     else if (match(TOKEN_TILDA) || match(TOKEN_MINUS) || match(TOKEN_INCREMENT) || match(TOKEN_DECREMENT))
     {
@@ -387,15 +390,15 @@ ASTNode *Parser::parse_factor()
 
         advance();
 
-        ASTNode *expr = parse_factor();
+        std::unique_ptr<ASTNode> expr = parse_factor();
 
-        return new UnaryNode(get_unary_op_type(op), expr);
+        return std::make_unique<UnaryNode>(get_unary_op_type(op), std::move(expr));
     }
     else if (match(TOKEN_LPAREN))
     {
         advance();
 
-        ASTNode *expr = parse_expr();
+        auto expr = parse_expr();
 
         return expr;
     }
@@ -407,7 +410,7 @@ ASTNode *Parser::parse_factor()
 
         if (match(TOKEN_LPAREN))
         {
-            FuncCallNode *func_call = new FuncCallNode(var_identifier);
+            std::unique_ptr<FuncCallNode> func_call = std::make_unique<FuncCallNode>(var_identifier);
             parse_args_list(func_call);
             expect(TOKEN_RPAREN);
             return func_call;
@@ -415,26 +418,26 @@ ASTNode *Parser::parse_factor()
         else
         {
             retreat();
-            return new VarNode(var_identifier, Type::INT);
+            return std::make_unique<VarNode>(var_identifier, Type::INT);
         }
     }
     else
         error("Expected expression");
 }
 
-void Parser::parse_args_list(FuncCallNode *func_call)
+void Parser::parse_args_list(std::unique_ptr<FuncCallNode> &func_call)
 {
     advance();
 
-    ASTNode *expr = parse_expr();
+    std::unique_ptr<ASTNode> expr = parse_expr();
 
-    func_call->args.push_back(expr);
+    func_call->args.push_back(std::move(expr));
 
     while (match(TOKEN_COMMA))
     {
         advance();
         expr = parse_expr();
-        func_call->args.push_back(expr);
+        func_call->args.push_back(std::move(expr));
     }
 }
 

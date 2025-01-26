@@ -2,6 +2,7 @@
 
 #include <string>
 #include <cstdio>
+#include <memory>
 
 #include "symbolTable.h"
 #include "globalSymbolTable.h"
@@ -17,11 +18,11 @@ enum class VarType
 class Assembler
 {
 public:
-    Assembler(GlobalSymbolTable *gst);
+    Assembler(std::shared_ptr<GlobalSymbolTable> gst);
     void assemble(std::vector<TACInstruction> instructions, std::string filename);
 
 private:
-    GlobalSymbolTable *gst;
+    std::shared_ptr<GlobalSymbolTable> gst;
     std::string current_func = "";
     VarType current_var_type = VarType::REGULAR;
 

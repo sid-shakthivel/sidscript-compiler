@@ -2,12 +2,12 @@
 #include <fstream>
 #include <string>
 #include <sstream>
+#include <memory>
 
 #include "../include/lexer.h"
 #include "../include/parser.h"
 #include "../include/assembler.h"
 #include "../include/ast.h"
-#include "../include/symbolTable.h"
 #include "../include/semanticAnalyser.h"
 #include "../include/tacGenerator.h"
 
@@ -33,12 +33,15 @@ int main()
 
     Parser parser(&lexer);
 
-    ProgramNode *program = parser.parse();
-    // program->print();
+    std::shared_ptr<ProgramNode> program = parser.parse();
+    program->print();
 
-    GlobalSymbolTable *gst = new GlobalSymbolTable();
+    std::shared_ptr<GlobalSymbolTable> gst = std::make_shared<GlobalSymbolTable>();
+
     SemanticAnalyser semanticAnalyser(gst);
     semanticAnalyser.analyse(program);
+
+    gst->print();
 
     TacGenerator tacGenerator(gst);
     std::vector<TACInstruction> tacInstructions = tacGenerator.generate_tac(program);

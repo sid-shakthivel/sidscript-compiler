@@ -8,7 +8,7 @@
 #include "../include/parser.h"
 #include "../include/tacGenerator.h"
 
-Assembler::Assembler(GlobalSymbolTable *gst) : gst(gst) {};
+Assembler::Assembler(std::shared_ptr<GlobalSymbolTable> gst) : gst(gst) {};
 
 void Assembler::assemble(std::vector<TACInstruction> instructions, std::string filename)
 {
@@ -78,6 +78,8 @@ void Assembler::assemble_tac(TACInstruction &instruction, FILE *file)
 			fprintf(file, "\t%s\t$%s, %s\n", op.c_str(), operand.c_str(), reg);
 		else
 			fprintf(file, "\t%s\t%d(%%rbp), %s\n", op.c_str(), potential_var->stack_offset, reg);
+
+		fprintf(file, "\n");
 	};
 
 	auto cmp_op_to_reg = [file, this, load_to_reg, store_from_reg](const std::string &operand_a, const std::string &operand_b, const std::string &result, const char *reg, const std::string &op)
@@ -99,6 +101,8 @@ void Assembler::assemble_tac(TACInstruction &instruction, FILE *file)
 		fprintf(file, "\tmovzbl	%s, %s\n", reg_b.c_str(), reg);
 
 		store_from_reg(result, reg);
+
+		fprintf(file, "\n");
 	};
 
 	if (instruction.op == TACOp::FUNC_BEGIN)
@@ -157,21 +161,20 @@ void Assembler::assemble_tac(TACInstruction &instruction, FILE *file)
 				if (var->storage_duration == StorageDuration::Static)
 				{
 					if (potential_var->storage_duration == StorageDuration::Static)
-						fprintf(file, "\tmovl     %%r10d, _%s(%%rip)\n", potential_var->name.c_str());
+						fprintf(file, "\tmovl     %%r10d, _%s(%%rip) # %s\n", potential_var->name.c_str(), TacGenerator::gen_tac_str(instruction).c_str());
 					else
-						fprintf(file, "\tmovl    %%r10d, %d(%%rbp)\n", potential_var->stack_offset);
+						fprintf(file, "\tmovl    %%r10d, %d(%%rbp) # %s\n", potential_var->stack_offset, TacGenerator::gen_tac_str(instruction).c_str());
 
-					fprintf(file, "\tmovl    %%r10d, _%s(%%rip) # %s\n", var->name.c_str(), TacGenerator::gen_tac_str(instruction).c_str());
+					fprintf(file, "\tmovl    %%r10d, _%s(%%rip)\n", var->name.c_str());
 				}
 				else
 				{
-					fprintf(file, "\tmovl    %d(%%rbp), %%r10d # %s\n", potential_var->stack_offset, TacGenerator::gen_tac_str(instruction).c_str());
-					// fprintf(file, "\tmovl    %%r10d, %d(%%rbp)\n", var->stack_offset);
-
 					if (potential_var->storage_duration == StorageDuration::Static)
-						fprintf(file, "\tmovl     %%r10d, _%s(%%rip)\n", potential_var->name.c_str());
+						fprintf(file, "\tmovl     _%s(%%rip), %%r10d # %s\n", potential_var->name.c_str(), TacGenerator::gen_tac_str(instruction).c_str());
 					else
-						fprintf(file, "\tmovl    %%r10d, %d(%%rbp)\n", potential_var->stack_offset);
+						fprintf(file, "\tmovl    %d(%%rbp), %%r10d # %s\n", potential_var->stack_offset, TacGenerator::gen_tac_str(instruction).c_str());
+
+					fprintf(file, "\tmovl    %%r10d, %d(%%rbp) # %s\n", var->stack_offset);
 				}
 			}
 		}
@@ -210,14 +213,14 @@ void Assembler::assemble_tac(TACInstruction &instruction, FILE *file)
 	}
 	else if (instruction.op == TACOp::SUB)
 	{
-		fprintf(file, "\t# %s", TacGenerator::gen_tac_str(instruction).c_str());
+		fprintf(file, "\t# %s\n", TacGenerator::gen_tac_str(instruction).c_str());
 		load_to_reg(instruction.arg1, "%r10d");
 		bin_op_to_reg(instruction.arg2, "%r10d", "subl");
 		store_from_reg(instruction.result, "%r10d");
 	}
 	else if (instruction.op == TACOp::MUL)
 	{
-		fprintf(file, "\t# %s", TacGenerator::gen_tac_str(instruction).c_str());
+		fprintf(file, "\t# %s\n", TacGenerator::gen_tac_str(instruction).c_str());
 		load_to_reg(instruction.arg1, "%r10d");
 		bin_op_to_reg(instruction.arg2, "%r10d", "imull");
 		store_from_reg(instruction.result, "%r10d");
@@ -326,7 +329,7 @@ void Assembler::assemble_tac(TACInstruction &instruction, FILE *file)
 	}
 	else if (instruction.op == TACOp::MOV)
 	{
-		fprintf(file, "\t# %s", TacGenerator::gen_tac_str(instruction).c_str());
+		fprintf(file, "\t# %s\n", TacGenerator::gen_tac_str(instruction).c_str());
 		Symbol *potential_var = gst->get_symbol(current_func, instruction.arg1);
 		Symbol *potential_var_2 = gst->get_symbol(current_func, instruction.arg2);
 

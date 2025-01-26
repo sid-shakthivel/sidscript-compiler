@@ -2,6 +2,7 @@
 
 #include <vector>
 #include <unordered_map>
+#include <memory>
 
 #include "ast.h"
 #include "lexer.h"
@@ -10,7 +11,7 @@ class Parser
 {
 public:
     Parser(Lexer *l);
-    ProgramNode *parse();
+    std::shared_ptr<ProgramNode> parse();
 
 private:
     Lexer *lexer;
@@ -25,20 +26,20 @@ private:
     void expect(std::vector<TokenType> &tokens);
     void error(const std::string &message);
 
-    std::vector<ASTNode *> parse_block();
-    FuncNode *parse_func_decl(TokenType specifier = TOKEN_EOF);
-    void parse_param_list(FuncNode *func);
-    void parse_args_list(FuncCallNode *func_call);
-    RtnNode *parse_rtn();
-    VarDeclNode *parse_var_decl(TokenType specifier = TOKEN_EOF);
-    VarAssignNode *parse_var_assign();
-    ASTNode *parse_factor();
-    ASTNode *parse_expr(int min_precedence = 0);
-    IfNode *parse_if_stmt();
-    WhileNode *parse_while_stmt();
-    ForNode *parse_for_stmt();
-    ASTNode *parse_for_init();
-    ASTNode *parse_loop_control();
+    std::unique_ptr<FuncNode> parse_func_decl(TokenType specifier = TOKEN_EOF);
+    std::vector<std::unique_ptr<ASTNode>> parse_block();
+    void parse_param_list(std::unique_ptr<FuncNode> &func);
+    std::unique_ptr<RtnNode> parse_rtn();
+    std::unique_ptr<VarDeclNode> parse_var_decl(TokenType specifier = TOKEN_EOF);
+    std::unique_ptr<VarAssignNode> parse_var_assign();
+    std::unique_ptr<ASTNode> parse_factor();
+    std::unique_ptr<ASTNode> parse_expr(int min_precedence = 0);
+    std::unique_ptr<IfNode> parse_if_stmt();
+    std::unique_ptr<WhileNode> parse_while_stmt();
+    std::unique_ptr<ForNode> parse_for_stmt();
+    std::unique_ptr<ASTNode> parse_for_init();
+    std::unique_ptr<ASTNode> parse_loop_control();
+    void parse_args_list(std::unique_ptr<FuncCallNode> &func_call);
 
     int get_precedence(TokenType op);
 };

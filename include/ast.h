@@ -3,6 +3,7 @@
 #include <string>
 #include <vector>
 #include <unordered_map>
+#include <memory>
 
 #include "lexer.h"
 
@@ -94,9 +95,9 @@ public:
 class RtnNode : public ASTNode
 {
 public:
-    ASTNode *value;
+    std::unique_ptr<ASTNode> value;
 
-    RtnNode(ASTNode *v);
+    RtnNode(std::unique_ptr<ASTNode> v);
     void print(int tabs) override;
 };
 
@@ -104,8 +105,8 @@ class FuncNode : public ASTNode
 {
 public:
     std::string name;
-    std::vector<ASTNode *> params;
-    std::vector<ASTNode *> elements;
+    std::vector<std::unique_ptr<ASTNode>> params;
+    std::vector<std::unique_ptr<ASTNode>> elements;
     Type return_type;
     Specifier specifier;
 
@@ -118,7 +119,7 @@ class FuncCallNode : public ASTNode
 {
 public:
     std::string name;
-    std::vector<ASTNode *> args;
+    std::vector<std::unique_ptr<ASTNode>> args;
 
     FuncCallNode(const std::string &n);
     void print(int tabs) override;
@@ -127,7 +128,7 @@ public:
 class ProgramNode : public ASTNode
 {
 public:
-    std::vector<ASTNode *> decls;
+    std::vector<std::unique_ptr<ASTNode>> decls;
 
     ProgramNode();
     void print(int tabs = 0) override;
@@ -137,9 +138,9 @@ class UnaryNode : public ASTNode
 {
 public:
     UnaryOpType op;
-    ASTNode *value;
+    std::unique_ptr<ASTNode> value;
 
-    UnaryNode(UnaryOpType o, ASTNode *v);
+    UnaryNode(UnaryOpType o, std::unique_ptr<ASTNode> v);
     void print(int tabs) override;
 };
 
@@ -147,10 +148,10 @@ class BinaryNode : public ASTNode
 {
 public:
     BinOpType op;
-    ASTNode *left;
-    ASTNode *right;
+    std::unique_ptr<ASTNode> left;
+    std::unique_ptr<ASTNode> right;
 
-    BinaryNode(BinOpType o, ASTNode *l, ASTNode *r);
+    BinaryNode(BinOpType o, std::unique_ptr<ASTNode> l, std::unique_ptr<ASTNode> r);
     void print(int tabs) override;
 };
 
@@ -168,57 +169,57 @@ public:
 class VarDeclNode : public ASTNode
 {
 public:
-    VarNode *var;
-    ASTNode *value;
+    std::unique_ptr<VarNode> var;
+    std::unique_ptr<ASTNode> value;
 
-    VarDeclNode(VarNode *v, ASTNode *val);
+    VarDeclNode(std::unique_ptr<VarNode> v, std::unique_ptr<ASTNode> val);
     void print(int tabs) override;
 };
 
 class VarAssignNode : public ASTNode
 {
 public:
-    VarNode *var;
-    ASTNode *value;
+    std::unique_ptr<VarNode> var;
+    std::unique_ptr<ASTNode> value;
 
-    VarAssignNode(VarNode *v, ASTNode *val);
+    VarAssignNode(std::unique_ptr<VarNode> v, std::unique_ptr<ASTNode> val);
     void print(int tabs) override;
 };
 
 class IfNode : public ASTNode
 {
 public:
-    BinaryNode *condition;
-    std::vector<ASTNode *> then_elements;
-    std::vector<ASTNode *> else_elements;
+    std::unique_ptr<BinaryNode> condition;
+    std::vector<std::unique_ptr<ASTNode>> then_elements;
+    std::vector<std::unique_ptr<ASTNode>> else_elements;
 
-    IfNode(BinaryNode *c, std::vector<ASTNode *> &t, std::vector<ASTNode *> &e);
+    IfNode(std::unique_ptr<BinaryNode> c, std::vector<std::unique_ptr<ASTNode>> t, std::vector<std::unique_ptr<ASTNode>> e);
     void print(int tabs) override;
 };
 
 class WhileNode : public ASTNode
 {
 public:
-    BinaryNode *condition;
-    std::vector<ASTNode *> elements;
+    std::unique_ptr<BinaryNode> condition;
+    std::vector<std::unique_ptr<ASTNode>> elements;
 
     std::string label = "";
 
-    WhileNode(BinaryNode *c, std::vector<ASTNode *> &e);
+    WhileNode(std::unique_ptr<BinaryNode> c, std::vector<std::unique_ptr<ASTNode>> e);
     void print(int tabs) override;
 };
 
 class ForNode : public ASTNode
 {
 public:
-    ASTNode *init;
-    BinaryNode *condition;
-    ASTNode *post;
-    std::vector<ASTNode *> elements;
+    std::unique_ptr<ASTNode> init;
+    std::unique_ptr<BinaryNode> condition;
+    std::unique_ptr<ASTNode> post;
+    std::vector<std::unique_ptr<ASTNode>> elements;
 
     std::string label = "";
 
-    ForNode(ASTNode *i, BinaryNode *c, ASTNode *p, std::vector<ASTNode *> &e);
+    ForNode(std::unique_ptr<ASTNode> i, std::unique_ptr<BinaryNode> c, std::unique_ptr<ASTNode> p, std::vector<std::unique_ptr<ASTNode>> e);
     void print(int tabs) override;
 };
 

@@ -9,11 +9,11 @@ set(SOURCES
     ../src/lexer.cpp
     ../src/ast.cpp
     ../src/parser.cpp
-    ../src/assembler.cpp
     ../src/symbolTable.cpp
     ../src/globalSymbolTable.cpp
     ../src/semanticAnalyser.cpp
     ../src/tacGenerator.cpp
+    ../src/assembler.cpp
     ../src/main.cpp
 )
 

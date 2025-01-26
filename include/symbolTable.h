@@ -38,7 +38,6 @@ struct Symbol
     Symbol(std::string n, int o, bool t);
     void set_linkage(Linkage l);
     void set_storage_duration(StorageDuration sd);
-    // std::string gen_unique_name();
 };
 
 struct FuncSymbol : public Symbol

@@ -1,5 +1,7 @@
 #pragma once
 
+#include <memory>
+
 #include "globalSymbolTable.h"
 #include "symbolTable.h"
 #include "ast.h"
@@ -7,12 +9,12 @@
 class SemanticAnalyser
 {
 public:
-    SemanticAnalyser(GlobalSymbolTable *gst);
+    SemanticAnalyser(std::shared_ptr<GlobalSymbolTable> gst);
 
-    void analyse(ProgramNode *program);
+    void analyse(std::shared_ptr<ProgramNode> program);
 
 private:
-    GlobalSymbolTable *gst;
+    std::shared_ptr<GlobalSymbolTable> gst;
     std::string current_func_name = "";
 
     unsigned int loop_label_counter = 0;
@@ -23,8 +25,8 @@ private:
     void exit_loop_scope();
 
     void analyse_func(FuncNode *func);
+    void analyse_var_decl(VarDeclNode *var_decl);
     void analyse_node(ASTNode *node);
-    void analyse_var_decl(VarDeclNode *node);
     void analyser_var_assign(VarAssignNode *node);
     void analyse_rtn(RtnNode *node);
     void analyse_if_stmt(IfNode *node);

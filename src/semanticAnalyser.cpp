@@ -2,16 +2,16 @@
 
 #include <iostream>
 
-SemanticAnalyser::SemanticAnalyser(GlobalSymbolTable *gst) : gst(gst) {}
+SemanticAnalyser::SemanticAnalyser(std::shared_ptr<GlobalSymbolTable> gst) : gst(gst) {}
 
-void SemanticAnalyser::analyse(ProgramNode *program)
+void SemanticAnalyser::analyse(std::shared_ptr<ProgramNode> program)
 {
-    for (auto decl : program->decls)
+    for (auto &decl : program->decls)
     {
         if (decl->type == NodeType::NODE_FUNCTION)
-            analyse_func((FuncNode *)decl);
+            analyse_func(dynamic_cast<FuncNode *>(decl.get()));
         else if (decl->type == NodeType::NODE_VAR_DECL)
-            analyse_var_decl((VarDeclNode *)decl);
+            analyse_var_decl(dynamic_cast<VarDeclNode *>(decl.get()));
     }
 }
 
@@ -23,8 +23,8 @@ void SemanticAnalyser::analyse_func(FuncNode *func)
 
     // Find and create new function symbol using params
     std::vector<Type> arg_types;
-    for (auto param : func->params)
-        arg_types.push_back(infer_type(((VarDeclNode *)param)->var));
+    for (auto &param : func->params)
+        arg_types.push_back(infer_type(dynamic_cast<VarDeclNode *>(param.get())->var.get()));
 
     FuncSymbol *func_symbol = new FuncSymbol(func->name, func->params.size(), arg_types, func->return_type);
     SymbolTable *symbol_table = new SymbolTable();
@@ -35,11 +35,11 @@ void SemanticAnalyser::analyse_func(FuncNode *func)
 
     symbol_table->enter_scope();
 
-    for (auto param : func->params)
-        symbol_table->declare_var(((VarDeclNode *)param)->var->name);
+    for (auto &param : func->params)
+        symbol_table->declare_var(dynamic_cast<VarDeclNode *>(param.get())->var->name);
 
-    for (auto element : func->elements)
-        analyse_node(element);
+    for (auto &element : func->elements)
+        analyse_node(element.get());
 
     symbol_table->exit_scope();
 
@@ -74,44 +74,56 @@ void SemanticAnalyser::analyse_node(ASTNode *node)
 
 void SemanticAnalyser::analyse_var_decl(VarDeclNode *node)
 {
-    gst->declare_var(current_func_name, node->var);
+    /*
+        Global variables when current_func_name = ""
+        should only have constant values (if any) thus needs to be checked first
+    */
+
+    if (current_func_name == "")
+    {
+        if (node->value != nullptr)
+            if (node->value->type != NodeType::NODE_INTEGER)
+                throw std::runtime_error("Semantic Error: Global variable must have constant value");
+    }
+
+    gst->declare_var(current_func_name, node->var.get());
     if (node->value)
-        analyse_node(node->value);
+        analyse_node(node->value.get());
 }
 
 void SemanticAnalyser::analyser_var_assign(VarAssignNode *node)
 {
     node->var->name = gst->check_var_defined(current_func_name, node->var->name);
-    analyse_node(node->value);
+    analyse_node(node->value.get());
 }
 
 void SemanticAnalyser::analyse_rtn(RtnNode *node)
 {
     if (node->value)
-        analyse_node(node->value);
+        analyse_node(node->value.get());
 }
 
 void SemanticAnalyser::analyse_if_stmt(IfNode *node)
 {
-    analyse_node(node->condition);
+    analyse_node(node->condition.get());
 
     gst->enter_scope(current_func_name);
-    for (auto stmt : node->then_elements)
-        analyse_node(stmt);
+    for (auto &stmt : node->then_elements)
+        analyse_node(stmt.get());
     gst->exit_scope(current_func_name);
 
     if (!node->else_elements.empty())
     {
         gst->enter_scope(current_func_name);
-        for (auto stmt : node->else_elements)
-            analyse_node(stmt);
+        for (auto &stmt : node->else_elements)
+            analyse_node(stmt.get());
         gst->exit_scope(current_func_name);
     }
 }
 
 void SemanticAnalyser::analyse_while_stmt(WhileNode *node)
 {
-    analyse_node(node->condition);
+    analyse_node(node->condition.get());
 
     std::string label = gen_new_loop_label();
     node->label = label;
@@ -119,10 +131,10 @@ void SemanticAnalyser::analyse_while_stmt(WhileNode *node)
     enter_loop_scope(label);
     gst->enter_scope(current_func_name);
 
-    for (auto stmt : node->elements)
-        analyse_node(stmt);
-    gst->exit_scope(current_func_name);
+    for (auto &stmt : node->elements)
+        analyse_node(stmt.get());
 
+    gst->exit_scope(current_func_name);
     exit_loop_scope();
 }
 
@@ -134,12 +146,12 @@ void SemanticAnalyser::analyse_for_stmt(ForNode *node)
     enter_loop_scope(label);
     gst->enter_scope(current_func_name);
 
-    analyse_node(node->init);
-    analyse_node(node->condition);
-    analyse_node(node->post);
+    analyse_node(node->init.get());
+    analyse_node(node->condition.get());
+    analyse_node(node->post.get());
 
-    for (auto stmt : node->elements)
-        analyse_node(stmt);
+    for (auto &stmt : node->elements)
+        analyse_node(stmt.get());
 
     gst->exit_scope(current_func_name);
     exit_loop_scope();
@@ -147,13 +159,13 @@ void SemanticAnalyser::analyse_for_stmt(ForNode *node)
 
 void SemanticAnalyser::analyse_binary(BinaryNode *node)
 {
-    analyse_node(node->left);
-    analyse_node(node->right);
+    analyse_node(node->left.get());
+    analyse_node(node->right.get());
 }
 
 void SemanticAnalyser::analyse_unary(UnaryNode *node)
 {
-    analyse_node(node->value);
+    analyse_node(node->value.get());
 }
 
 void SemanticAnalyser::analyse_var(VarNode *node)
@@ -195,11 +207,11 @@ void SemanticAnalyser::analyse_func_call(FuncCallNode *node)
         throw std::runtime_error("Semantic Error: Function '" + node->name + "' has " + std::to_string(func->arg_count) + " arguments, but " + std::to_string(node->args.size()) + " were provided");
 
     for (int i = 0; i < node->args.size(); i++)
-        analyse_node(node->args[i]);
+        analyse_node(node->args[i].get());
 
     for (int i = 0; i < node->args.size(); i++)
     {
-        Type arg_type = infer_type(node->args[i]);
+        Type arg_type = infer_type(node->args[i].get());
         Type param_type = func->arg_types[i];
 
         if (arg_type != param_type)
@@ -222,8 +234,9 @@ Type SemanticAnalyser::infer_type(ASTNode *node)
     }
     case NodeType::NODE_BINARY:
     {
-        Type left = infer_type(((BinaryNode *)node)->left);
-        Type right = infer_type(((BinaryNode *)node)->right);
+        // Type left = infer_type(((BinaryNode *)node)->left);
+        Type left = infer_type(dynamic_cast<BinaryNode *>(node)->left.get());
+        Type right = infer_type(dynamic_cast<BinaryNode *>(node)->right.get());
 
         if (left != right)
             throw std::runtime_error("Semantic Error: Cannot infer type of node of type " + std::to_string(node->type));
@@ -232,7 +245,7 @@ Type SemanticAnalyser::infer_type(ASTNode *node)
     }
     case NodeType::NODE_UNARY:
     {
-        return infer_type(((UnaryNode *)node)->value);
+        return infer_type((dynamic_cast<UnaryNode *>(node))->value.get());
     }
     default:
         throw std::runtime_error("Semantic Error: Cannot infer type of node of type " + std::to_string(node->type));

@@ -2,6 +2,7 @@
 
 #include <vector>
 #include <string>
+#include <memory>
 
 #include "globalSymbolTable.h"
 #include "symbolTable.h"
@@ -64,14 +65,14 @@ struct TACInstruction
 class TacGenerator
 {
 public:
-    TacGenerator(GlobalSymbolTable *gst);
+    TacGenerator(std::shared_ptr<GlobalSymbolTable> gst);
 
-    std::vector<TACInstruction> generate_tac(ProgramNode *program);
+    std::vector<TACInstruction> generate_tac(std::shared_ptr<ProgramNode> program);
     void print_all_tac();
     static std::string gen_tac_str(TACInstruction &instruction);
 
 private:
-    GlobalSymbolTable *gst;
+    std::shared_ptr<GlobalSymbolTable> gst;
     SymbolTable *current_st = nullptr;
     std::string current_func = "";
 
