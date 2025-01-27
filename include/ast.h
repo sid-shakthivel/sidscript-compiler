@@ -4,6 +4,7 @@
 #include <vector>
 #include <unordered_map>
 #include <memory>
+#include <iostream>
 
 #include "lexer.h"
 
@@ -32,9 +33,9 @@ enum BinOpType
     GREATER_OR_EQUAL
 };
 
-enum NodeType
+enum class NodeType
 {
-    NODE_INTEGER,
+    NODE_NUMBER,
     NODE_RETURN,
     NODE_FUNCTION,
     NODE_PROGRAM,
@@ -48,12 +49,14 @@ enum NodeType
     NODE_FOR,
     NODE_BREAK,
     NODE_CONTINUE,
-    NODE_FUNC_CALL
+    NODE_FUNC_CALL,
+    NODE_CAST
 };
 
 enum class Type
 {
     INT,
+    LONG,
     VOID
 };
 
@@ -69,6 +72,7 @@ get_unary_op_type(const TokenType &t);
 BinOpType get_bin_op_type(const TokenType &t);
 Type get_type(const TokenType &t);
 Specifier get_specifier(const TokenType &t);
+void print_type(Type &t);
 
 class ASTNode
 {
@@ -77,18 +81,43 @@ public:
 
     ASTNode(NodeType t) : type(t) {}
     virtual ~ASTNode() = default;
-    virtual void print(int tabs)
-    {
-    }
+    virtual void print(int tabs) {};
 };
 
-class IntegerLiteral : public ASTNode
+class NumericLiteral : public ASTNode
+{
+public:
+    NumericLiteral(NodeType t);
+    Type value_type;
+
+    virtual ~NumericLiteral() = default;
+};
+
+class IntegerLiteral : public NumericLiteral
 {
 public:
     int value;
-    Type type;
 
     IntegerLiteral(int v);
+    void print(int tabs) override;
+};
+
+class LongLiteral : public NumericLiteral
+{
+public:
+    long value;
+
+    LongLiteral(long v);
+    void print(int tabs) override;
+};
+
+class CastNode : public ASTNode
+{
+public:
+    std::unique_ptr<ASTNode> expr;
+    Type target_type;
+
+    CastNode(std::unique_ptr<ASTNode> e, Type t);
     void print(int tabs) override;
 };
 

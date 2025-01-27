@@ -3,13 +3,14 @@
 #include <stdexcept>
 #include <iostream>
 
-Symbol::Symbol(std::string n, int o, bool t) : name(n), stack_offset(o), is_temporary(t)
+Symbol::Symbol(std::string n, int o, bool it) : name(n), stack_offset(o), is_temporary(it)
 {
     // std::cout << "Symbol: " << name << " " << stack_offset << std::endl;
 }
 
 void Symbol::set_linkage(Linkage l) { linkage = l; }
 void Symbol::set_storage_duration(StorageDuration sd) { storage_duration = sd; }
+void Symbol::set_type(Type t) { type = t; }
 
 FuncSymbol::FuncSymbol(std::string n, int ac, std::vector<Type> &at, Type rt) : Symbol(n, 0, false), arg_count(ac), arg_types(at), return_type(rt) {}
 

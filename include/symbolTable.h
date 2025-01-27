@@ -34,10 +34,12 @@ struct Symbol
     Linkage linkage = Linkage::None;
     StorageDuration storage_duration = StorageDuration::Automatic;
     std::string unique_name;
+    Type type = Type::VOID;
 
-    Symbol(std::string n, int o, bool t);
+    Symbol(std::string n, int o, bool it);
     void set_linkage(Linkage l);
     void set_storage_duration(StorageDuration sd);
+    void set_type(Type t);
 };
 
 struct FuncSymbol : public Symbol

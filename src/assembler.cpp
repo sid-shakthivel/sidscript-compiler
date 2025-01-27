@@ -174,7 +174,7 @@ void Assembler::assemble_tac(TACInstruction &instruction, FILE *file)
 					else
 						fprintf(file, "\tmovl    %d(%%rbp), %%r10d # %s\n", potential_var->stack_offset, TacGenerator::gen_tac_str(instruction).c_str());
 
-					fprintf(file, "\tmovl    %%r10d, %d(%%rbp) # %s\n", var->stack_offset);
+					fprintf(file, "\tmovl    %%r10d, %d(%%rbp)\n", var->stack_offset);
 				}
 			}
 		}

@@ -60,7 +60,7 @@ Type get_type(const TokenType &t)
 {
     switch (t)
     {
-    case TOKEN_INT_TEXT:
+    case TOKEN_INT:
         return Type::INT;
     case TOKEN_VOID:
         return Type::VOID;
@@ -82,14 +82,58 @@ Specifier get_specifier(const TokenType &t)
     }
 }
 
-IntegerLiteral::IntegerLiteral(int v) : ASTNode(NODE_INTEGER), value(v), type(Type::INT) {}
+void print_type(Type &t)
+{
+    switch (t)
+    {
+    case Type::INT:
+        std::cout << "int\n";
+        break;
+    case Type::LONG:
+        std::cout << "long\n";
+        break;
+    case Type::VOID:
+        std::cout << "void\n";
+        break;
+    default:
+        std::cout << "unknown\n";
+        break;
+    }
+}
+
+NumericLiteral::NumericLiteral(NodeType t) : ASTNode(t) {}
+
+IntegerLiteral::IntegerLiteral(int v) : NumericLiteral(NodeType::NODE_NUMBER), value(v)
+{
+    value_type = Type::INT;
+}
 
 void IntegerLiteral::print(int tabs)
 {
-    std::cout << std::string(tabs, ' ') << "Literal: " + std::to_string(value) << std::endl;
+    std::cout << std::string(tabs, ' ') << "(Int) Literal: " + std::to_string(value) << std::endl;
 }
 
-RtnNode::RtnNode(std::unique_ptr<ASTNode> v) : ASTNode(NODE_RETURN), value(std::move(v)) {}
+LongLiteral::LongLiteral(long v) : NumericLiteral(NodeType::NODE_NUMBER), value(v)
+{
+    value_type = Type::LONG;
+}
+
+void LongLiteral::print(int tabs)
+{
+    std::cout << std::string(tabs, ' ') << "(Long) Literal: " + std::to_string(value) << std::endl;
+}
+
+CastNode::CastNode(std::unique_ptr<ASTNode> e, Type t) : ASTNode(NodeType::NODE_CAST), expr(std::move(e)), target_type(t) {}
+
+void CastNode::print(int tabs)
+{
+    auto target_type_str = target_type == Type::INT ? "int" : "long";
+    std::cout << std::string(tabs, ' ') << "Cast: " << std::endl;
+    std::cout << std::string(tabs + 1, ' ') << "Target Type: " << target_type_str << std::endl;
+    expr->print(tabs + 1);
+}
+
+RtnNode::RtnNode(std::unique_ptr<ASTNode> v) : ASTNode(NodeType::NODE_RETURN), value(std::move(v)) {}
 
 void RtnNode::print(int tabs)
 {
@@ -97,7 +141,7 @@ void RtnNode::print(int tabs)
     value->print(tabs + 1);
 }
 
-FuncNode::FuncNode(const std::string &n, Specifier s) : ASTNode(NODE_FUNCTION), name(n), specifier(s) {}
+FuncNode::FuncNode(const std::string &n, Specifier s) : ASTNode(NodeType::NODE_FUNCTION), name(n), specifier(s) {}
 
 void FuncNode::print(int tabs)
 {
@@ -125,10 +169,10 @@ std::string FuncNode::get_param_name(int i)
     // VarDeclNode *var_decl = (VarDeclNode *)params[i];
     // VarNode *var = var_decl->var;
     // return var->name;
-    return "";
+    return dynamic_cast<VarDeclNode *>(params[i].get())->var->name;
 }
 
-FuncCallNode::FuncCallNode(const std::string &n) : ASTNode(NODE_FUNC_CALL), name(n) {}
+FuncCallNode::FuncCallNode(const std::string &n) : ASTNode(NodeType::NODE_FUNC_CALL), name(n) {}
 
 void FuncCallNode::print(int tabs)
 {
@@ -137,7 +181,7 @@ void FuncCallNode::print(int tabs)
         arg->print(tabs + 1);
 }
 
-ProgramNode::ProgramNode() : ASTNode(NODE_PROGRAM) {}
+ProgramNode::ProgramNode() : ASTNode(NodeType::NODE_PROGRAM) {}
 
 void ProgramNode::print(int tabs)
 {
@@ -146,7 +190,7 @@ void ProgramNode::print(int tabs)
         decl->print(tabs + 1);
 }
 
-UnaryNode::UnaryNode(UnaryOpType o, std::unique_ptr<ASTNode> v) : ASTNode(NODE_UNARY), op(o), value(std::move(v)) {}
+UnaryNode::UnaryNode(UnaryOpType o, std::unique_ptr<ASTNode> v) : ASTNode(NodeType::NODE_UNARY), op(o), value(std::move(v)) {}
 
 void UnaryNode::print(int tabs)
 {
@@ -171,7 +215,7 @@ void UnaryNode::print(int tabs)
     value->print(tabs + 1);
 }
 
-BinaryNode::BinaryNode(BinOpType o, std::unique_ptr<ASTNode> l, std::unique_ptr<ASTNode> r) : ASTNode(NODE_BINARY), op(o), left(std::move(l)), right(std::move(r)) {}
+BinaryNode::BinaryNode(BinOpType o, std::unique_ptr<ASTNode> l, std::unique_ptr<ASTNode> r) : ASTNode(NodeType::NODE_BINARY), op(o), left(std::move(l)), right(std::move(r)) {}
 
 void BinaryNode::print(int tabs)
 {
@@ -215,7 +259,7 @@ void BinaryNode::print(int tabs)
     right->print(tabs + 1);
 }
 
-VarNode::VarNode(const std::string &n, Type t, Specifier s) : ASTNode(NODE_VAR), name(n), type(t), specifier(s) {}
+VarNode::VarNode(const std::string &n, Type t, Specifier s) : ASTNode(NodeType::NODE_VAR), name(n), type(t), specifier(s) {}
 
 void VarNode::print(int tabs)
 {
@@ -227,7 +271,7 @@ void VarNode::print(int tabs)
         std::cout << std::string(tabs + 1, ' ') << "Specifier: EXTERN" << std::endl;
 }
 
-VarAssignNode::VarAssignNode(std::unique_ptr<VarNode> v, std::unique_ptr<ASTNode> val) : ASTNode(NODE_VAR_ASSIGN), var(std::move(v)), value(std::move(val)) {}
+VarAssignNode::VarAssignNode(std::unique_ptr<VarNode> v, std::unique_ptr<ASTNode> val) : ASTNode(NodeType::NODE_VAR_ASSIGN), var(std::move(v)), value(std::move(val)) {}
 
 void VarAssignNode::print(int tabs)
 {
@@ -236,7 +280,7 @@ void VarAssignNode::print(int tabs)
     value->print(tabs + 1);
 }
 
-VarDeclNode::VarDeclNode(std::unique_ptr<VarNode> v, std::unique_ptr<ASTNode> val) : ASTNode(NODE_VAR_DECL), var(std::move(v)), value(std::move(val)) {}
+VarDeclNode::VarDeclNode(std::unique_ptr<VarNode> v, std::unique_ptr<ASTNode> val) : ASTNode(NodeType::NODE_VAR_DECL), var(std::move(v)), value(std::move(val)) {}
 
 void VarDeclNode::print(int tabs)
 {
@@ -246,7 +290,7 @@ void VarDeclNode::print(int tabs)
         value->print(tabs + 1);
 }
 
-IfNode::IfNode(std::unique_ptr<BinaryNode> c, std::vector<std::unique_ptr<ASTNode>> t, std::vector<std::unique_ptr<ASTNode>> e) : ASTNode(NODE_IF), condition(std::move(c)), then_elements(std::move(t)), else_elements(std::move(t)) {}
+IfNode::IfNode(std::unique_ptr<BinaryNode> c, std::vector<std::unique_ptr<ASTNode>> t, std::vector<std::unique_ptr<ASTNode>> e) : ASTNode(NodeType::NODE_IF), condition(std::move(c)), then_elements(std::move(t)), else_elements(std::move(t)) {}
 
 void IfNode::print(int tabs)
 {
@@ -262,7 +306,7 @@ void IfNode::print(int tabs)
         statement->print(tabs + 2);
 }
 
-WhileNode::WhileNode(std::unique_ptr<BinaryNode> c, std::vector<std::unique_ptr<ASTNode>> e) : ASTNode(NODE_WHILE), condition(std::move(c)), elements(std::move(e)) {}
+WhileNode::WhileNode(std::unique_ptr<BinaryNode> c, std::vector<std::unique_ptr<ASTNode>> e) : ASTNode(NodeType::NODE_WHILE), condition(std::move(c)), elements(std::move(e)) {}
 
 void WhileNode::print(int tabs)
 {
@@ -273,7 +317,7 @@ void WhileNode::print(int tabs)
         element->print(tabs + 2);
 }
 
-ForNode::ForNode(std::unique_ptr<ASTNode> i, std::unique_ptr<BinaryNode> c, std::unique_ptr<ASTNode> p, std::vector<std::unique_ptr<ASTNode>> e) : ASTNode(NODE_FOR), init(std::move(i)), condition(std::move(c)), post(std::move(p)), elements(std::move(e)) {}
+ForNode::ForNode(std::unique_ptr<ASTNode> i, std::unique_ptr<BinaryNode> c, std::unique_ptr<ASTNode> p, std::vector<std::unique_ptr<ASTNode>> e) : ASTNode(NodeType::NODE_FOR), init(std::move(i)), condition(std::move(c)), post(std::move(p)), elements(std::move(e)) {}
 
 void ForNode::print(int tabs)
 {
@@ -286,14 +330,14 @@ void ForNode::print(int tabs)
         element->print(tabs + 2);
 }
 
-ContinueNode::ContinueNode(std::string l) : ASTNode(NODE_CONTINUE), label(l) {}
+ContinueNode::ContinueNode(std::string l) : ASTNode(NodeType::NODE_CONTINUE), label(l) {}
 
 void ContinueNode::print(int tabs)
 {
     std::cout << std::string(tabs, ' ') << "Continue " << label << std::endl;
 }
 
-BreakNode::BreakNode(std::string l) : ASTNode(NODE_BREAK), label(l) {}
+BreakNode::BreakNode(std::string l) : ASTNode(NodeType::NODE_BREAK), label(l) {}
 
 void BreakNode::print(int tabs)
 {

@@ -74,33 +74,53 @@ void SemanticAnalyser::analyse_node(ASTNode *node)
 
 void SemanticAnalyser::analyse_var_decl(VarDeclNode *node)
 {
-    /*
-        Global variables when current_func_name = ""
-        should only have constant values (if any) thus needs to be checked first
-    */
-
+    // Global variables are only allowed to have constant values ie 5 rather then expressions
     if (current_func_name == "")
-    {
         if (node->value != nullptr)
-            if (node->value->type != NodeType::NODE_INTEGER)
-                throw std::runtime_error("Semantic Error: Global variable must have constant value");
+            if (node->value->type != NodeType::NODE_NUMBER)
+                throw std::runtime_error("Semantic Error: Global variable " + node->var->name + " must have constant value");
+
+    if (node->value != nullptr)
+    {
+        analyse_node(node->value.get());
+
+        Type type = infer_type(node->value.get());
+
+        // Allow int to long promotion but not long to int
+        if (!(node->var->type == Type::LONG && type == Type::INT) &&
+            type != node->var->type)
+            throw std::runtime_error("Semantic Error: Conflicting types in assignment of " + node->var->name);
     }
 
     gst->declare_var(current_func_name, node->var.get());
-    if (node->value)
-        analyse_node(node->value.get());
+    gst->get_symbol(current_func_name, node->var->name)->set_type(node->var->type);
 }
 
 void SemanticAnalyser::analyser_var_assign(VarAssignNode *node)
 {
     node->var->name = gst->check_var_defined(current_func_name, node->var->name);
     analyse_node(node->value.get());
+    Type var_type = gst->get_symbol(current_func_name, node->var->name)->type;
+    Type value_type = infer_type(node->value.get());
+
+    if (!(var_type == Type::LONG && value_type == Type::INT) &&
+        var_type != value_type)
+        throw std::runtime_error("Semantic Error: Conflicting types in assignment of " + node->var->name);
 }
 
 void SemanticAnalyser::analyse_rtn(RtnNode *node)
 {
     if (node->value)
+    {
         analyse_node(node->value.get());
+
+        FuncSymbol *func = gst->get_func_symbol(current_func_name);
+        Type return_type = infer_type(node->value.get());
+
+        if (!(func->return_type == Type::LONG && return_type == Type::INT) &&
+            func->return_type != return_type)
+            throw std::runtime_error("Semantic Error: Conflicting types in return of " + current_func_name);
+    }
 }
 
 void SemanticAnalyser::analyse_if_stmt(IfNode *node)
@@ -214,8 +234,9 @@ void SemanticAnalyser::analyse_func_call(FuncCallNode *node)
         Type arg_type = infer_type(node->args[i].get());
         Type param_type = func->arg_types[i];
 
-        if (arg_type != param_type)
-            throw std::runtime_error("Semantic Error: Cannot infer type of node of type " + std::to_string(node->type));
+        if (!(arg_type == Type::LONG && param_type == Type::INT) &&
+            arg_type != param_type)
+            throw std::runtime_error("Semantic Error: Conflicting types in function call of '" + node->name + "'");
     }
 }
 
@@ -223,10 +244,10 @@ Type SemanticAnalyser::infer_type(ASTNode *node)
 {
     switch (node->type)
     {
-    case NodeType::NODE_INTEGER:
-        return ((IntegerLiteral *)node)->type;
+    case NodeType::NODE_NUMBER:
+        return ((NumericLiteral *)node)->value_type;
     case NodeType::NODE_VAR:
-        return ((VarNode *)node)->type;
+        return gst->get_symbol(current_func_name, ((VarNode *)node)->name)->type;
     case NodeType::NODE_FUNC_CALL:
     {
         FuncSymbol *func = gst->get_func_symbol(((FuncCallNode *)node)->name);
@@ -234,12 +255,14 @@ Type SemanticAnalyser::infer_type(ASTNode *node)
     }
     case NodeType::NODE_BINARY:
     {
-        // Type left = infer_type(((BinaryNode *)node)->left);
         Type left = infer_type(dynamic_cast<BinaryNode *>(node)->left.get());
         Type right = infer_type(dynamic_cast<BinaryNode *>(node)->right.get());
 
+        std::string left_str = left == Type::INT ? "int" : "float";
+        std::string right_str = right == Type::INT ? "int" : "float";
+
         if (left != right)
-            throw std::runtime_error("Semantic Error: Cannot infer type of node of type " + std::to_string(node->type));
+            throw std::runtime_error("Semantic Error: Conflicting types in binary operation between " + left_str + " and " + right_str);
 
         return left;
     }
@@ -248,6 +271,6 @@ Type SemanticAnalyser::infer_type(ASTNode *node)
         return infer_type((dynamic_cast<UnaryNode *>(node))->value.get());
     }
     default:
-        throw std::runtime_error("Semantic Error: Cannot infer type of node of type " + std::to_string(node->type));
+        throw std::runtime_error("Semantic Error: Cannot infer type of node of type ");
     }
 }

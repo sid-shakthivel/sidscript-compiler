@@ -81,6 +81,12 @@ void Parser::expect_and_advance(TokenType token_type)
     advance();
 }
 
+void Parser::expect_and_advance(std::vector<TokenType> &tokens)
+{
+    expect(tokens);
+    advance();
+}
+
 std::shared_ptr<ProgramNode> Parser::parse()
 {
     std::shared_ptr<ProgramNode> program = std::make_shared<ProgramNode>();
@@ -89,7 +95,7 @@ std::shared_ptr<ProgramNode> Parser::parse()
     {
         if (match(TOKEN_FN))
             program->decls.emplace_back(parse_func_decl());
-        else if (match(TOKEN_INT_TEXT))
+        else if (match(addressable_types))
             program->decls.emplace_back(parse_var_decl());
         else if (match(TOKEN_STATIC) || match(TOKEN_EXTERN))
         {
@@ -98,7 +104,7 @@ std::shared_ptr<ProgramNode> Parser::parse()
 
             if (match(TOKEN_FN))
                 program->decls.emplace_back(parse_func_decl(qualifier));
-            else if (match(TOKEN_INT_TEXT))
+            else if (match(addressable_types))
                 program->decls.emplace_back(parse_var_decl(qualifier));
         }
 
@@ -128,8 +134,7 @@ std::unique_ptr<FuncNode> Parser::parse_func_decl(TokenType specifier)
 
     expect_and_advance(TOKEN_ARROW);
 
-    std::vector<TokenType> accepted_tokens = {TOKEN_INT_TEXT, TOKEN_VOID};
-    expect(accepted_tokens);
+    expect(all_types);
     advance();
 
     func->return_type = get_type(current_token.type);
@@ -147,7 +152,7 @@ void Parser::parse_param_list(std::unique_ptr<FuncNode> &func)
     if (match(TOKEN_RPAREN))
         return;
 
-    expect_and_advance(TOKEN_INT_TEXT);
+    expect_and_advance(addressable_types);
 
     expect(TOKEN_IDENTIFIER);
 
@@ -163,7 +168,7 @@ void Parser::parse_param_list(std::unique_ptr<FuncNode> &func)
     {
         expect_and_advance(TOKEN_COMMA);
 
-        expect_and_advance(TOKEN_INT_TEXT);
+        expect_and_advance(addressable_types);
 
         expect(TOKEN_IDENTIFIER);
 
@@ -186,7 +191,7 @@ std::vector<std::unique_ptr<ASTNode>> Parser::parse_block()
     {
         if (match(TOKEN_RTN))
             elements.emplace_back(parse_rtn());
-        else if (match(TOKEN_INT_TEXT))
+        else if (match(addressable_types))
             elements.emplace_back(parse_var_decl());
         else if (match(TOKEN_IDENTIFIER))
             elements.emplace_back(parse_var_assign());
@@ -294,7 +299,7 @@ std::unique_ptr<ForNode> Parser::parse_for_stmt()
 
 std::unique_ptr<ASTNode> Parser::parse_for_init()
 {
-    if (match(TOKEN_INT_TEXT))
+    if (match(addressable_types))
         return parse_var_decl();
     else if (match(TOKEN_IDENTIFIER))
         return parse_var_assign();
@@ -318,11 +323,13 @@ std::unique_ptr<ASTNode> Parser::parse_loop_control()
 
 std::unique_ptr<VarDeclNode> Parser::parse_var_decl(TokenType specifier)
 {
+    curr_decl_type = current_token.type == TOKEN_LONG ? Type::LONG : Type::INT;
+
     advance();
 
     expect(TOKEN_IDENTIFIER);
 
-    std::unique_ptr<VarNode> var = std::make_unique<VarNode>(current_token.text, Type::INT, get_specifier(specifier));
+    std::unique_ptr<VarNode> var = std::make_unique<VarNode>(current_token.text, curr_decl_type, get_specifier(specifier));
 
     advance();
 
@@ -337,8 +344,12 @@ std::unique_ptr<VarDeclNode> Parser::parse_var_decl(TokenType specifier)
 
         expect(TOKEN_SEMICOLON);
 
+        curr_decl_type = Type::INT;
+
         return std::make_unique<VarDeclNode>(std::move(var), std::move(expr));
     }
+
+    curr_decl_type = Type::INT;
 
     return std::make_unique<VarDeclNode>(std::move(var), nullptr);
 }
@@ -379,10 +390,29 @@ std::unique_ptr<ASTNode> Parser::parse_expr(int min_presedence)
 
 std::unique_ptr<ASTNode> Parser::parse_factor()
 {
-    if (match(TOKEN_INT))
+    if (match(TOKEN_NUMBER))
     {
-        int number = std::stoi(current_token.text);
-        return std::make_unique<IntegerLiteral>(number);
+        try
+        {
+            if (curr_decl_type == Type::LONG)
+            {
+                long number = std::stol(current_token.text);
+                return std::make_unique<LongLiteral>(number);
+            }
+            else if (curr_decl_type == Type::INT)
+            {
+                int number = std::stoi(current_token.text);
+                return std::make_unique<IntegerLiteral>(number);
+            }
+        }
+        catch (const std::out_of_range &)
+        {
+            // If the number is out of int range, treat it as a long
+            long number = std::stol(current_token.text);
+            return std::make_unique<LongLiteral>(number);
+        }
+
+        error("Unknown integer type");
     }
     else if (match(TOKEN_TILDA) || match(TOKEN_MINUS) || match(TOKEN_INCREMENT) || match(TOKEN_DECREMENT))
     {

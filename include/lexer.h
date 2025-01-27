@@ -6,9 +6,7 @@
 enum TokenType
 {
     TOKEN_EOF,
-    TOKEN_INT_TEXT,
-    TOKEN_FLOAT_TEXT,
-    TOKEN_BOOL_TEXT,
+    TOKEN_INT,
     TOKEN_IF,
     TOKEN_ELSE,
     TOKEN_WHILE,
@@ -35,7 +33,7 @@ enum TokenType
     TOKEN_LE,
     TOKEN_GE,
     TOKEN_IDENTIFIER,
-    TOKEN_INT,
+    TOKEN_NUMBER,
     TOKEN_BOOL,
     TOKEN_FLOAT,
     TOKEN_AND,
@@ -51,6 +49,7 @@ enum TokenType
     TOKEN_VOID,
     TOKEN_STATIC,
     TOKEN_EXTERN,
+    TOKEN_LONG,
     TOKEN_UNKNOWN_SYMBOL,
 };
 

@@ -58,7 +58,7 @@ std::string TacGenerator::gen_new_label(std::string label)
     return ".L" + label + std::to_string(labelCounter++);
 }
 
-std::vector<TACInstruction> TacGenerator::generate_tac(std::shared_ptr<ProgramNode> program)
+void TacGenerator::generate_tac(std::shared_ptr<ProgramNode> program)
 {
     for (auto &decl : program->decls)
     {
@@ -81,8 +81,6 @@ std::vector<TACInstruction> TacGenerator::generate_tac(std::shared_ptr<ProgramNo
         instructions.insert(instructions.begin(), bss_vars.begin(), bss_vars.end());
         instructions.insert(instructions.begin(), TACInstruction(TACOp::ENTER_BSS));
     }
-
-    return instructions;
 }
 
 void TacGenerator::generate_tac_func(FuncNode *func)
@@ -280,7 +278,7 @@ std::string TacGenerator::generate_tac_expr(ASTNode *expr)
     {
         return ((VarNode *)expr)->name;
     }
-    else if (expr->type == NodeType::NODE_INTEGER)
+    else if (expr->type == NodeType::NODE_NUMBER)
     {
         return std::to_string(((IntegerLiteral *)expr)->value);
     }

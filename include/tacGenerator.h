@@ -67,9 +67,11 @@ class TacGenerator
 public:
     TacGenerator(std::shared_ptr<GlobalSymbolTable> gst);
 
-    std::vector<TACInstruction> generate_tac(std::shared_ptr<ProgramNode> program);
+    void generate_tac(std::shared_ptr<ProgramNode> program);
     void print_all_tac();
     static std::string gen_tac_str(TACInstruction &instruction);
+
+    const std::vector<TACInstruction> &get_instructions() const { return instructions; }
 
 private:
     std::shared_ptr<GlobalSymbolTable> gst;

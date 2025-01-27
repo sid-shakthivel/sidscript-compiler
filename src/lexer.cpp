@@ -5,9 +5,7 @@
 #include "../include/lexer.h"
 
 std::unordered_map<std::string, TokenType> string_to_token = {
-    {"int", TOKEN_INT_TEXT},
-    {"float", TOKEN_FLOAT_TEXT},
-    {"bool", TOKEN_BOOL_TEXT},
+    {"int", TOKEN_INT},
     {"void", TOKEN_VOID},
     {"if", TOKEN_IF},
     {"else", TOKEN_ELSE},
@@ -46,6 +44,7 @@ std::unordered_map<std::string, TokenType> string_to_token = {
     {"continue", TOKEN_CONTINUE},
     {",", TOKEN_COMMA},
     {"break", TOKEN_BREAK},
+    {"long", TOKEN_LONG},
     {"static", TOKEN_STATIC},
     {"extern", TOKEN_EXTERN},
 };
@@ -112,7 +111,7 @@ Token Lexer::get_next_token()
         line++;
 
     if (isdigit(c))
-        return Token(TOKEN_INT, process_number(), line);
+        return Token(TOKEN_NUMBER, process_number(), line);
     else if (isalpha(c))
     {
         std::string temp_identifier = process_identifier();

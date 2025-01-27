@@ -17,12 +17,18 @@ private:
     Lexer *lexer;
     Token current_token;
 
+    Type curr_decl_type = Type::INT;
+
+    std::vector<TokenType> all_types = {TOKEN_VOID, TOKEN_INT, TOKEN_LONG};
+    std::vector<TokenType> addressable_types = {TOKEN_INT, TOKEN_LONG};
+
     bool match(TokenType type);
     bool match(std::vector<TokenType> &tokens);
     void advance();
     void retreat();
     void expect(TokenType token_type);
     void expect_and_advance(TokenType token_type);
+    void expect_and_advance(std::vector<TokenType> &tokens);
     void expect(std::vector<TokenType> &tokens);
     void error(const std::string &message);
 
