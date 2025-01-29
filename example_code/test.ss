@@ -1,5 +1,4 @@
 fn main() -> int {
-    int a = 3;
-    long c = 2;
-    c = 2 + 3;
+    int a = 5 + 2;
+    return a;
 }

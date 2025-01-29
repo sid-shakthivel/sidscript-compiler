@@ -3,9 +3,8 @@
 #include <string>
 #include <cstdio>
 #include <memory>
-#include <cerrno>
-#include <iostream>
-#include <fstream>
+#include <unordered_map>
+#include <functional>
 
 #include "symbolTable.h"
 #include "globalSymbolTable.h"
@@ -22,7 +21,7 @@ class Assembler
 {
 public:
     Assembler(std::shared_ptr<GlobalSymbolTable> gst, std::string filename);
-    void assemble(std::vector<TACInstruction> instructions);
+    void assemble(const std::vector<TACInstruction> &instructions);
 
 private:
     std::shared_ptr<GlobalSymbolTable> gst;
@@ -30,16 +29,28 @@ private:
     VarType current_var_type = VarType::TEXT;
     FILE *file;
 
-    void assemble_tac(TACInstruction &instruction, FILE *file);
+    std::unordered_map<TACOp, std::function<void(TACInstruction)>> handlers;
 
-    std::function<void(const std::string &, const char *, Type type)> load_to_reg;
-    std::function<void(const std::string &operand, const char *reg, Type type)> store_from_reg;
-    std::function<void(const std::string &operand, const char *reg, const std::string &op, Type type)> apply_bin_op_to_reg;
-    std::function<void(const std::string &operand_a, const std::string &operand_b, const std::string &result, const char *reg, const std::string &op, Type type)> compare_and_store_result;
+    void initialize_handlers();
+    void load_to_reg(const std::string &operand, const char *reg, Type type);
+    void store_from_reg(const std::string &operand, const char *reg, Type type);
+    void apply_bin_op_to_reg(const std::string &operand, const char *reg, const std::string &op, Type type);
+    void compare_and_store_result(const std::string &operand_a, const std::string &operand_b, const std::string &result, const char *reg, const std::string &op, Type type);
 
-    // std::function<void(const std::string &src, const std::string &dest, const std::string &comment)> emit_mov_c_static;
-    // std::function<void(const std::string &src, int dest_offset, const std::string &comment)> emit_mov_c_stack;
-    // std::function<void(const std::string &src, const std::string &dest, const std::string &comment)> emit_mov_static_static;
-    // std::function<void(const std::string &src, int dest_offset, const std::string &comment)> emit_mov_static_stack;
-    // std::function<void(int src_offset, int dest_offset, const std::string &comment)> emit_mov_stack_stack;
+    void handle_func_begin(TACInstruction &instruction);
+    void handle_func_end(TACInstruction &instruction);
+    void handle_assign(TACInstruction &instruction);
+    void handle_return(TACInstruction &instruction);
+    void handle_bin_op(TACInstruction &instruction, const std::string &op);
+    void handle_cmp_op(TACInstruction &instruction, const std::string &op);
+    void handle_if(TACInstruction &instruction);
+    void handle_goto(TACInstruction &instruction);
+    void handle_label(TACInstruction &instruction);
+    void handle_call(TACInstruction &instruction);
+    void handle_mov(TACInstruction &instruction);
+    void handle_nop(TACInstruction &instruction);
+    void handle_section(TACInstruction &instruction);
+    void handle_unary_op(TACInstruction &instruction, const std::string &op);
+    void handle_mod(TACInstruction &instruction);
+    void handle_div(TACInstruction &instruction);
 };

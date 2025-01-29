@@ -135,9 +135,10 @@ std::unique_ptr<FuncNode> Parser::parse_func_decl(TokenType specifier)
     expect_and_advance(TOKEN_ARROW);
 
     expect(all_types);
-    advance();
 
     func->return_type = get_type(current_token.type);
+
+    advance();
 
     std::vector<std::unique_ptr<ASTNode>> elements = parse_block();
 
