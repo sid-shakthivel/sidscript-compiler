@@ -54,12 +54,13 @@ struct TACInstruction
     std::string arg1;   // First argument
     std::string arg2;   // Second argument (optional)
     std::string result; // Result variable or temporary
+    Type type;
 
-    TACOp op2;
+    TACOp op2; // Optional argument
 
     TACInstruction(TACOp op, const std::string &arg1 = "",
-                   const std::string &arg2 = "", const std::string &result = "")
-        : op(op), arg1(arg1), arg2(arg2), result(result), op2(TACOp::NOP) {}
+                   const std::string &arg2 = "", const std::string &result = "", Type type = Type::VOID)
+        : op(op), arg1(arg1), arg2(arg2), result(result), op2(TACOp::NOP), type(type) {}
 };
 
 class TacGenerator

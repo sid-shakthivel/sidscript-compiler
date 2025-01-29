@@ -40,6 +40,7 @@ struct Symbol
     void set_linkage(Linkage l);
     void set_storage_duration(StorageDuration sd);
     void set_type(Type t);
+    bool has_static_sd();
 };
 
 struct FuncSymbol : public Symbol

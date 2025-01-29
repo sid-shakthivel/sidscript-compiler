@@ -12,6 +12,11 @@ void Symbol::set_linkage(Linkage l) { linkage = l; }
 void Symbol::set_storage_duration(StorageDuration sd) { storage_duration = sd; }
 void Symbol::set_type(Type t) { type = t; }
 
+bool Symbol::has_static_sd()
+{
+    return storage_duration == StorageDuration::Static;
+}
+
 FuncSymbol::FuncSymbol(std::string n, int ac, std::vector<Type> &at, Type rt) : Symbol(n, 0, false), arg_count(ac), arg_types(at), return_type(rt) {}
 
 SymbolTable::SymbolTable() {}

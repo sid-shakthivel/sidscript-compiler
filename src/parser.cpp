@@ -7,19 +7,19 @@
 #include "../include/ast.h"
 
 std::unordered_map<BinOpType, int> precedence_map = {
-    {OR, 5},
-    {AND, 10},
-    {EQUAL, 20},
-    {NOT_EQUAL, 20},
-    {LESS_THAN, 25},
-    {GREATER_THAN, 25},
-    {LESS_OR_EQUAL, 25},
-    {GREATER_OR_EQUAL, 25},
-    {ADD, 35},
-    {SUB, 35},
-    {MUL, 40},
-    {DIV, 40},
-    {MOD, 40},
+    {BinOpType::OR, 5},
+    {BinOpType::AND, 10},
+    {BinOpType::EQUAL, 20},
+    {BinOpType::NOT_EQUAL, 20},
+    {BinOpType::LESS_THAN, 25},
+    {BinOpType::GREATER_THAN, 25},
+    {BinOpType::LESS_OR_EQUAL, 25},
+    {BinOpType::GREATER_OR_EQUAL, 25},
+    {BinOpType::ADD, 35},
+    {BinOpType::SUB, 35},
+    {BinOpType::MUL, 40},
+    {BinOpType::DIV, 40},
+    {BinOpType::MOD, 40},
 };
 
 std::vector<TokenType> bin_op_tokens = {TOKEN_PLUS, TOKEN_MINUS, TOKEN_STAR, TOKEN_SLASH, TOKEN_PERCENT, TOKEN_EQUALS, TOKEN_NOT_EQUALS, TOKEN_LT, TOKEN_GT, TOKEN_LE, TOKEN_GE, TOKEN_AND, TOKEN_OR};

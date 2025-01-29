@@ -47,10 +47,10 @@ int main()
     tacGenerator.generate_tac(program);
     tacGenerator.print_all_tac();
 
-    // auto &instructions = tacGenerator.get_instructions();
+    auto &instructions = tacGenerator.get_instructions();
 
-    // Assembler assembler(gst);
-    // assembler.assemble(instructions, "test.s");
+    Assembler assembler(gst, "test.s");
+    assembler.assemble(instructions);
 
     return 0;
 }

@@ -255,20 +255,29 @@ Type SemanticAnalyser::infer_type(ASTNode *node)
     }
     case NodeType::NODE_BINARY:
     {
-        Type left = infer_type(dynamic_cast<BinaryNode *>(node)->left.get());
-        Type right = infer_type(dynamic_cast<BinaryNode *>(node)->right.get());
+        BinaryNode *bin_node = dynamic_cast<BinaryNode *>(node);
+        Type left = infer_type(bin_node->left.get());
+        Type right = infer_type(bin_node->right.get());
 
         std::string left_str = left == Type::INT ? "int" : "float";
         std::string right_str = right == Type::INT ? "int" : "float";
 
-        if (left != right)
+        if (!(left == Type::LONG && right == Type::INT) &&
+            left != right)
             throw std::runtime_error("Semantic Error: Conflicting types in binary operation between " + left_str + " and " + right_str);
+
+        bin_node->type = right;
+        if (left == Type::LONG && right == Type::INT)
+            bin_node->type = Type::LONG;
 
         return left;
     }
     case NodeType::NODE_UNARY:
     {
-        return infer_type((dynamic_cast<UnaryNode *>(node))->value.get());
+        UnaryNode *un_node = dynamic_cast<UnaryNode *>(node);
+        Type type = infer_type(un_node->value.get());
+        un_node->type = type;
+        return type;
     }
     default:
         throw std::runtime_error("Semantic Error: Cannot infer type of node of type ");

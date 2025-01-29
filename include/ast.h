@@ -8,7 +8,7 @@
 
 #include "lexer.h"
 
-enum UnaryOpType
+enum class UnaryOpType
 {
     NEGATE,
     COMPLEMENT,
@@ -16,7 +16,7 @@ enum UnaryOpType
     INCREMENT,
 };
 
-enum BinOpType
+enum class BinOpType
 {
     ADD,
     SUB,
@@ -168,6 +168,7 @@ class UnaryNode : public ASTNode
 public:
     UnaryOpType op;
     std::unique_ptr<ASTNode> value;
+    Type type = Type::VOID;
 
     UnaryNode(UnaryOpType o, std::unique_ptr<ASTNode> v);
     void print(int tabs) override;
@@ -179,6 +180,7 @@ public:
     BinOpType op;
     std::unique_ptr<ASTNode> left;
     std::unique_ptr<ASTNode> right;
+    Type type = Type::VOID;
 
     BinaryNode(BinOpType o, std::unique_ptr<ASTNode> l, std::unique_ptr<ASTNode> r);
     void print(int tabs) override;
