@@ -60,7 +60,7 @@ public:
     void enter_scope();
     void exit_scope();
 
-    std::tuple<bool, std::string> declare_var(const std::string &name, bool is_static = false);
+    std::tuple<bool, std::string> declare_var(const std::string &name, bool is_static = false, Type type = Type::INT);
     std::tuple<bool, std::string> check_var_defined(const std::string &name);
     void declare_temp_variable(const std::string &name);
 
@@ -72,5 +72,5 @@ public:
 private:
     std::stack<std::unordered_map<std::string, Symbol *>> scopes;
     std::unordered_map<std::string, Symbol *> var_symbols;
-    int var_count = 1;
+    int var_count = 0;
 };

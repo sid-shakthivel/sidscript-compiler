@@ -90,7 +90,7 @@ void GlobalSymbolTable::declare_var(const std::string &func_name, VarNode *node)
 	if (it2 == functions.end())
 		throw std::runtime_error("Semantic Error: Function '" + func_name + "' is not declared");
 
-	auto [has_name_changed, new_name] = std::get<1>(it2->second)->declare_var(node->name, node->specifier == Specifier::STATIC);
+	auto [has_name_changed, new_name] = std::get<1>(it2->second)->declare_var(node->name, node->specifier == Specifier::STATIC, node->type);
 
 	if (has_name_changed)
 		node->name = new_name;

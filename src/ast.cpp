@@ -64,6 +64,8 @@ Type get_type(const TokenType &t)
         return Type::INT;
     case TOKEN_VOID:
         return Type::VOID;
+    case TOKEN_LONG:
+        return Type::LONG;
     default:
         return Type::VOID;
     }

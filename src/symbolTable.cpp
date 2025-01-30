@@ -34,7 +34,7 @@ void SymbolTable::exit_scope()
     scopes.pop();
 }
 
-std::tuple<bool, std::string> SymbolTable::declare_var(const std::string &name, bool is_static)
+std::tuple<bool, std::string> SymbolTable::declare_var(const std::string &name, bool is_static, Type type)
 {
     if (scopes.empty())
         throw std::runtime_error("Semantic Error: No scope available");
@@ -51,7 +51,9 @@ std::tuple<bool, std::string> SymbolTable::declare_var(const std::string &name, 
         throw std::runtime_error("Semantic Error: Variable '" + name + "' is already declared in this scope");
     }
 
-    Symbol *symbol = new Symbol(name, var_count++ * -4, false);
+    var_count += type == Type::INT ? 1 : 3;
+
+    Symbol *symbol = new Symbol(name, var_count * -4, false);
     symbol->set_storage_duration(is_static ? StorageDuration::Static : StorageDuration::Automatic);
     current_scope[name] = symbol;
 
@@ -87,7 +89,7 @@ std::tuple<bool, std::string> SymbolTable::check_var_defined(const std::string &
 
 int SymbolTable::get_var_count()
 {
-    return var_count - 1;
+    return var_count;
 }
 
 Symbol *SymbolTable::get_symbol(const std::string &name)

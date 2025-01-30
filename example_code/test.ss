@@ -1,4 +1,7 @@
-fn main() -> int {
-    int a = 5 + 2;
-    return a;
+fn main() -> long {
+    int a = 5;
+    int d = 9;
+    long b = 4 + 2;
+    b = b + a;
+    return b;
 }

@@ -103,14 +103,17 @@ void Assembler::load_to_reg(const std::string &operand, const char *reg, Type ty
 	Symbol *rhs = gst->get_symbol(current_func, operand);
 	std::string mov_text = type == Type::LONG ? "movq" : "movl";
 
+	std::string reg_name = reg;
+	reg_name += type == Type::INT && reg != "%eax" ? "d" : "";
+
 	if (rhs == nullptr)
-		fprintf(file, "\t%s\t$%s, %s\n", mov_text.c_str(), operand.c_str(), reg);
+		fprintf(file, "\t%s\t$%s, %s\n", mov_text.c_str(), operand.c_str(), reg_name.c_str());
 	else
 	{
 		if (rhs->has_static_sd())
-			fprintf(file, "\t%s\t_%s(%%rip), %s\n", mov_text.c_str(), rhs->name.c_str(), reg);
+			fprintf(file, "\t%s\t_%s(%%rip), %s\n", mov_text.c_str(), rhs->name.c_str(), reg_name.c_str());
 		else
-			fprintf(file, "\t%s\t%d(%%rbp), %s\n", mov_text.c_str(), rhs->stack_offset, reg);
+			fprintf(file, "\t%s\t%d(%%rbp), %s\n", mov_text.c_str(), rhs->stack_offset, reg_name.c_str());
 	}
 }
 
@@ -119,15 +122,18 @@ void Assembler::store_from_reg(const std::string &operand, const char *reg, Type
 	Symbol *rhs = gst->get_symbol(current_func, operand);
 	std::string mov_text = type == Type::LONG ? "movq" : "movl";
 
+	std::string reg_name = reg;
+	reg_name += type == Type::INT ? "d" : "";
+
 	if (rhs != nullptr)
 	{
 		if (rhs->has_static_sd())
-			fprintf(file, "\t%s\t%s, _%s(%%rip)\n", mov_text.c_str(), reg, operand.c_str());
+			fprintf(file, "\t%s\t%s, _%s(%%rip)\n", mov_text.c_str(), reg_name.c_str(), operand.c_str());
 		else
-			fprintf(file, "\t%s\t%s, %d(%%rbp)\n", mov_text.c_str(), reg, rhs->stack_offset);
+			fprintf(file, "\t%s\t%s, %d(%%rbp)\n", mov_text.c_str(), reg_name.c_str(), rhs->stack_offset);
 	}
 	else
-		fprintf(file, "\t%s\t%s, $%s\n", mov_text.c_str(), reg, operand.c_str());
+		fprintf(file, "\t%s\t%s, $%s\n", mov_text.c_str(), reg_name.c_str(), operand.c_str());
 }
 
 void Assembler::apply_bin_op_to_reg(const std::string &operand, const char *reg, const std::string &op, Type type)
@@ -135,12 +141,15 @@ void Assembler::apply_bin_op_to_reg(const std::string &operand, const char *reg,
 	Symbol *rhs = gst->get_symbol(current_func, operand);
 	std::string op_text = type == Type::LONG ? op + "q" : op + "l";
 
-	if (rhs == nullptr)
-		fprintf(file, "\t%s\t$%s, %s\n", op_text.c_str(), operand.c_str(), reg);
-	else
-		fprintf(file, "\t%s\t%d(%%rbp), %s\n", op_text.c_str(), rhs->stack_offset, reg);
+	std::string reg_name = reg;
+	reg_name += type == Type::INT ? "d" : "";
 
-	fprintf(file, "\n");
+	if (rhs == nullptr)
+		fprintf(file, "\t%s\t$%s, %s\n", op_text.c_str(), operand.c_str(), reg_name.c_str());
+	else
+		fprintf(file, "\t%s\t%d(%%rbp), %s\n", op_text.c_str(), rhs->stack_offset, reg_name.c_str());
+
+	// fprintf(file, "\n");
 }
 
 void Assembler::compare_and_store_result(const std::string &operand_a, const std::string &operand_b, const std::string &result, const char *reg, const std::string &op, Type type)
@@ -150,13 +159,17 @@ void Assembler::compare_and_store_result(const std::string &operand_a, const std
 	Symbol *potential_var_b = gst->get_symbol(current_func, operand_b);
 	std::string cmp_text = type == Type::LONG ? "cmpq" : "cmpl";
 
-	if (potential_var_b == nullptr)
-		fprintf(file, "\t%s\t$%s, %s\n", cmp_text.c_str(), operand_b.c_str(), reg);
-	else
-		fprintf(file, "\t%s\t%d(%%rbp), %s\n", cmp_text.c_str(), potential_var_b->stack_offset, reg);
+	std::string reg_name = reg;
+	reg_name += type == Type::INT ? "d" : "";
 
-	std::string reg_b = reg;
-	reg_b.pop_back();
+	if (potential_var_b == nullptr)
+		fprintf(file, "\t%s\t$%s, %s\n", cmp_text.c_str(), operand_b.c_str(), reg_name.c_str());
+	else
+		fprintf(file, "\t%s\t%d(%%rbp), %s\n", cmp_text.c_str(), potential_var_b->stack_offset, reg_name.c_str());
+
+	std::string reg_b = reg_name;
+	if (type == Type::INT)
+		reg_b.pop_back();
 	reg_b += "b";
 
 	fprintf(file, "\t%s\t%s\n", op.c_str(), reg_b.c_str());
@@ -194,43 +207,49 @@ void Assembler::handle_assign(TACInstruction &instruction)
 	Symbol *lhs = gst->get_symbol(current_func, instruction.arg1);
 	Symbol *rhs = gst->get_symbol(current_func, instruction.arg2);
 	std::string mov_text = instruction.type == Type::LONG ? "movq" : "movl";
+	std::string reg = instruction.type == Type::LONG ? "%r10" : "%r10d";
+
+	fprintf(file, "\t# %s\n", TacGenerator::gen_tac_str(instruction).c_str());
 
 	if (rhs)
 	{
 		if (lhs->has_static_sd() && rhs->has_static_sd())
 		{
-			fprintf(file, "\t%s\t_%s(%%rip), %%r10\n", mov_text.c_str(), instruction.arg2.c_str());
-			fprintf(file, "\t%s\t%%r10, _%s(%%rip)\n", mov_text.c_str(), instruction.arg1.c_str());
+			fprintf(file, "\t%s\t_%s(%%rip), %s\n", mov_text.c_str(), instruction.arg2.c_str(), reg.c_str());
+			fprintf(file, "\t%s\t%s, _%s(%%rip)\n", mov_text.c_str(), reg.c_str(), instruction.arg1.c_str());
 		}
 		else if (lhs->has_static_sd())
 		{
-			fprintf(file, "\t%s\t%d(%%rbp), %%r10\n", mov_text.c_str(), rhs->stack_offset);
-			fprintf(file, "\t%s\t%%r10, _%s(%%rip)\n", mov_text.c_str(), instruction.arg1.c_str());
+			fprintf(file, "\t%s\t%d(%%rbp), %s\n", mov_text.c_str(), rhs->stack_offset, reg.c_str());
+			fprintf(file, "\t%s\t%s, _%s(%%rip)\n", mov_text.c_str(), reg.c_str(), instruction.arg1.c_str());
 		}
 		else if (rhs->has_static_sd())
 		{
-			fprintf(file, "\t%s\t_%s(%%rip), %%r10\n", mov_text.c_str(), instruction.arg2.c_str());
-			fprintf(file, "\t%s\t%%r10, %d(%%rbp)\n", mov_text.c_str(), lhs->stack_offset);
+			fprintf(file, "\t%s\t_%s(%%rip), %s\n", mov_text.c_str(), instruction.arg2.c_str(), reg.c_str());
+			fprintf(file, "\t%s\t%s, %d(%%rbp)\n", mov_text.c_str(), reg.c_str(), lhs->stack_offset);
 		}
 		else
 		{
-			fprintf(file, "\t%s\t%d(%%rbp), %%r10\n", mov_text.c_str(), rhs->stack_offset);
-			fprintf(file, "\t%s\t%%r10, %d(%%rbp)\n", mov_text.c_str(), lhs->stack_offset);
+			fprintf(file, "\t%s\t%d(%%rbp), %s\n", mov_text.c_str(), rhs->stack_offset, reg.c_str());
+			fprintf(file, "\t%s\t%s, %d(%%rbp)\n", mov_text.c_str(), reg.c_str(), lhs->stack_offset);
 		}
 	}
 	else
 	{
 		if (lhs->has_static_sd())
-			fprintf(file, "\t%s\t$%s, _%s(%%rip)\n", mov_text.c_str(), instruction.arg2.c_str(), instruction.arg1.c_str());
+			fprintf(file, "\t%s\t$%s, _%s(%%rip) # %s\n", mov_text.c_str(), instruction.arg2.c_str(), instruction.arg1.c_str());
 		else
-			fprintf(file, "\t%s\t$%s, %d(%%rbp)\n", mov_text.c_str(), instruction.arg2.c_str(), lhs->stack_offset);
+			fprintf(file, "\t%s\t$%s, %d(%%rbp) # %s\n", mov_text.c_str(), instruction.arg2.c_str(), lhs->stack_offset);
 	}
+
+	fprintf(file, "\n");
 }
 
 void Assembler::handle_return(TACInstruction &instruction)
 {
+	std::string reg = instruction.type == Type::LONG ? "%rax" : "%eax";
 	fprintf(file, "\t# %s\n", TacGenerator::gen_tac_str(instruction).c_str());
-	load_to_reg(instruction.arg1, "%eax", instruction.type);
+	load_to_reg(instruction.arg1, reg.c_str(), instruction.type);
 	fprintf(file, "\tjmp\t.L%s_end\n", current_func.c_str());
 }
 
@@ -240,6 +259,7 @@ void Assembler::handle_bin_op(TACInstruction &instruction, const std::string &op
 	load_to_reg(instruction.arg1, "%r10", instruction.type);
 	apply_bin_op_to_reg(instruction.arg2, "%r10", op, instruction.type);
 	store_from_reg(instruction.result, "%r10", instruction.type);
+	fprintf(file, "\n");
 }
 
 void Assembler::handle_cmp_op(TACInstruction &instruction, const std::string &op)
@@ -305,7 +325,7 @@ void Assembler::handle_div(TACInstruction &instruction)
 	load_to_reg(instruction.arg1, "%rax", instruction.type);
 	fprintf(file, "\tcqto\n"); // Sign-extend rax into rdx:rax
 	load_to_reg(instruction.arg2, "%r10", instruction.type);
-	fprintf(file, "\tidivq\t%%r10\n");
+	fprintf(file, "\tidivq\t%%r10%s\n", instruction.type == Type::INT ? "d" : "");
 	store_from_reg(instruction.result, "%rax", instruction.type); // rax for quotient
 }
 
@@ -315,7 +335,7 @@ void Assembler::handle_mod(TACInstruction &instruction)
 	load_to_reg(instruction.arg1, "%rax", instruction.type);
 	fprintf(file, "\tcqto\n"); // Sign-extend rax into rdx:rax
 	load_to_reg(instruction.arg2, "%r10", instruction.type);
-	fprintf(file, "\tidivq\t%%r10\n");
+	fprintf(file, "\tidivq\t%%r10%s\n", instruction.type == Type::INT ? "d" : "");
 	store_from_reg(instruction.result, "%rdx", instruction.type); // rdx for remainder
 }
 
@@ -324,7 +344,7 @@ void Assembler::handle_unary_op(TACInstruction &instruction, const std::string &
 	std::string op_text = instruction.type == Type::LONG ? op + "q" : op + "l";
 	fprintf(file, "\t# %s\n", TacGenerator::gen_tac_str(instruction).c_str());
 	load_to_reg(instruction.arg1, "%r10", instruction.type);
-	fprintf(file, "\t%s\t%%r10\n", op_text.c_str());
+	fprintf(file, "\t%s\t%%r10%s\n", op_text.c_str(), instruction.type == Type::INT ? "d" : "");
 	store_from_reg(instruction.result, "%r10", instruction.type);
 }
 
