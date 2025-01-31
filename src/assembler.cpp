@@ -76,6 +76,8 @@ void Assembler::initialize_handlers()
 	{ handle_section(instr); };
 	handlers[TACOp::ENTER_DATA] = [this](TACInstruction instr)
 	{ handle_section(instr); };
+	handlers[TACOp::SIGN_EXTEND] = [this](TACInstruction instr)
+	{ handle_sign_extend(instr); };
 }
 
 void Assembler::assemble(const std::vector<TACInstruction> &instructions)
@@ -84,17 +86,13 @@ void Assembler::assemble(const std::vector<TACInstruction> &instructions)
 	fprintf(file, ".build_version macos, 15, 0 sdk_version 15, 1\n");
 	fprintf(file, ".p2align 4, 0x90\n\n");
 
-	for (auto &instruction : instructions)
+	for (const auto &instruction : instructions)
 	{
 		auto handler = handlers.find(instruction.op);
 		if (handler != handlers.end())
-		{
 			handler->second(instruction);
-		}
 		else
-		{
 			fprintf(file, "# Unknown TAC operation: %d\n", static_cast<int>(instruction.op));
-		}
 	}
 }
 
@@ -148,8 +146,6 @@ void Assembler::apply_bin_op_to_reg(const std::string &operand, const char *reg,
 		fprintf(file, "\t%s\t$%s, %s\n", op_text.c_str(), operand.c_str(), reg_name.c_str());
 	else
 		fprintf(file, "\t%s\t%d(%%rbp), %s\n", op_text.c_str(), rhs->stack_offset, reg_name.c_str());
-
-	// fprintf(file, "\n");
 }
 
 void Assembler::compare_and_store_result(const std::string &operand_a, const std::string &operand_b, const std::string &result, const char *reg, const std::string &op, Type type)
@@ -188,14 +184,14 @@ void Assembler::handle_func_begin(TACInstruction &instruction)
 	fprintf(file, "_%s: # %s\n", instruction.arg1.c_str(), TacGenerator::gen_tac_str(instruction).c_str());
 	fprintf(file, "\tpushq\t%%rbp\n");
 	fprintf(file, "\tmovq\t%%rsp, %%rbp\n");
-	int stack_space = gst->get_func_st(current_func)->get_var_count() * 8;
+	int stack_space = gst->get_func_st(current_func)->get_stack_size();
 	fprintf(file, "\tsubq\t$%d, %%rsp\n\n", stack_space);
 }
 
 void Assembler::handle_func_end(TACInstruction &instruction)
 {
 	fprintf(file, "\n.L%s_end: # %s", current_func.c_str(), TacGenerator::gen_tac_str(instruction).c_str());
-	int stack_space = gst->get_func_st(current_func)->get_var_count() * 8;
+	int stack_space = gst->get_func_st(current_func)->get_stack_size();
 	fprintf(file, "\taddq\t$%d, %%rsp\n", stack_space);
 	fprintf(file, "\tpopq\t%%rbp\n");
 	fprintf(file, "\tretq\n\n");
@@ -237,9 +233,9 @@ void Assembler::handle_assign(TACInstruction &instruction)
 	else
 	{
 		if (lhs->has_static_sd())
-			fprintf(file, "\t%s\t$%s, _%s(%%rip) # %s\n", mov_text.c_str(), instruction.arg2.c_str(), instruction.arg1.c_str());
+			fprintf(file, "\t%s\t$%s, _%s(%%rip)\n", mov_text.c_str(), instruction.arg2.c_str(), instruction.arg1.c_str());
 		else
-			fprintf(file, "\t%s\t$%s, %d(%%rbp) # %s\n", mov_text.c_str(), instruction.arg2.c_str(), lhs->stack_offset);
+			fprintf(file, "\t%s\t$%s, %d(%%rbp)\n", mov_text.c_str(), instruction.arg2.c_str(), lhs->stack_offset);
 	}
 
 	fprintf(file, "\n");
@@ -323,7 +319,7 @@ void Assembler::handle_div(TACInstruction &instruction)
 {
 	fprintf(file, "\t# %s\n", TacGenerator::gen_tac_str(instruction).c_str());
 	load_to_reg(instruction.arg1, "%rax", instruction.type);
-	fprintf(file, "\tcqto\n"); // Sign-extend rax into rdx:rax
+	fprintf(file, "\t%s\n", instruction.type == Type::LONG ? "cqto" : "cdq"); // Sign-extend rax into rdx:rax
 	load_to_reg(instruction.arg2, "%r10", instruction.type);
 	fprintf(file, "\tidivq\t%%r10%s\n", instruction.type == Type::INT ? "d" : "");
 	store_from_reg(instruction.result, "%rax", instruction.type); // rax for quotient
@@ -333,7 +329,7 @@ void Assembler::handle_mod(TACInstruction &instruction)
 {
 	fprintf(file, "\t# %s\n", TacGenerator::gen_tac_str(instruction).c_str());
 	load_to_reg(instruction.arg1, "%rax", instruction.type);
-	fprintf(file, "\tcqto\n"); // Sign-extend rax into rdx:rax
+	fprintf(file, "\t%s\n", instruction.type == Type::LONG ? "cqto" : "cdq"); // Sign-extend rax into rdx:rax
 	load_to_reg(instruction.arg2, "%r10", instruction.type);
 	fprintf(file, "\tidivq\t%%r10%s\n", instruction.type == Type::INT ? "d" : "");
 	store_from_reg(instruction.result, "%rdx", instruction.type); // rdx for remainder
@@ -369,4 +365,19 @@ void Assembler::handle_section(TACInstruction &instruction)
 	default:
 		break;
 	}
+}
+
+void Assembler::handle_sign_extend(TACInstruction &instruction)
+{
+	if (instruction.type != Type::LONG)
+		return;
+
+	Symbol *src = gst->get_symbol(current_func, instruction.arg1);
+	Symbol *dst = gst->get_symbol(current_func, instruction.result);
+
+	fprintf(file, "\t# %s\n", TacGenerator::gen_tac_str(instruction).c_str());
+	fprintf(file, "\tmovl %d(%%rbp), %%r10d\n", src->stack_offset); // Load 32-bit value
+	fprintf(file, "\tmovslq %%r10d, %%r10\n");						// Sign-extend to 64-bit
+	fprintf(file, "\tmovq %%r10, %d(%%rbp)\n", dst->stack_offset);	// Store 64-bit result
+	fprintf(file, "\n");
 }

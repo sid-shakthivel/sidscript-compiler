@@ -62,15 +62,19 @@ public:
 
     std::tuple<bool, std::string> declare_var(const std::string &name, bool is_static = false, Type type = Type::INT);
     std::tuple<bool, std::string> check_var_defined(const std::string &name);
-    void declare_temp_variable(const std::string &name);
-
-    int get_var_count();
+    void declare_temp_variable(const std::string &name, Type type);
+    int get_stack_size();
     Symbol *get_symbol(const std::string &name);
 
     void print();
 
 private:
-    std::stack<std::unordered_map<std::string, Symbol *>> scopes;
-    std::unordered_map<std::string, Symbol *> var_symbols;
+    std::stack<std::unordered_map<std::string, std::shared_ptr<Symbol>>> scopes;
+    std::unordered_map<std::string, std::shared_ptr<Symbol>> var_symbols;
+
+    int align_to(int size, int alignment);
+    void adjust_stack(Type &type);
+
     int var_count = 0;
+    int stack_size = 0;
 };

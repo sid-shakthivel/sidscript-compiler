@@ -1,7 +1,6 @@
 fn main() -> long {
+    long b = 2;
     int a = 5;
-    int d = 9;
-    long b = 4 + 2;
-    b = b + a;
+    long c = 3;
     return b;
 }

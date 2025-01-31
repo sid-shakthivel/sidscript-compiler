@@ -43,6 +43,7 @@ enum class TACOp
     ENTER_BSS,
     ENTER_DATA,
     ENTER_TEXT,
+    SIGN_EXTEND
 };
 
 TACOp convert_UnaryOpType_to_TACOp(UnaryOpType op);
@@ -94,5 +95,5 @@ private:
     void generate_tac_func(FuncNode *func);
     void generate_tac_element(ASTNode *element);
 
-    std::string generate_tac_expr(ASTNode *expr);
+    std::string generate_tac_expr(ASTNode *expr, Type type = Type::VOID);
 };

@@ -9,7 +9,7 @@ FuncSymbol *GlobalSymbolTable::get_func_symbol(const std::string &func_name)
 	auto it = functions.find(func_name);
 	if (it == functions.end())
 		return nullptr;
-	return std::get<0>(it->second);
+	return std::get<0>(it->second).get();
 }
 
 SymbolTable *GlobalSymbolTable::get_func_st(const std::string &func_name)
@@ -17,7 +17,7 @@ SymbolTable *GlobalSymbolTable::get_func_st(const std::string &func_name)
 	auto it = functions.find(func_name);
 	if (it == functions.end())
 		return nullptr;
-	return std::get<1>(it->second);
+	return std::get<1>(it->second).get();
 }
 
 void GlobalSymbolTable::enter_scope(const std::string &func_name)
@@ -48,7 +48,7 @@ void GlobalSymbolTable::declare_var(const std::string &func_name, VarNode *node)
 
 		if (it != global_variables.end())
 		{
-			Symbol *existing_symbol = it->second;
+			Symbol *existing_symbol = it->second.get();
 
 			// Check for linkage conflicts
 			if (existing_symbol->linkage == Linkage::Internal && node->specifier == Specifier::EXTERN)
@@ -61,11 +61,11 @@ void GlobalSymbolTable::declare_var(const std::string &func_name, VarNode *node)
 		}
 
 		// Create a new global symbol
-		Symbol *symbol = new Symbol(node->name, 0, false);
+		std::unique_ptr<Symbol> symbol = std::make_unique<Symbol>(node->name, 0, false);
 		symbol->set_storage_duration(StorageDuration::Static);
 		symbol->set_linkage(node->specifier == Specifier::STATIC ? Linkage::Internal : Linkage::External);
 
-		global_variables[node->name] = symbol;
+		global_variables[node->name] = std::move(symbol);
 		return;
 	}
 
@@ -78,7 +78,7 @@ void GlobalSymbolTable::declare_var(const std::string &func_name, VarNode *node)
 	auto it = global_variables.find(node->name);
 	if (it != global_variables.end())
 	{
-		Symbol *existing_symbol = it->second;
+		Symbol *existing_symbol = it->second.get();
 
 		if (sd == StorageDuration::Static)
 			throw std::runtime_error("Semantic Error: Block-scoped static variable '" + node->name + "' conflicts with a global static variable");
@@ -138,7 +138,7 @@ Symbol *GlobalSymbolTable::get_symbol(const std::string &func_name, const std::s
 
 	auto it2 = global_variables.find(name);
 	if (it2 != global_variables.end())
-		return it2->second;
+		return it2->second.get();
 
 	return nullptr;
 }

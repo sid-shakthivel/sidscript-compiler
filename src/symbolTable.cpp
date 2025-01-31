@@ -19,7 +19,10 @@ bool Symbol::has_static_sd()
 
 FuncSymbol::FuncSymbol(std::string n, int ac, std::vector<Type> &at, Type rt) : Symbol(n, 0, false), arg_count(ac), arg_types(at), return_type(rt) {}
 
-SymbolTable::SymbolTable() {}
+SymbolTable::SymbolTable()
+{
+    stack_size = 0;
+}
 
 void SymbolTable::enter_scope()
 {
@@ -43,7 +46,7 @@ std::tuple<bool, std::string> SymbolTable::declare_var(const std::string &name, 
 
     if (current_scope.count(name))
     {
-        Symbol *existing_symbol = current_scope[name];
+        Symbol *existing_symbol = current_scope[name].get();
 
         if (existing_symbol->storage_duration == StorageDuration::Static && !is_static)
             throw std::runtime_error("Semantic Error: Variable '" + name + "' with static storage duration conflicts with an automatic variable");
@@ -51,11 +54,10 @@ std::tuple<bool, std::string> SymbolTable::declare_var(const std::string &name, 
         throw std::runtime_error("Semantic Error: Variable '" + name + "' is already declared in this scope");
     }
 
-    var_count += type == Type::INT ? 1 : 3;
+    adjust_stack(type);
 
-    Symbol *symbol = new Symbol(name, var_count * -4, false);
+    std::shared_ptr<Symbol> symbol = std::make_shared<Symbol>(name, stack_size * -1, false);
     symbol->set_storage_duration(is_static ? StorageDuration::Static : StorageDuration::Automatic);
-    current_scope[name] = symbol;
 
     bool has_name_changed = false;
 
@@ -68,7 +70,9 @@ std::tuple<bool, std::string> SymbolTable::declare_var(const std::string &name, 
     else
         symbol->unique_name = name;
 
+    current_scope[name] = symbol;
     var_symbols[symbol->unique_name] = symbol;
+    var_count += 1;
 
     return std::make_tuple(has_name_changed, symbol->unique_name);
 }
@@ -87,23 +91,69 @@ std::tuple<bool, std::string> SymbolTable::check_var_defined(const std::string &
     return std::make_tuple(false, "");
 }
 
-int SymbolTable::get_var_count()
+int SymbolTable::get_stack_size()
 {
-    return var_count;
+    return align_to(stack_size, 16);
 }
 
 Symbol *SymbolTable::get_symbol(const std::string &name)
 {
-    return var_symbols[name];
+    if (var_symbols.find(name) != var_symbols.end())
+        return var_symbols[name].get();
+
+    return nullptr;
 }
 
-void SymbolTable::declare_temp_variable(const std::string &name)
+void SymbolTable::declare_temp_variable(const std::string &name, Type type)
 {
-    var_symbols[name] = new Symbol(name, var_count++ * -4, true);
+    adjust_stack(type);
+    var_symbols[name] = std::make_shared<Symbol>(name, stack_size * -1, true);
+    var_count += 1;
 }
 
 void SymbolTable::print()
 {
-    for (auto it = var_symbols.begin(); it != var_symbols.end(); ++it)
-        std::cout << " - " << it->first << std::endl;
+    std::cout << "\n=== Symbol Table Debug ===\n";
+    std::cout << "Symbol table size: " << var_symbols.size() << std::endl;
+    std::cout << "Symbols:" << std::endl;
+    try
+    {
+        for (const auto &pair : var_symbols)
+        {
+            if (!pair.second)
+            {
+                std::cout << "  WARNING: Null pointer found for key: " << pair.first << std::endl;
+                continue;
+            }
+            std::cout << "  " << pair.first
+                      << " (name: " << pair.second->name
+                      << ", offset: " << pair.second->stack_offset
+                      << ", temp: " << pair.second->is_temporary
+                      << ", addr: " << pair.second.get() << ")" << std::endl;
+        }
+    }
+    catch (const std::exception &e)
+    {
+        std::cout << "Exception while printing symbols: " << e.what() << std::endl;
+    }
+    std::cout << "========================\n";
+}
+
+int SymbolTable::align_to(int size, int alignment)
+{
+    return (size + alignment - 1) & ~(alignment - 1);
+}
+
+void SymbolTable::adjust_stack(Type &type)
+{
+    if (type == Type::LONG)
+    {
+        stack_size = align_to(stack_size, 8);
+        stack_size += 8;
+    }
+    else if (type == Type::INT)
+    {
+        stack_size = align_to(stack_size, 4);
+        stack_size += 4;
+    }
 }

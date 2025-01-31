@@ -2,14 +2,16 @@
 
 #include <unordered_map>
 #include <tuple>
+#include <memory>
 
 #include "./symbolTable.h"
 
 class GlobalSymbolTable
 {
 public:
-    std::unordered_map<std::string, std::tuple<FuncSymbol *, SymbolTable *>> functions;
-    std::unordered_map<std::string, Symbol *> global_variables;
+    std::unordered_map<std::string, std::tuple<std::unique_ptr<FuncSymbol>, std::shared_ptr<SymbolTable>>> functions;
+    // std::unordered_map<std::string, std::tuple<FuncSymbol *, SymbolTable *>> functions;
+    std::unordered_map<std::string, std::unique_ptr<Symbol>> global_variables;
 
     GlobalSymbolTable();
 

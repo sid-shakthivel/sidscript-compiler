@@ -26,10 +26,13 @@ void SemanticAnalyser::analyse_func(FuncNode *func)
     for (auto &param : func->params)
         arg_types.push_back(infer_type(dynamic_cast<VarDeclNode *>(param.get())->var.get()));
 
-    FuncSymbol *func_symbol = new FuncSymbol(func->name, func->params.size(), arg_types, func->return_type);
-    SymbolTable *symbol_table = new SymbolTable();
+    std::unique_ptr<FuncSymbol> func_symbol = std::make_unique<FuncSymbol>(func->name, func->params.size(), arg_types, func->return_type);
+    std::shared_ptr<SymbolTable> symbol_table = std::make_unique<SymbolTable>();
+    gst->functions[func->name] = std::make_tuple(std::move(func_symbol), symbol_table);
 
-    gst->functions[func->name] = std::make_tuple(func_symbol, symbol_table);
+    // FuncSymbol *func_symbol = new FuncSymbol(func->name, func->params.size(), arg_types, func->return_type);
+    // SymbolTable *symbol_table = new SymbolTable();
+    // gst->functions[func->name] = std::make_tuple(func_symbol, symbol_table);
 
     current_func_name = func->name;
 

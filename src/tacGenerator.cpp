@@ -159,7 +159,7 @@ void TacGenerator::generate_tac_element(ASTNode *element)
         // Only need to assign anything if initialised to a value otherwise ignore
         if (var_decl->value != nullptr)
         {
-            std::string result = generate_tac_expr(var_decl->value.get());
+            std::string result = generate_tac_expr(var_decl->value.get(), var_symbol->type);
             instructions.emplace_back(TACOp::ASSIGN, var_decl->var->name, result, "", var_symbol->type);
         }
     }
@@ -168,7 +168,7 @@ void TacGenerator::generate_tac_element(ASTNode *element)
         VarAssignNode *var_assign = (VarAssignNode *)element;
         Symbol *var_symbol = gst->get_symbol(current_func, var_assign->var->name);
 
-        std::string result = generate_tac_expr(var_assign->value.get());
+        std::string result = generate_tac_expr(var_assign->value.get(), var_symbol->type);
         instructions.emplace_back(TACOp::ASSIGN, var_assign->var->name, result, "", var_symbol->type);
     }
     else if (element->type == NodeType::NODE_IF)
@@ -270,11 +270,21 @@ void TacGenerator::generate_tac_element(ASTNode *element)
     }
 }
 
-std::string TacGenerator::generate_tac_expr(ASTNode *expr)
+std::string TacGenerator::generate_tac_expr(ASTNode *expr, Type type)
 {
     if (expr->type == NodeType::NODE_VAR)
     {
-        return ((VarNode *)expr)->name;
+        VarNode *var = (VarNode *)expr;
+        Symbol *symbol = current_st->get_symbol(var->name);
+        if (symbol->type == Type::INT && type == Type::LONG)
+        {
+            std::string temp_var = gen_new_temp_var();
+            current_st->declare_temp_variable(temp_var, type);
+            instructions.emplace_back(TACOp::SIGN_EXTEND, symbol->name, "", temp_var, Type::LONG);
+            return temp_var;
+        }
+
+        return symbol->name;
     }
     else if (expr->type == NodeType::NODE_NUMBER)
     {
@@ -285,7 +295,7 @@ std::string TacGenerator::generate_tac_expr(ASTNode *expr)
         UnaryNode *unary = (UnaryNode *)expr;
         std::string result = generate_tac_expr(unary->value.get());
         std::string temp_var = gen_new_temp_var();
-        current_st->declare_temp_variable(temp_var);
+        current_st->declare_temp_variable(temp_var, Type::INT);
         instructions.emplace_back(convert_UnaryOpType_to_TACOp(unary->op), result, "", temp_var, unary->type);
         return temp_var;
     }
@@ -295,7 +305,7 @@ std::string TacGenerator::generate_tac_expr(ASTNode *expr)
         std::string arg1 = generate_tac_expr(binary->left.get());
         std::string arg2 = generate_tac_expr(binary->right.get());
         std::string temp_var = gen_new_temp_var();
-        current_st->declare_temp_variable(temp_var);
+        current_st->declare_temp_variable(temp_var, Type::INT);
         instructions.emplace_back(convert_BinOpType_to_TACOp(binary->op), arg1, arg2, temp_var, binary->type);
         return temp_var;
     }
@@ -331,7 +341,7 @@ std::string TacGenerator::generate_tac_expr(ASTNode *expr)
             }
         }
 
-        int stack_offset = (func->args.size() - 6) + current_st->get_var_count();
+        int stack_offset = (func->args.size() - 6) + current_st->get_stack_size();
 
         if (stack_offset % 2 != 0 && stack_offset > 0)
         {
@@ -346,7 +356,7 @@ std::string TacGenerator::generate_tac_expr(ASTNode *expr)
         }
 
         std::string temp_var = gen_new_temp_var();
-        current_st->declare_temp_variable(temp_var);
+        current_st->declare_temp_variable(temp_var, Type::INT);
 
         instructions.emplace_back(TACOp::MOV, temp_var, "%eax");
 
@@ -432,6 +442,8 @@ std::string TacGenerator::gen_tac_str(TACInstruction &instr)
             return "ENTER_DATA";
         case TACOp::ENTER_TEXT:
             return "ENTER_TEXT";
+        case TACOp::SIGN_EXTEND:
+            return "SIGN_EXTEND";
         default:
             return "UNKNOWN";
         }

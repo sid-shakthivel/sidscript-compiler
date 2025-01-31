@@ -382,7 +382,7 @@ std::unique_ptr<ASTNode> Parser::parse_expr(int min_presedence)
         advance();
 
         std::unique_ptr<ASTNode> right = parse_expr(get_precedence(op) + 1);
-        // left = new BinaryNode(get_bin_op_type(op), left, right);
+        
         left = std::make_unique<BinaryNode>(get_bin_op_type(op), std::move(left), std::move(right));
     }
 
