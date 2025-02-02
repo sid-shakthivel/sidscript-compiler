@@ -20,7 +20,8 @@ private:
     Type curr_decl_type = Type::INT;
 
     std::vector<TokenType> all_types = {TOKEN_VOID, TOKEN_INT, TOKEN_LONG};
-    std::vector<TokenType> addressable_types = {TOKEN_INT, TOKEN_LONG};
+    std::vector<TokenType> addressable_types = {TOKEN_INT, TOKEN_LONG, TOKEN_UNSIGNED, TOKEN_SIGNED};
+    std::vector<TokenType> bin_op_tokens = {TOKEN_PLUS, TOKEN_MINUS, TOKEN_STAR, TOKEN_SLASH, TOKEN_PERCENT, TOKEN_EQUALS, TOKEN_NOT_EQUALS, TOKEN_LT, TOKEN_GT, TOKEN_LE, TOKEN_GE, TOKEN_AND, TOKEN_OR};
 
     bool match(TokenType type);
     bool match(std::vector<TokenType> &tokens);
@@ -48,4 +49,5 @@ private:
     void parse_args_list(std::unique_ptr<FuncCallNode> &func_call);
 
     int get_precedence(TokenType op);
+    Type determine_type(std::vector<TokenType> &types);
 };

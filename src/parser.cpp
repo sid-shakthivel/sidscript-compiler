@@ -22,8 +22,6 @@ std::unordered_map<BinOpType, int> precedence_map = {
     {BinOpType::MOD, 40},
 };
 
-std::vector<TokenType> bin_op_tokens = {TOKEN_PLUS, TOKEN_MINUS, TOKEN_STAR, TOKEN_SLASH, TOKEN_PERCENT, TOKEN_EQUALS, TOKEN_NOT_EQUALS, TOKEN_LT, TOKEN_GT, TOKEN_LE, TOKEN_GE, TOKEN_AND, TOKEN_OR};
-
 Parser::Parser(Lexer *l) : lexer(l), current_token(TOKEN_EOF, "", 1)
 {
     advance();
@@ -324,9 +322,16 @@ std::unique_ptr<ASTNode> Parser::parse_loop_control()
 
 std::unique_ptr<VarDeclNode> Parser::parse_var_decl(TokenType specifier)
 {
-    curr_decl_type = current_token.type == TOKEN_LONG ? Type::LONG : Type::INT;
+    std::vector<TokenType> types;
 
-    advance();
+    while (match(addressable_types))
+    {
+        types.emplace_back(current_token.type);
+
+        advance();
+    }
+
+    curr_decl_type = determine_type(types);
 
     expect(TOKEN_IDENTIFIER);
 
@@ -353,6 +358,22 @@ std::unique_ptr<VarDeclNode> Parser::parse_var_decl(TokenType specifier)
     curr_decl_type = Type::INT;
 
     return std::make_unique<VarDeclNode>(std::move(var), nullptr);
+}
+
+Type Parser::determine_type(std::vector<TokenType> &types)
+{
+    if (types.size() == 1 && types[0] == TOKEN_INT)
+        return Type::INT;
+    else if (types.size() == 1 && types[0] == TOKEN_LONG)
+        return Type::LONG;
+    else if (types.size() == 2 && types[0] == TOKEN_SIGNED && types[1] == TOKEN_INT)
+        return Type::INT;
+    else if (types.size() == 2 && types[0] == TOKEN_UNSIGNED && types[1] == TOKEN_INT)
+        return Type::UINT;
+    else if (types.size() == 2 && types[0] == TOKEN_SIGNED && types[1] == TOKEN_LONG)
+        return Type::LONG;
+    else if (types.size() == 2 && types[0] == TOKEN_UNSIGNED && types[1] == TOKEN_LONG)
+        return Type::ULONG;
 }
 
 std::unique_ptr<VarAssignNode> Parser::parse_var_assign()
@@ -382,7 +403,7 @@ std::unique_ptr<ASTNode> Parser::parse_expr(int min_presedence)
         advance();
 
         std::unique_ptr<ASTNode> right = parse_expr(get_precedence(op) + 1);
-        
+
         left = std::make_unique<BinaryNode>(get_bin_op_type(op), std::move(left), std::move(right));
     }
 
@@ -405,6 +426,16 @@ std::unique_ptr<ASTNode> Parser::parse_factor()
                 int number = std::stoi(current_token.text);
                 return std::make_unique<IntegerLiteral>(number);
             }
+            else if (curr_decl_type == Type::UINT)
+            {
+                unsigned int number = std::stoul(current_token.text);
+                return std::make_unique<UIntegerLiteral>(number);
+            }
+            else if (curr_decl_type == Type::ULONG)
+            {
+                unsigned long number = std::stoul(current_token.text);
+                return std::make_unique<ULongLiteral>(number);
+            }
         }
         catch (const std::out_of_range &)
         {
@@ -413,7 +444,7 @@ std::unique_ptr<ASTNode> Parser::parse_factor()
             return std::make_unique<LongLiteral>(number);
         }
 
-        error("Unknown integer type");
+        error("Unknown number type");
     }
     else if (match(TOKEN_TILDA) || match(TOKEN_MINUS) || match(TOKEN_INCREMENT) || match(TOKEN_DECREMENT))
     {

@@ -57,6 +57,8 @@ enum class Type
 {
     INT,
     LONG,
+    UINT,
+    ULONG,
     VOID
 };
 
@@ -108,6 +110,24 @@ public:
     long value;
 
     LongLiteral(long v);
+    void print(int tabs) override;
+};
+
+class UIntegerLiteral : public NumericLiteral
+{
+public:
+    unsigned int value;
+
+    UIntegerLiteral(unsigned int v);
+    void print(int tabs) override;
+};
+
+class ULongLiteral : public NumericLiteral
+{
+public:
+    unsigned long value;
+
+    ULongLiteral(unsigned long v);
     void print(int tabs) override;
 };
 

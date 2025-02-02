@@ -6,7 +6,7 @@
 <element> ::= <stmt> | <decl>
 
 <decl> ::= <var_decl> | <var_assign> | <func_decl>
-<var_decl> ::= <specifier>? <type_specifier> <identifier> [ "=" <expr> ] ";"
+<var_decl> ::= <specifier>? { <type_specifier> }+ <identifier> [ "=" <expr> ] ";"
 <func_decl> ::= <specifier>? "fn" <identifier> "(" <param-list> ")" "->" (<type_specifier> | "void") <block>
 
 <var_assign> ::= <identifer> "=" <expr> ";"
@@ -27,21 +27,25 @@
 <expr> ::= <factor> | <expr> <binopr> <expr>
 <factor> ::= <literal> | <identifier> | "(" { <type_specifier> }+ ")" <factor> | <unopr> <factor> | "(" <expr> ")" | <identifier> "(" [ <argument-list> ] ")"
 
-<type_specifier> ::= "int" | "long"
+<type_specifier> ::= "int" | "long" | "unsigned" | "signed"
 <specifier> ::= "static" | "extern"
 
 <binopr> ::= ::= "-" | "+" | "\*" | "/" | "%" | "&&" | "||"
 | "==" | "!=" | "<" | "<=" | ">" | ">="
 <unopr> ::= "-" | "~" | "++" | "--"
 
-<literal> ::= <int> | <long>
+<literal> ::= <int> | <long> | <uint> | <ulong>
 
 <identifier> ::= ? An identifier token ?
 <int> ::= ? A int (4 bytes) token ?
 <long> ::= ? An long (8 bytes) token ?
+<uint> ::= ? An unsigned int (4 bytes) token ?
+<ulong> ::= ? An unsigned long (8 bytes) token ?
 
 A declaration introduces/defines entities (variables, functions, types)
 A statement is an action which is executed (assignment, if, while, for, return)
+
+A signed int/long is the same as regular long/int
 
 Note that <var_assign> is a rule in itself to only allow a variable to be assigned once hence operations like "a = b = c" are not allowed
 There are no `long int` rather just `long` for simplification

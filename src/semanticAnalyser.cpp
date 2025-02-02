@@ -30,10 +30,6 @@ void SemanticAnalyser::analyse_func(FuncNode *func)
     std::shared_ptr<SymbolTable> symbol_table = std::make_unique<SymbolTable>();
     gst->functions[func->name] = std::make_tuple(std::move(func_symbol), symbol_table);
 
-    // FuncSymbol *func_symbol = new FuncSymbol(func->name, func->params.size(), arg_types, func->return_type);
-    // SymbolTable *symbol_table = new SymbolTable();
-    // gst->functions[func->name] = std::make_tuple(func_symbol, symbol_table);
-
     current_func_name = func->name;
 
     symbol_table->enter_scope();
@@ -285,4 +281,28 @@ Type SemanticAnalyser::infer_type(ASTNode *node)
     default:
         throw std::runtime_error("Semantic Error: Cannot infer type of node of type ");
     }
+}
+
+int SemanticAnalyser::get_type_size(Type &type)
+{
+    if (type == Type::INT || type == Type::UINT)
+        return 4;
+    else if (type == Type::LONG || type == Type::ULONG)
+        return 8;
+}
+
+bool SemanticAnalyser::is_signed(Type &type)
+{
+    return type == Type::INT || type == Type::LONG;
+}
+
+Type SemanticAnalyser::get_common_type(Type type1, Type type2)
+{
+    if (type1 == type2)
+        return type1;
+
+    if (get_type_size(type1) == get_type_size(type2))
+        return is_signed(type1) ? type2 : type1;
+
+    return (get_type_size(type1) > get_type_size(type2)) ? type1 : type2;
 }

@@ -125,6 +125,26 @@ void LongLiteral::print(int tabs)
     std::cout << std::string(tabs, ' ') << "(Long) Literal: " + std::to_string(value) << std::endl;
 }
 
+UIntegerLiteral::UIntegerLiteral(unsigned int v) : NumericLiteral(NodeType::NODE_NUMBER), value(v)
+{
+    value_type = Type::UINT;
+}
+
+void UIntegerLiteral::print(int tabs)
+{
+    std::cout << std::string(tabs, ' ') << "(UInt) Literal: " + std::to_string(value) << std::endl;
+}
+
+ULongLiteral::ULongLiteral(unsigned long v) : NumericLiteral(NodeType::NODE_NUMBER), value(v)
+{
+    value_type = Type::ULONG;
+}
+
+void ULongLiteral::print(int tabs)
+{
+    std::cout << std::string(tabs, ' ') << "(ULong) Literal: " + std::to_string(value) << std::endl;
+}
+
 CastNode::CastNode(std::unique_ptr<ASTNode> e, Type t) : ASTNode(NodeType::NODE_CAST), expr(std::move(e)), target_type(t) {}
 
 void CastNode::print(int tabs)

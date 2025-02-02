@@ -1,6 +1,6 @@
 fn main() -> long {
-    long b = 2;
-    int a = 5;
-    long c = 3;
+    unsigned int a = 5;
+    signed int b = 2;
+    static unsigned long c = 5;
     return b;
 }

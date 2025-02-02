@@ -47,6 +47,8 @@ std::unordered_map<std::string, TokenType> string_to_token = {
     {"long", TOKEN_LONG},
     {"static", TOKEN_STATIC},
     {"extern", TOKEN_EXTERN},
+    {"unsigned", TOKEN_UNSIGNED},
+    {"signed", TOKEN_SIGNED},
 };
 
 std::string token_to_string(TokenType token_type)
