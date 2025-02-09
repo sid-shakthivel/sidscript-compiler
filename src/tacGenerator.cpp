@@ -274,17 +274,19 @@ std::string TacGenerator::generate_tac_expr(ASTNode *expr, Type type)
 {
     if (expr->type == NodeType::NODE_VAR)
     {
-        VarNode *var = (VarNode *)expr;
-        Symbol *symbol = current_st->get_symbol(var->name);
-        if (symbol->type == Type::INT && type == Type::LONG)
-        {
-            std::string temp_var = gen_new_temp_var();
-            current_st->declare_temp_variable(temp_var, type);
-            instructions.emplace_back(TACOp::SIGN_EXTEND, symbol->name, "", temp_var, Type::LONG);
-            return temp_var;
-        }
+        return ((VarNode *)expr)->name;
+    }
+    else if (expr->type == NodeType::NODE_CAST)
+    {
+        CastNode *cast = (CastNode *)expr;
 
-        return symbol->name;
+        std::string temp_var = gen_new_temp_var();
+        current_st->declare_temp_variable(temp_var, cast->target_type);
+
+        std::string result = generate_tac_expr(cast->expr.get(), cast->target_type);
+        instructions.emplace_back(TACOp::CONVERT_TYPE, result, get_type_str(cast->src_type), temp_var, cast->target_type);
+
+        return temp_var;
     }
     else if (expr->type == NodeType::NODE_NUMBER)
     {
@@ -442,8 +444,8 @@ std::string TacGenerator::gen_tac_str(TACInstruction &instr)
             return "ENTER_DATA";
         case TACOp::ENTER_TEXT:
             return "ENTER_TEXT";
-        case TACOp::SIGN_EXTEND:
-            return "SIGN_EXTEND";
+        case TACOp::CONVERT_TYPE:
+            return "CONVERT_TYPE";
         default:
             return "UNKNOWN";
         }

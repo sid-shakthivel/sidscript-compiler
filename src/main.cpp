@@ -34,18 +34,19 @@ int main()
     Parser parser(&lexer);
 
     std::shared_ptr<ProgramNode> program = parser.parse();
-    program->print();
 
-    // std::shared_ptr<GlobalSymbolTable> gst = std::make_shared<GlobalSymbolTable>();
+    std::shared_ptr<GlobalSymbolTable> gst = std::make_shared<GlobalSymbolTable>();
 
-    // SemanticAnalyser semanticAnalyser(gst);
-    // semanticAnalyser.analyse(program);
+    SemanticAnalyser semanticAnalyser(gst);
+    semanticAnalyser.analyse(program);
 
     // gst->print();
 
-    // TacGenerator tacGenerator(gst);
-    // tacGenerator.generate_tac(program);
-    // tacGenerator.print_all_tac();
+    // program->print();
+
+    TacGenerator tacGenerator(gst);
+    tacGenerator.generate_tac(program);
+    tacGenerator.print_all_tac();
 
     // auto &instructions = tacGenerator.get_instructions();
 

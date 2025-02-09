@@ -47,6 +47,7 @@ private:
     std::unique_ptr<ASTNode> parse_for_init();
     std::unique_ptr<ASTNode> parse_loop_control();
     void parse_args_list(std::unique_ptr<FuncCallNode> &func_call);
+    std::unique_ptr<ASTNode> parse_cast();
 
     int get_precedence(TokenType op);
     Type determine_type(std::vector<TokenType> &types);

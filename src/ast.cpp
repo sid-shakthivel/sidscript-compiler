@@ -56,21 +56,6 @@ BinOpType get_bin_op_type(const TokenType &t)
     }
 }
 
-Type get_type(const TokenType &t)
-{
-    switch (t)
-    {
-    case TOKEN_INT:
-        return Type::INT;
-    case TOKEN_VOID:
-        return Type::VOID;
-    case TOKEN_LONG:
-        return Type::LONG;
-    default:
-        return Type::VOID;
-    }
-}
-
 Specifier get_specifier(const TokenType &t)
 {
     switch (t)
@@ -84,23 +69,37 @@ Specifier get_specifier(const TokenType &t)
     }
 }
 
-void print_type(Type &t)
+std::string get_type_str(Type &t)
 {
     switch (t)
     {
     case Type::INT:
-        std::cout << "int\n";
-        break;
+        return "int";
     case Type::LONG:
-        std::cout << "long\n";
-        break;
+        return "long";
+    case Type::UINT:
+        return "uint";
+    case Type::ULONG:
+        return "ulong";
     case Type::VOID:
-        std::cout << "void\n";
-        break;
+        return "void";
     default:
-        std::cout << "unknown\n";
-        break;
+        return "unknown";
     }
+}
+
+Type get_type_from_str(std::string &t)
+{
+    if (t == "int")
+        return Type::INT;
+    else if (t == "long")
+        return Type::LONG;
+    else if (t == "uint")
+        return Type::UINT;
+    else if (t == "ulong")
+        return Type::ULONG;
+    else if (t == "void")
+        return Type::VOID;
 }
 
 NumericLiteral::NumericLiteral(NodeType t) : ASTNode(t) {}
@@ -145,11 +144,11 @@ void ULongLiteral::print(int tabs)
     std::cout << std::string(tabs, ' ') << "(ULong) Literal: " + std::to_string(value) << std::endl;
 }
 
-CastNode::CastNode(std::unique_ptr<ASTNode> e, Type t) : ASTNode(NodeType::NODE_CAST), expr(std::move(e)), target_type(t) {}
+CastNode::CastNode(std::unique_ptr<ASTNode> e, Type t1, Type t2) : ASTNode(NodeType::NODE_CAST), expr(std::move(e)), target_type(t1), src_type(t2) {}
 
 void CastNode::print(int tabs)
 {
-    auto target_type_str = target_type == Type::INT ? "int" : "long";
+    auto target_type_str = get_type_str(target_type);
     std::cout << std::string(tabs, ' ') << "Cast: " << std::endl;
     std::cout << std::string(tabs + 1, ' ') << "Target Type: " << target_type_str << std::endl;
     expr->print(tabs + 1);

@@ -132,11 +132,16 @@ std::unique_ptr<FuncNode> Parser::parse_func_decl(TokenType specifier)
 
     expect_and_advance(TOKEN_ARROW);
 
-    expect(all_types);
+    std::vector<TokenType> types;
 
-    func->return_type = get_type(current_token.type);
+    while (match(addressable_types))
+    {
+        types.emplace_back(current_token.type);
 
-    advance();
+        advance();
+    }
+
+    func->return_type = determine_type(types);
 
     std::vector<std::unique_ptr<ASTNode>> elements = parse_block();
 
@@ -459,6 +464,26 @@ std::unique_ptr<ASTNode> Parser::parse_factor()
     else if (match(TOKEN_LPAREN))
     {
         advance();
+
+        if (match(addressable_types))
+        {
+            std::vector<TokenType> types;
+
+            while (match(addressable_types))
+            {
+                types.emplace_back(current_token.type);
+
+                advance();
+            }
+
+            Type type = determine_type(types);
+
+            expect_and_advance(TOKEN_RPAREN);
+
+            std::unique_ptr<ASTNode> factor = parse_factor();
+
+            return std::make_unique<CastNode>(std::move(factor), type);
+        }
 
         auto expr = parse_expr();
 

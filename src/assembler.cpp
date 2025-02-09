@@ -76,8 +76,8 @@ void Assembler::initialize_handlers()
 	{ handle_section(instr); };
 	handlers[TACOp::ENTER_DATA] = [this](TACInstruction instr)
 	{ handle_section(instr); };
-	handlers[TACOp::SIGN_EXTEND] = [this](TACInstruction instr)
-	{ handle_sign_extend(instr); };
+	handlers[TACOp::CONVERT_TYPE] = [this](TACInstruction instr)
+	{ handle_convert_type(instr); };
 }
 
 void Assembler::assemble(const std::vector<TACInstruction> &instructions)
@@ -367,17 +367,48 @@ void Assembler::handle_section(TACInstruction &instruction)
 	}
 }
 
-void Assembler::handle_sign_extend(TACInstruction &instruction)
+void Assembler::handle_convert_type(TACInstruction &instruction)
 {
-	if (instruction.type != Type::LONG)
-		return;
-
 	Symbol *src = gst->get_symbol(current_func, instruction.arg1);
 	Symbol *dst = gst->get_symbol(current_func, instruction.result);
 
+	Type src_type = instruction.type;
+	Type dst_type = get_type_from_str(instruction.arg2);
+
 	fprintf(file, "\t# %s\n", TacGenerator::gen_tac_str(instruction).c_str());
-	fprintf(file, "\tmovl %d(%%rbp), %%r10d\n", src->stack_offset); // Load 32-bit value
-	fprintf(file, "\tmovslq %%r10d, %%r10\n");						// Sign-extend to 64-bit
-	fprintf(file, "\tmovq %%r10, %d(%%rbp)\n", dst->stack_offset);	// Store 64-bit result
+
+	// int -> long (sign extend)
+	if (src_type == Type::INT && dst_type == Type::LONG)
+	{
+		fprintf(file, "\tmovl %d(%%rbp), %%r10d\n", src->stack_offset);
+		fprintf(file, "\tmovslq %%r10d, %%r10\n");
+		fprintf(file, "\tmovq %%r10, %d(%%rbp)\n", dst->stack_offset);
+	}
+	// uint -> ulong (zero extend)
+	else if (src_type == Type::UINT && dst_type == Type::ULONG)
+	{
+		fprintf(file, "\tmovl %d(%%rbp), %%r10d\n", src->stack_offset);
+		fprintf(file, "\tmovzxd %%r10d, %%r10\n"); // zero extend using movzx
+		fprintf(file, "\tmovq %%r10, %d(%%rbp)\n", dst->stack_offset);
+	}
+	// long/ulong -> int/uint (truncate)
+	else if ((src_type == Type::LONG || src_type == Type::ULONG) &&
+			 (dst_type == Type::INT || dst_type == Type::UINT))
+	{
+		fprintf(file, "\tmovq %d(%%rbp), %%r10\n", src->stack_offset);
+		fprintf(file, "\tmovl %%r10d, %d(%%rbp)\n", dst->stack_offset);
+		if (dst_type == Type::UINT)
+			fprintf(file, "\tandl $0xFFFFFFFF, %d(%%rbp)\n", dst->stack_offset);
+	}
+	// int <-> uint (reinterpret, but mask for uint)
+	else if ((src_type == Type::INT && dst_type == Type::UINT) ||
+			 (src_type == Type::UINT && dst_type == Type::INT))
+	{
+		fprintf(file, "\tmovl %d(%%rbp), %%r10d\n", src->stack_offset);
+		fprintf(file, "\tmovl %%r10d, %d(%%rbp)\n", dst->stack_offset);
+		if (dst_type == Type::UINT)
+			fprintf(file, "\tandl $0xFFFFFFFF, %d(%%rbp)\n", dst->stack_offset);
+	}
+
 	fprintf(file, "\n");
 }

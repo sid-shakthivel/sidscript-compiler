@@ -69,6 +69,13 @@ void SemanticAnalyser::analyse_node(ASTNode *node)
         analyse_loop_control(node);
     else if (node->type == NodeType::NODE_FUNC_CALL)
         analyse_func_call((FuncCallNode *)node);
+    else if (node->type == NodeType::NODE_CAST)
+        analyse_cast((CastNode *)node);
+}
+
+void SemanticAnalyser::analyse_cast(CastNode *node)
+{
+    node->src_type = infer_type((ASTNode *)(node->expr.get()));
 }
 
 void SemanticAnalyser::analyse_var_decl(VarDeclNode *node)
@@ -83,12 +90,13 @@ void SemanticAnalyser::analyse_var_decl(VarDeclNode *node)
     {
         analyse_node(node->value.get());
 
-        Type type = infer_type(node->value.get());
+        Type var_type = node->var->type;
+        Type value_type = infer_type(node->value.get());
 
-        // Allow int to long promotion but not long to int
-        if (!(node->var->type == Type::LONG && type == Type::INT) &&
-            type != node->var->type)
-            throw std::runtime_error("Semantic Error: Conflicting types in assignment of " + node->var->name);
+        Type common_type = get_common_type(var_type, value_type);
+
+        if (common_type != var_type)
+            throw std::runtime_error("Semantic Error: Conflicting types " + get_type_str(var_type) + " and " + get_type_str(value_type) + " in declaration of " + node->var->name);
     }
 
     gst->declare_var(current_func_name, node->var.get());
@@ -102,9 +110,10 @@ void SemanticAnalyser::analyser_var_assign(VarAssignNode *node)
     Type var_type = gst->get_symbol(current_func_name, node->var->name)->type;
     Type value_type = infer_type(node->value.get());
 
-    if (!(var_type == Type::LONG && value_type == Type::INT) &&
-        var_type != value_type)
-        throw std::runtime_error("Semantic Error: Conflicting types in assignment of " + node->var->name);
+    Type common_type = get_common_type(var_type, value_type);
+
+    if (common_type != var_type)
+        throw std::runtime_error("Semantic Error: Conflicting types " + get_type_str(var_type) + " and " + get_type_str(value_type) + " in assignment of " + node->var->name);
 }
 
 void SemanticAnalyser::analyse_rtn(RtnNode *node)
@@ -116,8 +125,9 @@ void SemanticAnalyser::analyse_rtn(RtnNode *node)
         FuncSymbol *func = gst->get_func_symbol(current_func_name);
         Type return_type = infer_type(node->value.get());
 
-        if (!(func->return_type == Type::LONG && return_type == Type::INT) &&
-            func->return_type != return_type)
+        Type common_type = get_common_type(func->return_type, return_type);
+
+        if (common_type != func->return_type)
             throw std::runtime_error("Semantic Error: Conflicting types in return of " + current_func_name);
     }
 }
@@ -233,8 +243,9 @@ void SemanticAnalyser::analyse_func_call(FuncCallNode *node)
         Type arg_type = infer_type(node->args[i].get());
         Type param_type = func->arg_types[i];
 
-        if (!(arg_type == Type::LONG && param_type == Type::INT) &&
-            arg_type != param_type)
+        Type common_type = get_common_type(arg_type, param_type);
+
+        if (common_type != arg_type)
             throw std::runtime_error("Semantic Error: Conflicting types in function call of '" + node->name + "'");
     }
 }
@@ -258,18 +269,22 @@ Type SemanticAnalyser::infer_type(ASTNode *node)
         Type left = infer_type(bin_node->left.get());
         Type right = infer_type(bin_node->right.get());
 
-        std::string left_str = left == Type::INT ? "int" : "float";
-        std::string right_str = right == Type::INT ? "int" : "float";
+        Type common_type = get_common_type(left, right);
 
-        if (!(left == Type::LONG && right == Type::INT) &&
-            left != right)
-            throw std::runtime_error("Semantic Error: Conflicting types in binary operation between " + left_str + " and " + right_str);
+        if (left != common_type)
+        {
+            auto cast_node = std::make_unique<CastNode>(std::move(bin_node->left), common_type, left);
+            bin_node->left = std::move(cast_node);
+        }
+        if (right != common_type)
+        {
+            auto cast_node = std::make_unique<CastNode>(std::move(bin_node->right), common_type, right);
+            bin_node->right = std::move(cast_node);
+        }
 
-        bin_node->type = right;
-        if (left == Type::LONG && right == Type::INT)
-            bin_node->type = Type::LONG;
+        bin_node->type = common_type;
 
-        return left;
+        return common_type;
     }
     case NodeType::NODE_UNARY:
     {
@@ -277,6 +292,10 @@ Type SemanticAnalyser::infer_type(ASTNode *node)
         Type type = infer_type(un_node->value.get());
         un_node->type = type;
         return type;
+    }
+    case NodeType::NODE_CAST:
+    {
+        return ((CastNode *)node)->target_type;
     }
     default:
         throw std::runtime_error("Semantic Error: Cannot infer type of node of type ");
@@ -298,11 +317,14 @@ bool SemanticAnalyser::is_signed(Type &type)
 
 Type SemanticAnalyser::get_common_type(Type type1, Type type2)
 {
+    // If the types are the same, pick either one
     if (type1 == type2)
         return type1;
 
+    // If they’re the same size, choose the signed type
     if (get_type_size(type1) == get_type_size(type2))
-        return is_signed(type1) ? type2 : type1;
+        return is_signed(type1) ? type1 : type2;
 
+    // If they’re not the same size, choose the bigger one
     return (get_type_size(type1) > get_type_size(type2)) ? type1 : type2;
 }

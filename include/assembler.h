@@ -53,5 +53,5 @@ private:
     void handle_unary_op(TACInstruction &instruction, const std::string &op);
     void handle_mod(TACInstruction &instruction);
     void handle_div(TACInstruction &instruction);
-    void handle_sign_extend(TACInstruction &instruction);
+    void handle_convert_type(TACInstruction &instruction);
 };

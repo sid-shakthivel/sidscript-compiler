@@ -43,7 +43,7 @@ enum class TACOp
     ENTER_BSS,
     ENTER_DATA,
     ENTER_TEXT,
-    SIGN_EXTEND
+    CONVERT_TYPE
 };
 
 TACOp convert_UnaryOpType_to_TACOp(UnaryOpType op);

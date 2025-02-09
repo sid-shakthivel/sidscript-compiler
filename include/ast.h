@@ -72,9 +72,9 @@ enum class Specifier
 UnaryOpType
 get_unary_op_type(const TokenType &t);
 BinOpType get_bin_op_type(const TokenType &t);
-Type get_type(const TokenType &t);
 Specifier get_specifier(const TokenType &t);
-void print_type(Type &t);
+std::string get_type_str(Type &t);
+Type get_type_from_str(std::string &t);
 
 class ASTNode
 {
@@ -136,8 +136,9 @@ class CastNode : public ASTNode
 public:
     std::unique_ptr<ASTNode> expr;
     Type target_type;
+    Type src_type;
 
-    CastNode(std::unique_ptr<ASTNode> e, Type t);
+    CastNode(std::unique_ptr<ASTNode> e, Type t1, Type t2 = Type::VOID);
     void print(int tabs) override;
 };
 

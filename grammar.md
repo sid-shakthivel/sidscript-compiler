@@ -26,6 +26,7 @@
 
 <expr> ::= <factor> | <expr> <binopr> <expr>
 <factor> ::= <literal> | <identifier> | "(" { <type_specifier> }+ ")" <factor> | <unopr> <factor> | "(" <expr> ")" | <identifier> "(" [ <argument-list> ] ")"
+| "(" { <type_specifier> }+ ")" <factor>
 
 <type_specifier> ::= "int" | "long" | "unsigned" | "signed"
 <specifier> ::= "static" | "extern"

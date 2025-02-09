@@ -37,9 +37,10 @@ private:
     void analyse_for_stmt(ForNode *node);
     void analyse_loop_control(ASTNode *node);
     void analyse_func_call(FuncCallNode *node);
+    void analyse_cast(CastNode *node);
 
     Type infer_type(ASTNode *node);
     int get_type_size(Type &type);
-    bool is_signed(Type type);
+    bool is_signed(Type &type);
     Type get_common_type(Type type1, Type type2);
 };
