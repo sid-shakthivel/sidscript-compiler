@@ -112,8 +112,8 @@ void SemanticAnalyser::analyser_var_assign(VarAssignNode *node)
 
     Type common_type = get_common_type(var_type, value_type);
 
-    if (common_type != var_type)
-        throw std::runtime_error("Semantic Error: Conflicting types " + get_type_str(var_type) + " and " + get_type_str(value_type) + " in assignment of " + node->var->name);
+    // if (common_type != var_type)
+    // throw std::runtime_error("Semantic Error: Conflicting types " + get_type_str(var_type) + " and " + get_type_str(value_type) + " in assignment of " + node->var->name);
 }
 
 void SemanticAnalyser::analyse_rtn(RtnNode *node)

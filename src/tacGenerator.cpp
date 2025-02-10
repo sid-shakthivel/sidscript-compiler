@@ -290,7 +290,15 @@ std::string TacGenerator::generate_tac_expr(ASTNode *expr, Type type)
     }
     else if (expr->type == NodeType::NODE_NUMBER)
     {
-        return std::to_string(((IntegerLiteral *)expr)->value);
+        NumericLiteral *num = (NumericLiteral *)expr;
+        if (num->value_type == Type::UINT)
+            return std::to_string(((UIntegerLiteral *)num)->value);
+        else if (num->value_type == Type::ULONG)
+            return std::to_string(((ULongLiteral *)num)->value);
+        else if (num->value_type == Type::LONG)
+            return std::to_string(((LongLiteral *)num)->value);
+        else
+            return std::to_string(((IntegerLiteral *)num)->value);
     }
     else if (expr->type == NodeType::NODE_UNARY)
     {
@@ -451,21 +459,6 @@ std::string TacGenerator::gen_tac_str(TACInstruction &instr)
         }
     };
 
-    auto typeToString = [](Type type) -> std::string
-    {
-        switch (type)
-        {
-        case Type::INT:
-            return "int";
-        case Type::LONG:
-            return "long";
-        case Type::VOID:
-            return "void";
-        default:
-            return "unknown";
-        }
-    };
-
     std::string str = tacOpToString(instr.op);
 
     if (!instr.arg1.empty())
@@ -476,7 +469,7 @@ std::string TacGenerator::gen_tac_str(TACInstruction &instr)
         str += " -> " + instr.result;
 
     if (instr.type != Type::VOID)
-        str += " (" + typeToString(instr.type) + ")";
+        str += " (" + get_type_str(instr.type) + ")";
 
     return str;
 }

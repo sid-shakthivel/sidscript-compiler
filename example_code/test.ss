@@ -1,5 +1,6 @@
-fn main() -> unsigned long {
+fn main() -> int {
     unsigned int a = 5;
-    int b = a + 2;
-    return 5;
+    unsigned int b = 3;
+    int c = (int)a;
+    return c;
 }
