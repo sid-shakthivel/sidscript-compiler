@@ -59,6 +59,7 @@ enum class Type
     LONG,
     UINT,
     ULONG,
+    DOUBLE,
     VOID
 };
 
@@ -128,6 +129,15 @@ public:
     unsigned long value;
 
     ULongLiteral(unsigned long v);
+    void print(int tabs) override;
+};
+
+class DoubleLiteral : public NumericLiteral
+{
+public:
+    double value;
+
+    DoubleLiteral(double v);
     void print(int tabs) override;
 };
 

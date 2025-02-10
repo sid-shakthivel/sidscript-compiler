@@ -289,7 +289,11 @@ Type SemanticAnalyser::infer_type(ASTNode *node)
     case NodeType::NODE_UNARY:
     {
         UnaryNode *un_node = dynamic_cast<UnaryNode *>(node);
+
         Type type = infer_type(un_node->value.get());
+        if (type == Type::DOUBLE)
+            throw std::runtime_error("Semantic Error: Cannot take bitwise complement of a double");
+
         un_node->type = type;
         return type;
     }
@@ -319,6 +323,10 @@ Type SemanticAnalyser::get_common_type(Type type1, Type type2)
 {
     // If the types are the same, pick either one
     if (type1 == type2)
+        return type1;
+
+    // common type is double if either is a double
+    if (type1 == Type::DOUBLE || type2 == Type::DOUBLE)
         return type1;
 
     // If they’re the same size, choose the signed type

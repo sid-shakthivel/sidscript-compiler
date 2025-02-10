@@ -49,6 +49,7 @@ std::unordered_map<std::string, TokenType> string_to_token = {
     {"extern", TOKEN_EXTERN},
     {"unsigned", TOKEN_UNSIGNED},
     {"signed", TOKEN_SIGNED},
+    {"double", TOKEN_DOUBLE},
 };
 
 std::string token_to_string(TokenType token_type)
@@ -64,9 +65,47 @@ Lexer::Lexer(const std::string &src) : source(src), index(0) {}
 std::string Lexer::process_number()
 {
     std::string temp_number;
+    bool has_decimal = false;
+    bool has_exponent = false;
 
-    while (index < source.length() && std::isdigit(source[index]))
+    // Process integer part or leading decimal
+    while (index < source.length() && (std::isdigit(source[index]) || source[index] == '.'))
+    {
+        if (source[index] == '.')
+        {
+            if (has_decimal)
+                break; // Second decimal point - stop
+            has_decimal = true;
+        }
         temp_number += source[index++];
+    }
+
+    // Process exponent part if it exists
+    if (index < source.length() && (source[index] == 'e' || source[index] == 'E'))
+    {
+        temp_number += source[index++];
+        has_exponent = true;
+
+        // Handle optional sign in exponent
+        if (index < source.length() && (source[index] == '+' || source[index] == '-'))
+            temp_number += source[index++];
+
+        // Process exponent digits
+        bool has_exp_digits = false;
+        while (index < source.length() && std::isdigit(source[index]))
+        {
+            temp_number += source[index++];
+            has_exp_digits = true;
+        }
+
+        // If no digits after E, it's invalid
+        if (!has_exp_digits)
+            throw std::runtime_error("Lexer Error: Invalid number format on line " + line);
+    }
+
+    // Validate the number format
+    if (temp_number == ".")
+        throw std::runtime_error("Lexer Error: Invalid number format on line " + line);
 
     return temp_number;
 }
@@ -112,8 +151,17 @@ Token Lexer::get_next_token()
     if (c == '\n')
         line++;
 
-    if (isdigit(c))
-        return Token(TOKEN_NUMBER, process_number(), line);
+    if (isdigit(c) || c == '.')
+    {
+        std::string num = process_number();
+        if (num.find('.') != std::string::npos ||
+            num.find('e') != std::string::npos ||
+            num.find('E') != std::string::npos)
+        {
+            return Token(TOKEN_FPN, num, line);
+        }
+        return Token(TOKEN_NUMBER, num, line);
+    }
     else if (isalpha(c))
     {
         std::string temp_identifier = process_identifier();

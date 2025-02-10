@@ -98,6 +98,7 @@ void TacGenerator::generate_tac_func(FuncNode *func)
 
     for (auto &element : func->elements)
         generate_tac_element(element.get());
+
     instructions.emplace_back(TACOp::FUNC_END);
 
     current_st = nullptr;
@@ -297,8 +298,10 @@ std::string TacGenerator::generate_tac_expr(ASTNode *expr, Type type)
             return std::to_string(((ULongLiteral *)num)->value);
         else if (num->value_type == Type::LONG)
             return std::to_string(((LongLiteral *)num)->value);
-        else
+        else if (num->value_type == Type::INT)
             return std::to_string(((IntegerLiteral *)num)->value);
+        else if (num->value_type == Type::DOUBLE)
+            return std::to_string(((DoubleLiteral *)num)->value);
     }
     else if (expr->type == NodeType::NODE_UNARY)
     {

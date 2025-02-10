@@ -83,6 +83,8 @@ std::string get_type_str(Type &t)
         return "ulong";
     case Type::VOID:
         return "void";
+    case Type::DOUBLE:
+        return "double";
     default:
         return "unknown";
     }
@@ -100,6 +102,8 @@ Type get_type_from_str(std::string &t)
         return Type::ULONG;
     else if (t == "void")
         return Type::VOID;
+    else if (t == "double")
+        return Type::DOUBLE;
 }
 
 NumericLiteral::NumericLiteral(NodeType t) : ASTNode(t) {}
@@ -142,6 +146,16 @@ ULongLiteral::ULongLiteral(unsigned long v) : NumericLiteral(NodeType::NODE_NUMB
 void ULongLiteral::print(int tabs)
 {
     std::cout << std::string(tabs, ' ') << "(ULong) Literal: " + std::to_string(value) << std::endl;
+}
+
+DoubleLiteral::DoubleLiteral(double v) : NumericLiteral(NodeType::NODE_NUMBER), value(v)
+{
+    value_type = Type::DOUBLE;
+}
+
+void DoubleLiteral::print(int tabs)
+{
+    std::cout << std::string(tabs, ' ') << "(Double) Literal: " + std::to_string(value) << std::endl;
 }
 
 CastNode::CastNode(std::unique_ptr<ASTNode> e, Type t1, Type t2) : ASTNode(NodeType::NODE_CAST), expr(std::move(e)), target_type(t1), src_type(t2) {}
@@ -187,9 +201,6 @@ void FuncNode::print(int tabs)
 
 std::string FuncNode::get_param_name(int i)
 {
-    // VarDeclNode *var_decl = (VarDeclNode *)params[i];
-    // VarNode *var = var_decl->var;
-    // return var->name;
     return dynamic_cast<VarDeclNode *>(params[i].get())->var->name;
 }
 

@@ -35,7 +35,6 @@ enum TokenType
     TOKEN_IDENTIFIER,
     TOKEN_NUMBER,
     TOKEN_BOOL,
-    TOKEN_FLOAT,
     TOKEN_AND,
     TOKEN_OR,
     TOKEN_INCREMENT,
@@ -52,6 +51,8 @@ enum TokenType
     TOKEN_LONG,
     TOKEN_UNSIGNED,
     TOKEN_SIGNED,
+    TOKEN_DOUBLE,
+    TOKEN_FPN,
     TOKEN_UNKNOWN_SYMBOL,
 };
 

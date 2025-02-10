@@ -28,20 +28,21 @@
 <factor> ::= <literal> | <identifier> | "(" { <type_specifier> }+ ")" <factor> | <unopr> <factor> | "(" <expr> ")" | <identifier> "(" [ <argument-list> ] ")"
 | "(" { <type_specifier> }+ ")" <factor>
 
-<type_specifier> ::= "int" | "long" | "unsigned" | "signed"
+<type_specifier> ::= "int" | "long" | "unsigned" | "signed" | "double"
 <specifier> ::= "static" | "extern"
 
 <binopr> ::= ::= "-" | "+" | "\*" | "/" | "%" | "&&" | "||"
 | "==" | "!=" | "<" | "<=" | ">" | ">="
 <unopr> ::= "-" | "~" | "++" | "--"
 
-<literal> ::= <int> | <long> | <uint> | <ulong>
+<literal> ::= <int> | <long> | <uint> | <ulong> | <double>
 
 <identifier> ::= ? An identifier token ?
 <int> ::= ? A int (4 bytes) token ?
 <long> ::= ? An long (8 bytes) token ?
 <uint> ::= ? An unsigned int (4 bytes) token ?
 <ulong> ::= ? An unsigned long (8 bytes) token ?
+<double> ::= ? A floating-point constant token ?
 
 A declaration introduces/defines entities (variables, functions, types)
 A statement is an action which is executed (assignment, if, while, for, return)

@@ -379,6 +379,8 @@ Type Parser::determine_type(std::vector<TokenType> &types)
         return Type::LONG;
     else if (types.size() == 2 && types[0] == TOKEN_UNSIGNED && types[1] == TOKEN_LONG)
         return Type::ULONG;
+    else if (types.size() == 1 && types[0] == TOKEN_DOUBLE)
+        return Type::DOUBLE;
 }
 
 std::unique_ptr<VarAssignNode> Parser::parse_var_assign()
@@ -451,6 +453,18 @@ std::unique_ptr<ASTNode> Parser::parse_factor()
 
         error("Unknown number type");
     }
+    else if (match(TOKEN_FPN))
+    {
+        try
+        {
+            double number = std::stod(current_token.text);
+            return std::make_unique<DoubleLiteral>(number);
+        }
+        catch (const std::exception &e)
+        {
+            error("Number out of range");
+        }
+    }
     else if (match(TOKEN_TILDA) || match(TOKEN_MINUS) || match(TOKEN_INCREMENT) || match(TOKEN_DECREMENT))
     {
         auto op = current_token.type;
@@ -472,7 +486,6 @@ std::unique_ptr<ASTNode> Parser::parse_factor()
             while (match(addressable_types))
             {
                 types.emplace_back(current_token.type);
-
                 advance();
             }
 
