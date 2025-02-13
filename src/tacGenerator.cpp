@@ -46,7 +46,7 @@ TACOp convert_UnaryOpType_to_TACOp(UnaryOpType op)
     }
 }
 
-TacGenerator::TacGenerator(std::shared_ptr<GlobalSymbolTable> gst) : gst(gst), tempCounter(0), labelCounter(0) {}
+TacGenerator::TacGenerator(std::shared_ptr<GlobalSymbolTable> gst) : gst(gst) {}
 
 std::string TacGenerator::gen_new_temp_var()
 {
@@ -56,6 +56,11 @@ std::string TacGenerator::gen_new_temp_var()
 std::string TacGenerator::gen_new_label(std::string label)
 {
     return ".L" + label + std::to_string(labelCounter++);
+}
+
+std::string TacGenerator::gen_new_const_label()
+{
+    return ".L" + std::string("const_") + std::to_string(constCounter++);
 }
 
 void TacGenerator::generate_tac(std::shared_ptr<ProgramNode> program)
@@ -80,6 +85,12 @@ void TacGenerator::generate_tac(std::shared_ptr<ProgramNode> program)
     {
         instructions.insert(instructions.begin(), bss_vars.begin(), bss_vars.end());
         instructions.insert(instructions.begin(), TACInstruction(TACOp::ENTER_BSS));
+    }
+
+    if (!literal8_vars.empty())
+    {
+        instructions.insert(instructions.begin(), literal8_vars.begin(), literal8_vars.end());
+        instructions.insert(instructions.begin(), TACInstruction(TACOp::ENTER_LITERAL8));
     }
 }
 
@@ -282,7 +293,7 @@ std::string TacGenerator::generate_tac_expr(ASTNode *expr, Type type)
         CastNode *cast = (CastNode *)expr;
 
         std::string temp_var = gen_new_temp_var();
-        current_st->declare_temp_variable(temp_var, cast->target_type);
+        current_st->declare_temp_var(temp_var, cast->target_type);
 
         std::string result = generate_tac_expr(cast->expr.get(), cast->target_type);
         instructions.emplace_back(TACOp::CONVERT_TYPE, result, get_type_str(cast->src_type), temp_var, cast->target_type);
@@ -301,14 +312,20 @@ std::string TacGenerator::generate_tac_expr(ASTNode *expr, Type type)
         else if (num->value_type == Type::INT)
             return std::to_string(((IntegerLiteral *)num)->value);
         else if (num->value_type == Type::DOUBLE)
-            return std::to_string(((DoubleLiteral *)num)->value);
+        {
+            // All double literals must be placed in a constant section
+            std::string const_val = gen_new_const_label();
+            current_st->declare_const_var(const_val, Type::DOUBLE);
+            literal8_vars.emplace_back(TACOp::ASSIGN, const_val, "", std::to_string(((DoubleLiteral *)num)->value), Type::DOUBLE);
+            return const_val;
+        }
     }
     else if (expr->type == NodeType::NODE_UNARY)
     {
         UnaryNode *unary = (UnaryNode *)expr;
         std::string result = generate_tac_expr(unary->value.get());
         std::string temp_var = gen_new_temp_var();
-        current_st->declare_temp_variable(temp_var, Type::INT);
+        current_st->declare_temp_var(temp_var, Type::INT);
         instructions.emplace_back(convert_UnaryOpType_to_TACOp(unary->op), result, "", temp_var, unary->type);
         return temp_var;
     }
@@ -318,7 +335,7 @@ std::string TacGenerator::generate_tac_expr(ASTNode *expr, Type type)
         std::string arg1 = generate_tac_expr(binary->left.get());
         std::string arg2 = generate_tac_expr(binary->right.get());
         std::string temp_var = gen_new_temp_var();
-        current_st->declare_temp_variable(temp_var, Type::INT);
+        current_st->declare_temp_var(temp_var, Type::INT);
         instructions.emplace_back(convert_BinOpType_to_TACOp(binary->op), arg1, arg2, temp_var, binary->type);
         return temp_var;
     }
@@ -369,7 +386,7 @@ std::string TacGenerator::generate_tac_expr(ASTNode *expr, Type type)
         }
 
         std::string temp_var = gen_new_temp_var();
-        current_st->declare_temp_variable(temp_var, Type::INT);
+        current_st->declare_temp_var(temp_var, Type::INT);
 
         instructions.emplace_back(TACOp::MOV, temp_var, "%eax");
 
@@ -455,6 +472,8 @@ std::string TacGenerator::gen_tac_str(TACInstruction &instr)
             return "ENTER_DATA";
         case TACOp::ENTER_TEXT:
             return "ENTER_TEXT";
+        case TACOp::ENTER_LITERAL8:
+            return "ENTER_LITERAL8";
         case TACOp::CONVERT_TYPE:
             return "CONVERT_TYPE";
         default:

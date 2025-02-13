@@ -3,6 +3,10 @@
 #include <iostream>
 #include <functional>
 #include <unordered_map>
+#include <string>
+#include <sstream>
+#include <cstring>
+#include <iomanip>
 
 #include "../include/assembler.h"
 #include "../include/parser.h"
@@ -76,6 +80,8 @@ void Assembler::initialize_handlers()
 	{ handle_section(instr); };
 	handlers[TACOp::ENTER_DATA] = [this](TACInstruction instr)
 	{ handle_section(instr); };
+	handlers[TACOp::ENTER_LITERAL8] = [this](TACInstruction instr)
+	{ handle_section(instr); };
 	handlers[TACOp::CONVERT_TYPE] = [this](TACInstruction instr)
 	{ handle_convert_type(instr); };
 }
@@ -99,16 +105,16 @@ void Assembler::assemble(const std::vector<TACInstruction> &instructions)
 void Assembler::load_to_reg(const std::string &operand, const char *reg, Type type)
 {
 	Symbol *rhs = gst->get_symbol(current_func, operand);
-	std::string mov_text = is_long(type) ? "movq" : "movl";
+	std::string mov_text = is_8_bytes(type) ? "movq" : "movl";
 
 	std::string reg_name = reg;
-	reg_name += !is_long(type) && strcmp(reg, "%eax") != 0 ? "d" : "";
+	reg_name += !is_8_bytes(type) && strcmp(reg, "%eax") != 0 ? "d" : "";
 
 	if (rhs == nullptr)
 		fprintf(file, "\t%s\t$%s, %s\n", mov_text.c_str(), operand.c_str(), reg_name.c_str());
 	else
 	{
-		if (rhs->has_static_sd())
+		if (rhs->has_static_sd() || rhs->is_literal8)
 			fprintf(file, "\t%s\t_%s(%%rip), %s\n", mov_text.c_str(), rhs->name.c_str(), reg_name.c_str());
 		else
 			fprintf(file, "\t%s\t%d(%%rbp), %s\n", mov_text.c_str(), rhs->stack_offset, reg_name.c_str());
@@ -118,10 +124,10 @@ void Assembler::load_to_reg(const std::string &operand, const char *reg, Type ty
 void Assembler::store_from_reg(const std::string &operand, const char *reg, Type type)
 {
 	Symbol *rhs = gst->get_symbol(current_func, operand);
-	std::string mov_text = is_long(type) ? "movq" : "movl";
+	std::string mov_text = is_8_bytes(type) ? "movq" : "movl";
 
 	std::string reg_name = reg;
-	reg_name += !is_long(type) && strcmp(reg, "%eax") != 0 ? "d" : "";
+	reg_name += !is_8_bytes(type) && strcmp(reg, "%eax") != 0 ? "d" : "";
 
 	if (rhs != nullptr)
 	{
@@ -136,11 +142,17 @@ void Assembler::store_from_reg(const std::string &operand, const char *reg, Type
 
 void Assembler::apply_bin_op_to_reg(const std::string &operand, const char *reg, const std::string &op, Type type)
 {
+	if (type == Type::DOUBLE)
+	{
+		fprintf(file, "\t%s\t%s, %%xmm0\n", op.c_str(), reg);
+		return;
+	}
+
 	Symbol *rhs = gst->get_symbol(current_func, operand);
-	std::string op_text = is_long(type) ? op + "q" : op + "l";
+	std::string op_text = is_8_bytes(type) ? op + "q" : op + "l";
 
 	std::string reg_name = reg;
-	reg_name += !is_long(type) && strcmp(reg, "%eax") != 0 ? "d" : "";
+	reg_name += !is_8_bytes(type) && strcmp(reg, "%eax") != 0 ? "d" : "";
 
 	if (rhs == nullptr)
 		fprintf(file, "\t%s\t$%s, %s\n", op_text.c_str(), operand.c_str(), reg_name.c_str());
@@ -153,10 +165,10 @@ void Assembler::compare_and_store_result(const std::string &operand_a, const std
 	load_to_reg(operand_a, reg, type);
 
 	Symbol *potential_var_b = gst->get_symbol(current_func, operand_b);
-	std::string cmp_text = is_long(type) ? "cmpq" : "cmpl";
+	std::string cmp_text = is_8_bytes(type) ? "cmpq" : "cmpl";
 
 	std::string reg_name = reg;
-	reg_name += !is_long(type) && strcmp(reg, "%eax") != 0 ? "d" : "";
+	reg_name += !is_8_bytes(type) && strcmp(reg, "%eax") != 0 ? "d" : "";
 
 	if (potential_var_b == nullptr)
 		fprintf(file, "\t%s\t$%s, %s\n", cmp_text.c_str(), operand_b.c_str(), reg_name.c_str());
@@ -164,7 +176,7 @@ void Assembler::compare_and_store_result(const std::string &operand_a, const std
 		fprintf(file, "\t%s\t%d(%%rbp), %s\n", cmp_text.c_str(), potential_var_b->stack_offset, reg_name.c_str());
 
 	std::string reg_b = reg_name;
-	if (!is_long(type))
+	if (!is_8_bytes(type))
 		reg_b.pop_back();
 	reg_b += "b";
 
@@ -204,8 +216,8 @@ void Assembler::handle_assign(TACInstruction &instruction)
 	{
 		Symbol *lhs = gst->get_symbol(current_func, instruction.arg1);
 		Symbol *rhs = gst->get_symbol(current_func, instruction.arg2);
-		std::string mov_text = is_long(instruction.type) ? "movq" : "movl";
-		std::string reg = is_long(instruction.type) ? "%r10" : "%r10d";
+		std::string mov_text = is_8_bytes(instruction.type) ? "movq" : "movl";
+		std::string reg = is_8_bytes(instruction.type) ? "%r10" : "%r10d";
 
 		fprintf(file, "\t# %s\n", TacGenerator::gen_tac_str(instruction).c_str());
 
@@ -225,6 +237,11 @@ void Assembler::handle_assign(TACInstruction &instruction)
 			{
 				fprintf(file, "\t%s\t_%s(%%rip), %s\n", mov_text.c_str(), instruction.arg2.c_str(), reg.c_str());
 				fprintf(file, "\t%s\t%s, %d(%%rbp)\n", mov_text.c_str(), reg.c_str(), lhs->stack_offset);
+			}
+			else if (rhs->is_literal8)
+			{
+				fprintf(file, "\t%s\t_%s(%%rip), %%xmm0\n", mov_text.c_str(), rhs->name.c_str());
+				fprintf(file, "\t%s\t%%xmm0, %d(%%rbp)\n", mov_text.c_str(), lhs->stack_offset);
 			}
 			else
 			{
@@ -247,7 +264,7 @@ void Assembler::handle_assign(TACInstruction &instruction)
 		if (instruction.arg2 == "global")
 			fprintf(file, "\t.global\t_%s\n", instruction.arg1.c_str());
 		fprintf(file, "_%s:\n", instruction.arg1.c_str());
-		if (is_long(instruction.type))
+		if (is_8_bytes(instruction.type))
 			fprintf(file, "\t.zero 8\n\n");
 		else
 			fprintf(file, "\t.zero 4\n\n");
@@ -262,17 +279,29 @@ void Assembler::handle_assign(TACInstruction &instruction)
 				fprintf(file, ".global	_%s\n", instruction.arg1.c_str());
 			fprintf(file, "_%s:\n", instruction.arg1.c_str());
 
-			if (is_long(instruction.type))
+			if (is_8_bytes(instruction.type))
 				fprintf(file, "\t.quad %s\n\n", instruction.result.c_str());
 			else
 				fprintf(file, "\t.long %s\n\n", instruction.result.c_str());
 		}
 	}
+	else if (current_var_type == VarType::LITERAL8)
+	{
+		if (instruction.type != Type::DOUBLE)
+			return;
+
+		fprintf(file, "_%s:\n", instruction.arg1.c_str());
+
+		double value = std::stod(instruction.result);
+		std::string double_hex = double_to_hex(value);
+
+		fprintf(file, "\t.quad %s # %s\n\n", double_hex.c_str(), instruction.result.c_str());
+	}
 }
 
 void Assembler::handle_return(TACInstruction &instruction)
 {
-	std::string reg = is_long(instruction.type) ? "%rax" : "%eax";
+	std::string reg = is_8_bytes(instruction.type) ? "%rax" : "%eax";
 	fprintf(file, "\t# %s\n", TacGenerator::gen_tac_str(instruction).c_str());
 	load_to_reg(instruction.arg1, reg.c_str(), instruction.type);
 	fprintf(file, "\tjmp\t.L%s_end\n", current_func.c_str());
@@ -281,14 +310,21 @@ void Assembler::handle_return(TACInstruction &instruction)
 void Assembler::handle_bin_op(TACInstruction &instruction, const std::string &op)
 {
 	fprintf(file, "\t# %s\n", TacGenerator::gen_tac_str(instruction).c_str());
-	load_to_reg(instruction.arg1, "%r10", instruction.type);
+
+	load_to_reg(instruction.arg1, instruction.type == Type::DOUBLE ? "%xmm0" : "%r10", instruction.type);
+
+	if (instruction.type == Type::DOUBLE)
+		load_to_reg(instruction.arg2, instruction.type == Type::DOUBLE ? "%xmm1" : "%r10", instruction.type);
 
 	std::string actual_op = op;
 	if (op == "imul" && !is_signed(instruction.type))
 		actual_op = "mul"; // unsigned multiplication
 
-	apply_bin_op_to_reg(instruction.arg2, "%r10", actual_op, instruction.type);
-	store_from_reg(instruction.result, "%r10", instruction.type);
+	if (instruction.type == Type::DOUBLE)
+		actual_op = op + "sd";
+
+	apply_bin_op_to_reg(instruction.arg2, instruction.type == Type::DOUBLE ? "%xmm1" : "%r10", actual_op, instruction.type);
+	store_from_reg(instruction.result, instruction.type == Type::DOUBLE ? "%xmm0" : "%r10", instruction.type);
 	fprintf(file, "\n");
 }
 
@@ -317,7 +353,7 @@ void Assembler::handle_if(TACInstruction &instruction)
 {
 	fprintf(file, "\t# %s\n", TacGenerator::gen_tac_str(instruction).c_str());
 	Symbol *potential_var = gst->get_symbol(current_func, instruction.arg1);
-	std::string cmp_text = is_long(instruction.type) ? "cmpq" : "cmpl";
+	std::string cmp_text = is_8_bytes(instruction.type) ? "cmpq" : "cmpl";
 
 	if (potential_var == nullptr)
 		fprintf(file, "\t%s\t$0, %s\n", cmp_text.c_str(), instruction.arg1.c_str());
@@ -350,7 +386,7 @@ void Assembler::handle_mov(TACInstruction &instruction)
 	fprintf(file, "\t# %s\n", TacGenerator::gen_tac_str(instruction).c_str());
 	Symbol *potential_var = gst->get_symbol(current_func, instruction.arg1);
 	Symbol *potential_var_2 = gst->get_symbol(current_func, instruction.arg2);
-	std::string mov_text = is_long(instruction.type) ? "movq" : "movl";
+	std::string mov_text = is_8_bytes(instruction.type) ? "movq" : "movl";
 
 	if (potential_var == nullptr && potential_var_2 == nullptr)
 		fprintf(file, "\t%s\t%s, %s\n", mov_text.c_str(), instruction.arg2.c_str(), instruction.arg1.c_str());
@@ -370,10 +406,22 @@ void Assembler::handle_nop(TACInstruction &instruction)
 void Assembler::handle_div(TACInstruction &instruction)
 {
 	fprintf(file, "\t# %s\n", TacGenerator::gen_tac_str(instruction).c_str());
+
+	if (instruction.type == Type::DOUBLE)
+	{
+		load_to_reg(instruction.arg1, "%xmm0", instruction.type);
+		load_to_reg(instruction.arg2, "%xmm1", instruction.type);
+		fprintf(file, "\tdivsd %%xmm1, %%xmm0\n");
+		store_from_reg(instruction.result, "%xmm0", instruction.type);
+
+		fprintf(file, "\n");
+		return;
+	}
+
 	load_to_reg(instruction.arg1, "%rax", instruction.type);
 
 	if (is_signed(instruction.type))
-		fprintf(file, "\t%s\n", is_long(instruction.type) ? "cqto" : "cdq"); // Sign-extend for signed division
+		fprintf(file, "\t%s\n", is_8_bytes(instruction.type) ? "cqto" : "cdq"); // Sign-extend for signed division
 	else
 		fprintf(file, "\txor\t%%rdx, %%rdx\n"); // Clear rdx for unsigned division
 
@@ -390,7 +438,7 @@ void Assembler::handle_mod(TACInstruction &instruction)
 	load_to_reg(instruction.arg1, "%rax", instruction.type);
 
 	if (is_signed(instruction.type))
-		fprintf(file, "\t%s\n", is_long(instruction.type) ? "cqto" : "cdq");
+		fprintf(file, "\t%s\n", is_8_bytes(instruction.type) ? "cqto" : "cdq");
 	else
 		fprintf(file, "\txor\t%%rdx, %%rdx\n");
 
@@ -403,7 +451,7 @@ void Assembler::handle_mod(TACInstruction &instruction)
 
 void Assembler::handle_unary_op(TACInstruction &instruction, const std::string &op)
 {
-	std::string op_text = is_long(instruction.type) ? op + "q" : op + "l";
+	std::string op_text = is_8_bytes(instruction.type) ? op + "q" : op + "l";
 	fprintf(file, "\t# %s\n", TacGenerator::gen_tac_str(instruction).c_str());
 	load_to_reg(instruction.arg1, "%r10", instruction.type);
 	fprintf(file, "\t%s\t%%r10%s\n", op_text.c_str(), instruction.type == Type::INT ? "d" : "");
@@ -436,6 +484,12 @@ void Assembler::handle_section(TACInstruction &instruction)
 		fprintf(file, ".data\n");
 		fprintf(file, ".balign 8\n\n");
 		current_var_type = VarType::DATA;
+		break;
+	}
+	case TACOp::ENTER_LITERAL8:
+	{
+		fprintf(file, ".section __TEXT,__literal8,8byte_literals\n");
+		current_var_type = VarType::LITERAL8;
 		break;
 	}
 	default:
@@ -485,6 +539,36 @@ void Assembler::handle_convert_type(TACInstruction &instruction)
 		if (dst_type == Type::UINT)
 			fprintf(file, "\tandl $0xFFFFFFFF, %d(%%rbp)\n", dst->stack_offset);
 	}
+	// double -> int
+	else if (src_type == Type::DOUBLE && dst_type == Type::INT)
+	{
+		fprintf(file, "\tmovsd %d(%%rbp), %%xmm0\n", src->stack_offset);
+		fprintf(file, "\tcvttsd2si %%xmm0, %%r10d\n"); // truncate double to signed int
+		fprintf(file, "\tmovl %%r10d, %d(%%rbp)\n", dst->stack_offset);
+	}
+	// double -> uint
+	else if (src_type == Type::DOUBLE && dst_type == Type::UINT)
+	{
+		fprintf(file, "\tmovsd %d(%%rbp), %%xmm0\n", src->stack_offset);
+		fprintf(file, "\tcvttsd2si %%xmm0, %%r10d\n"); // truncate double to signed int
+		fprintf(file, "\tmovl %%r10d, %d(%%rbp)\n", dst->stack_offset);
+		fprintf(file, "\tandl $0xFFFFFFFF, %d(%%rbp)\n", dst->stack_offset);
+	}
+	// int -> double
+	else if (src_type == Type::INT && dst_type == Type::DOUBLE)
+	{
+		fprintf(file, "\tmovl %d(%%rbp), %%r10d\n", src->stack_offset);
+		fprintf(file, "\tcvtsi2sd %%r10d, %%xmm0\n"); // convert signed int to double
+		fprintf(file, "\tmovsd %%xmm0, %d(%%rbp)\n", dst->stack_offset);
+	}
+	// uint -> double
+	else if (src_type == Type::UINT && dst_type == Type::DOUBLE)
+	{
+		fprintf(file, "\tmovl %d(%%rbp), %%r10d\n", src->stack_offset);
+		fprintf(file, "\tmovl %%r10d, %%r10d\n");	 // zero extend to 64 bits
+		fprintf(file, "\tcvtsi2sd %%r10, %%xmm0\n"); // convert unsigned int to double
+		fprintf(file, "\tmovsd %%xmm0, %d(%%rbp)\n", dst->stack_offset);
+	}
 
 	fprintf(file, "\n");
 }
@@ -494,7 +578,23 @@ bool Assembler::is_signed(Type &type)
 	return type == Type::INT || type == Type::LONG;
 }
 
-bool Assembler::is_long(Type &type)
+bool Assembler::is_8_bytes(Type &type)
 {
-	return type == Type::ULONG || type == Type::LONG;
+	return type == Type::ULONG || type == Type::LONG || type == Type::DOUBLE;
+}
+
+std::string Assembler::double_to_hex(double value)
+{
+	union
+	{
+		double d;
+		uint64_t i;
+	} converter;
+
+	converter.d = value;
+
+	std::stringstream ss;
+	ss << "0x" << std::uppercase << std::hex << std::setfill('0') << std::setw(16) << converter.i;
+
+	return ss.str();
 }

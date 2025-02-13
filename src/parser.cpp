@@ -443,6 +443,11 @@ std::unique_ptr<ASTNode> Parser::parse_factor()
                 unsigned long number = std::stoul(current_token.text);
                 return std::make_unique<ULongLiteral>(number);
             }
+            else if (curr_decl_type == Type::DOUBLE)
+            {
+                double number = std::stod(current_token.text);
+                return std::make_unique<DoubleLiteral>(number);
+            }
         }
         catch (const std::out_of_range &)
         {

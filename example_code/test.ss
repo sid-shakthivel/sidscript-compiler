@@ -1,4 +1,6 @@
 fn main() -> int {
-    double a = 5.98;
+    double a = 50;
+    double b = a / 3;
     return 5;
 }
+

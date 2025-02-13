@@ -46,12 +46,12 @@ int main()
 
     // program->print();
 
-    // gst->print();
+    gst->print();
 
-    // auto &instructions = tacGenerator.get_instructions();
+    auto &instructions = tacGenerator.get_instructions();
 
-    // Assembler assembler(gst, "test.s");
-    // assembler.assemble(instructions);
+    Assembler assembler(gst, "test.s");
+    assembler.assemble(instructions);
 
     return 0;
 }

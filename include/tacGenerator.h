@@ -43,6 +43,7 @@ enum class TACOp
     ENTER_BSS,
     ENTER_DATA,
     ENTER_TEXT,
+    ENTER_LITERAL8,
     CONVERT_TYPE
 };
 
@@ -83,14 +84,17 @@ private:
     std::vector<TACInstruction> instructions;
     std::vector<TACInstruction> bss_vars;
     std::vector<TACInstruction> data_vars;
+    std::vector<TACInstruction> literal8_vars;
 
     std::array<std::string, 6> registers = {"%edi", "%esi", "%edx", "%ecx", "%r8", "%r9"};
 
-    int tempCounter;
-    int labelCounter;
+    int tempCounter = 0;
+    int labelCounter = 0;
+    int constCounter = 0;
 
     std::string gen_new_temp_var();
     std::string gen_new_label(std::string label = "");
+    std::string gen_new_const_label();
 
     void generate_tac_func(FuncNode *func);
     void generate_tac_element(ASTNode *element);

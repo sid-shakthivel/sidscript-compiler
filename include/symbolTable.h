@@ -35,6 +35,7 @@ struct Symbol
     StorageDuration storage_duration = StorageDuration::Automatic;
     std::string unique_name;
     Type type = Type::VOID;
+    bool is_literal8 = false;
 
     Symbol(std::string n, int o, bool it);
     void set_linkage(Linkage l);
@@ -61,8 +62,11 @@ public:
     void exit_scope();
 
     std::tuple<bool, std::string> declare_var(const std::string &name, bool is_static = false, Type type = Type::INT);
+    void declare_temp_var(const std::string &name, Type type);
+    void declare_const_var(const std::string &name, Type type);
+
     std::tuple<bool, std::string> check_var_defined(const std::string &name);
-    void declare_temp_variable(const std::string &name, Type type);
+
     int get_stack_size();
     Symbol *get_symbol(const std::string &name);
 

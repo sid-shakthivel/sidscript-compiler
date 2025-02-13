@@ -14,7 +14,8 @@ enum class VarType
 {
     BSS,
     DATA,
-    TEXT
+    TEXT,
+    LITERAL8,
 };
 
 class Assembler
@@ -56,5 +57,7 @@ private:
     void handle_convert_type(TACInstruction &instruction);
 
     bool is_signed(Type &type);
-    bool is_long(Type &type);
+    bool is_8_bytes(Type &type);
+
+    std::string double_to_hex(double value);
 };

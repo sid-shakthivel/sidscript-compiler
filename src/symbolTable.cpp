@@ -12,10 +12,7 @@ void Symbol::set_linkage(Linkage l) { linkage = l; }
 void Symbol::set_storage_duration(StorageDuration sd) { storage_duration = sd; }
 void Symbol::set_type(Type t) { type = t; }
 
-bool Symbol::has_static_sd()
-{
-    return storage_duration == StorageDuration::Static;
-}
+bool Symbol::has_static_sd() { return storage_duration == StorageDuration::Static; }
 
 FuncSymbol::FuncSymbol(std::string n, int ac, std::vector<Type> &at, Type rt) : Symbol(n, 0, false), arg_count(ac), arg_types(at), return_type(rt) {}
 
@@ -104,11 +101,18 @@ Symbol *SymbolTable::get_symbol(const std::string &name)
     return nullptr;
 }
 
-void SymbolTable::declare_temp_variable(const std::string &name, Type type)
+void SymbolTable::declare_temp_var(const std::string &name, Type type)
 {
     adjust_stack(type);
     var_symbols[name] = std::make_shared<Symbol>(name, stack_size * -1, true);
     var_count += 1;
+}
+
+void SymbolTable::declare_const_var(const std::string &name, Type type)
+{
+    std::shared_ptr<Symbol> new_const_var = std::make_shared<Symbol>(name, 0, false);
+    new_const_var->is_literal8 = true;
+    var_symbols[name] = new_const_var;
 }
 
 void SymbolTable::print()
@@ -146,7 +150,7 @@ int SymbolTable::align_to(int size, int alignment)
 
 void SymbolTable::adjust_stack(Type &type)
 {
-    if (type == Type::LONG || type == Type::ULONG)
+    if (type == Type::LONG || type == Type::ULONG || type == Type::DOUBLE)
     {
         stack_size = align_to(stack_size, 8);
         stack_size += 8;
