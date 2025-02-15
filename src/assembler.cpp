@@ -451,8 +451,22 @@ void Assembler::handle_mod(TACInstruction &instruction)
 
 void Assembler::handle_unary_op(TACInstruction &instruction, const std::string &op)
 {
-	std::string op_text = is_8_bytes(instruction.type) ? op + "q" : op + "l";
 	fprintf(file, "\t# %s\n", TacGenerator::gen_tac_str(instruction).c_str());
+
+	if (instruction.type == Type::DOUBLE && op == "neg")
+	{
+		load_to_reg(instruction.arg1, "%xmm0", instruction.type);
+		load_to_reg(instruction.arg2, "%xmm1", instruction.type);
+
+		fprintf(file, "\txorpd\t%%xmm1, %%xmm0\n");
+
+		store_from_reg(instruction.result, "%xmm0", instruction.type);
+
+		fprintf(file, "\n");
+		return;
+	}
+
+	std::string op_text = is_8_bytes(instruction.type) ? op + "q" : op + "l";
 	load_to_reg(instruction.arg1, "%r10", instruction.type);
 	fprintf(file, "\t%s\t%%r10%s\n", op_text.c_str(), instruction.type == Type::INT ? "d" : "");
 	store_from_reg(instruction.result, "%r10", instruction.type);

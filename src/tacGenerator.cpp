@@ -329,6 +329,15 @@ std::string TacGenerator::generate_tac_expr(ASTNode *expr, Type type)
         std::string temp_var = gen_new_temp_var();
         current_st->declare_temp_var(temp_var, unary->type);
 
+        if (unary->type == Type::DOUBLE)
+        {
+            current_st->declare_const_var("_.Lsign_bit", Type::DOUBLE);
+            literal8_vars.emplace_back(TACOp::ASSIGN, "_.Lsign_bit", "", "9223372036854775808", Type::DOUBLE);
+            instructions.emplace_back(convert_UnaryOpType_to_TACOp(unary->op), result, "_.Lsign_bit", temp_var, unary->type);
+
+            return temp_var;
+        }
+
         instructions.emplace_back(convert_UnaryOpType_to_TACOp(unary->op), result, "", temp_var, unary->type);
         return temp_var;
     }
