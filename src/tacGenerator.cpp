@@ -292,6 +292,19 @@ std::string TacGenerator::generate_tac_expr(ASTNode *expr, Type type)
     {
         CastNode *cast = (CastNode *)expr;
 
+        if (cast->target_type == Type::DOUBLE && cast->expr.get()->type == NodeType::NODE_NUMBER)
+        {
+            // return generate_tac_expr(cast->expr.get(), cast->target_type);
+            std::string const_var = gen_new_const_label();
+            current_st->declare_const_var(const_var, Type::DOUBLE);
+
+            std::string result = generate_tac_expr(cast->expr.get(), cast->target_type);
+
+            literal8_vars.emplace_back(TACOp::ASSIGN, const_var, "", result, Type::DOUBLE);
+
+            return const_var;
+        }
+
         std::string temp_var = gen_new_temp_var();
         current_st->declare_temp_var(temp_var, cast->target_type);
 

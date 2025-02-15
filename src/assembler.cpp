@@ -330,7 +330,6 @@ void Assembler::handle_bin_op(TACInstruction &instruction, const std::string &op
 
 void Assembler::handle_cmp_op(TACInstruction &instruction, const std::string &op)
 {
-
 	std::string actual_op = op;
 	if (!is_signed(instruction.type))
 	{
@@ -345,6 +344,24 @@ void Assembler::handle_cmp_op(TACInstruction &instruction, const std::string &op
 	}
 
 	fprintf(file, "\t# %s\n", TacGenerator::gen_tac_str(instruction).c_str());
+
+	if (instruction.type == Type::DOUBLE)
+	{
+		load_to_reg(instruction.arg1, "%xmm0", instruction.type);
+		load_to_reg(instruction.arg2, "%xmm1", instruction.type);
+
+		fprintf(file, "\tcomisd\t%%xmm1, %%xmm0\n");
+
+		fprintf(file, "\tsetb\t%%r10b\n");
+		fprintf(file, "\tmovzbl\t%%r10b, %%r10d\n");
+
+		store_from_reg(instruction.result, "%r10", instruction.type);
+
+		fprintf(file, "\n");
+
+		return;
+	}
+
 	compare_and_store_result(instruction.arg1, instruction.arg2, instruction.result,
 							 "%r10", actual_op, instruction.type);
 }
@@ -360,7 +377,9 @@ void Assembler::handle_if(TACInstruction &instruction)
 	else
 		fprintf(file, "\t%s\t$0, %d(%%rbp)\n", cmp_text.c_str(), potential_var->stack_offset);
 
-	if (!is_signed(instruction.type))
+	if (instruction.type == Type::DOUBLE)
+		fprintf(file, "\tjb\t%s\n", instruction.result.c_str());
+	else if (!is_signed(instruction.type))
 		fprintf(file, "\tjne\t%s\n", instruction.result.c_str());
 	else
 		fprintf(file, "\tjg\t%s\n", instruction.result.c_str());
@@ -515,6 +534,8 @@ void Assembler::handle_convert_type(TACInstruction &instruction)
 {
 	Symbol *src = gst->get_symbol(current_func, instruction.arg1);
 	Symbol *dst = gst->get_symbol(current_func, instruction.result);
+
+	printf("%s %s\n", instruction.arg1.c_str(), instruction.arg2.c_str());
 
 	Type src_type = instruction.type;
 	Type dst_type = get_type_from_str(instruction.arg2);

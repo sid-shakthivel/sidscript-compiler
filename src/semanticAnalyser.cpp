@@ -71,6 +71,11 @@ void SemanticAnalyser::analyse_node(ASTNode *node)
         analyse_func_call((FuncCallNode *)node);
     else if (node->type == NodeType::NODE_CAST)
         analyse_cast((CastNode *)node);
+    else if (node->type == NodeType::NODE_BINARY)
+    {
+        printf("testing\n");
+        analyse_binary((BinaryNode *)node);
+    }
 }
 
 void SemanticAnalyser::analyse_cast(CastNode *node)
@@ -135,6 +140,8 @@ void SemanticAnalyser::analyse_rtn(RtnNode *node)
 void SemanticAnalyser::analyse_if_stmt(IfNode *node)
 {
     analyse_node(node->condition.get());
+
+    infer_type(node->condition.get());
 
     gst->enter_scope(current_func_name);
     for (auto &stmt : node->then_elements)
