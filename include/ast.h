@@ -50,7 +50,8 @@ enum class NodeType
     NODE_BREAK,
     NODE_CONTINUE,
     NODE_FUNC_CALL,
-    NODE_CAST
+    NODE_CAST,
+    NODE_POSTFIX,
 };
 
 enum class Type
@@ -202,6 +203,17 @@ public:
     Type type = Type::VOID;
 
     UnaryNode(UnaryOpType o, std::unique_ptr<ASTNode> v);
+    void print(int tabs) override;
+};
+
+class PostfixNode : public ASTNode
+{
+public:
+    TokenType op;
+    std::unique_ptr<ASTNode> value;
+    Type type = Type::VOID;
+
+    PostfixNode(TokenType o, std::unique_ptr<ASTNode> v);
     void print(int tabs) override;
 };
 

@@ -323,21 +323,40 @@ std::string TacGenerator::generate_tac_expr(ASTNode *expr, Type type)
     else if (expr->type == NodeType::NODE_UNARY)
     {
         UnaryNode *unary = (UnaryNode *)expr;
+
         std::string result = generate_tac_expr(unary->value.get());
+
         std::string temp_var = gen_new_temp_var();
-        current_st->declare_temp_var(temp_var, Type::INT);
+        current_st->declare_temp_var(temp_var, unary->type);
+
         instructions.emplace_back(convert_UnaryOpType_to_TACOp(unary->op), result, "", temp_var, unary->type);
         return temp_var;
     }
     else if (expr->type == NodeType::NODE_BINARY)
     {
         BinaryNode *binary = (BinaryNode *)expr;
+
         std::string arg1 = generate_tac_expr(binary->left.get());
         std::string arg2 = generate_tac_expr(binary->right.get());
+
         std::string temp_var = gen_new_temp_var();
-        current_st->declare_temp_var(temp_var, Type::INT);
+        current_st->declare_temp_var(temp_var, binary->type);
+
         instructions.emplace_back(convert_BinOpType_to_TACOp(binary->op), arg1, arg2, temp_var, binary->type);
         return temp_var;
+    }
+    else if (expr->type == NodeType::NODE_POSTFIX)
+    {
+        PostfixNode *postfix = (PostfixNode *)expr;
+
+        std::string result = generate_tac_expr(postfix->value.get());
+
+        if (postfix->op == TokenType::TOKEN_INCREMENT)
+            instructions.emplace_back(TACOp::ADD, result, "1", result, postfix->type);
+        else if (postfix->op == TokenType::TOKEN_DECREMENT)
+            instructions.emplace_back(TACOp::SUB, result, "1", result, postfix->type);
+
+        return result;
     }
     else if (expr->type == NodeType::NODE_FUNC_CALL)
     {
@@ -374,16 +393,12 @@ std::string TacGenerator::generate_tac_expr(ASTNode *expr, Type type)
         int stack_offset = (func->args.size() - 6) + current_st->get_stack_size();
 
         if (stack_offset % 2 != 0 && stack_offset > 0)
-        {
             instructions.emplace_back(TACOp::DEALLOC_STACK, "8");
-        }
 
         instructions.emplace_back(TACOp::CALL, func->name);
 
         if (stack_offset % 2 != 0 && stack_offset > 0)
-        {
             instructions.emplace_back(TACOp::ALLOC_STACK, "8");
-        }
 
         std::string temp_var = gen_new_temp_var();
         current_st->declare_temp_var(temp_var, Type::INT);
@@ -392,6 +407,8 @@ std::string TacGenerator::generate_tac_expr(ASTNode *expr, Type type)
 
         return temp_var;
     }
+
+    throw std::runtime_error("Tac Generation: Invalid expression");
 }
 
 void TacGenerator::print_all_tac()

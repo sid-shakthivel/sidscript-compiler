@@ -291,7 +291,7 @@ Type SemanticAnalyser::infer_type(ASTNode *node)
         UnaryNode *un_node = dynamic_cast<UnaryNode *>(node);
 
         Type type = infer_type(un_node->value.get());
-        if (type == Type::DOUBLE)
+        if (type == Type::DOUBLE && un_node->op == UnaryOpType::COMPLEMENT)
             throw std::runtime_error("Semantic Error: Cannot take bitwise complement of a double");
 
         un_node->type = type;
@@ -300,6 +300,15 @@ Type SemanticAnalyser::infer_type(ASTNode *node)
     case NodeType::NODE_CAST:
     {
         return ((CastNode *)node)->target_type;
+    }
+    case NodeType::NODE_POSTFIX:
+    {
+        PostfixNode *post_node = dynamic_cast<PostfixNode *>(node);
+
+        Type type = infer_type(post_node->value.get());
+
+        post_node->type = type;
+        return type;
     }
     default:
         throw std::runtime_error("Semantic Error: Cannot infer type of node of type ");

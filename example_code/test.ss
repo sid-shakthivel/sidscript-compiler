@@ -1,6 +1,6 @@
 fn main() -> int {
-    double a = 50;
-    double b = a / 3;
-    return 5;
+    int a = 5;
+    int b = 9 + a++;
+    return b;
 }
 

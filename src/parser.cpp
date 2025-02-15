@@ -403,6 +403,16 @@ std::unique_ptr<ASTNode> Parser::parse_expr(int min_presedence)
 
     advance();
 
+    if (match(TOKEN_INCREMENT) || match(TOKEN_DECREMENT))
+    {
+        if (dynamic_cast<VarNode *>(left.get()) == nullptr)
+            error("Postfix operator requires a variable");
+
+        left = std::make_unique<PostfixNode>(current_token.type, std::move(left));
+
+        advance();
+    }
+
     while (match(bin_op_tokens) && get_precedence(current_token.type) >= min_presedence)
     {
         TokenType op = current_token.type;

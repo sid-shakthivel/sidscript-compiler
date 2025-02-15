@@ -46,7 +46,7 @@ int main()
 
     // program->print();
 
-    gst->print();
+    // gst->print();
 
     auto &instructions = tacGenerator.get_instructions();
 

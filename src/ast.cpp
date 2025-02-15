@@ -247,6 +247,25 @@ void UnaryNode::print(int tabs)
     value->print(tabs + 1);
 }
 
+PostfixNode::PostfixNode(TokenType o, std::unique_ptr<ASTNode> v) : ASTNode(NodeType::NODE_POSTFIX), op(o), value(std::move(v)) {}
+
+void PostfixNode::print(int tabs)
+{
+    auto get_postfix_op_string = [](TokenType o) -> std::string
+    {
+        switch (o)
+        {
+        case TOKEN_INCREMENT:
+            return "INCREMENT";
+        case TOKEN_DECREMENT:
+            return "DECREMENT";
+        }
+        return "";
+    };
+
+    std::cout << std::string(tabs, ' ') << "Postfix: " << std::endl;
+}
+
 BinaryNode::BinaryNode(BinOpType o, std::unique_ptr<ASTNode> l, std::unique_ptr<ASTNode> r) : ASTNode(NodeType::NODE_BINARY), op(o), left(std::move(l)), right(std::move(r)) {}
 
 void BinaryNode::print(int tabs)
