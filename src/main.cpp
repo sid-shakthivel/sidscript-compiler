@@ -44,9 +44,9 @@ int main()
     tacGenerator.generate_tac(program);
     tacGenerator.print_all_tac();
 
-    // program->print();
+    program->print();
 
-    // gst->print();
+    gst->print();
 
     auto &instructions = tacGenerator.get_instructions();
 

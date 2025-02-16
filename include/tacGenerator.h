@@ -44,7 +44,9 @@ enum class TACOp
     ENTER_DATA,
     ENTER_TEXT,
     ENTER_LITERAL8,
-    CONVERT_TYPE
+    CONVERT_TYPE,
+    DEREF,
+    ADDR_OF,
 };
 
 TACOp convert_UnaryOpType_to_TACOp(UnaryOpType op);

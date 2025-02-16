@@ -25,15 +25,19 @@
 <argument_list> ::= <exp> { "," <exp> }
 
 <expr> ::= <factor> | <expr> <binopr> <expr> | <factor> <postopr>
-<factor> ::= <literal> | <identifier> | "(" { <type_specifier> }+ ")" <factor> | <unopr> <factor> | "(" <expr> ")" | <identifier> "(" [ <argument-list> ] ")"
-| "(" { <type_specifier> }+ ")" <factor> 
+<factor> ::= <literal> 
+    | <identifier> 
+    | "(" { <type_specifier> }+ ")" <factor> 
+    | <unopr> <factor> 
+    | "(" <expr> ")" 
+    | <identifier> "(" [ <argument-list> ] ")"
 
-<type_specifier> ::= "int" | "long" | "unsigned" | "signed" | "double"
+<type_specifier> ::= { "*" } "int" | "long" | "unsigned" | "signed" | "double"
 <specifier> ::= "static" | "extern"
 
 <binopr> ::= ::= "-" | "+" | "\*" | "/" | "%" | "&&" | "||"
 | "==" | "!=" | "<" | "<=" | ">" | ">="
-<unopr> ::= "-" | "~" | "++" | "--"
+<unopr> ::= "-" | "~" | "++" | "--" | "&" | "*"
 <postopr> ::= "++" | "--"
 
 <literal> ::= <int> | <long> | <uint> | <ulong> | <double>

@@ -20,8 +20,9 @@ private:
     Type curr_decl_type = Type::INT;
 
     std::vector<TokenType> all_types = {TOKEN_VOID, TOKEN_INT, TOKEN_LONG, TOKEN_UNSIGNED, TOKEN_SIGNED, TOKEN_DOUBLE};
-    std::vector<TokenType> addressable_types = {TOKEN_INT, TOKEN_LONG, TOKEN_UNSIGNED, TOKEN_SIGNED, TOKEN_DOUBLE};
+    std::vector<TokenType> addressable_types = {TOKEN_INT, TOKEN_LONG, TOKEN_UNSIGNED, TOKEN_SIGNED, TOKEN_DOUBLE, TOKEN_STAR};
     std::vector<TokenType> bin_op_tokens = {TOKEN_PLUS, TOKEN_MINUS, TOKEN_STAR, TOKEN_SLASH, TOKEN_PERCENT, TOKEN_EQUALS, TOKEN_NOT_EQUALS, TOKEN_LT, TOKEN_GT, TOKEN_LE, TOKEN_GE, TOKEN_AND, TOKEN_OR};
+    std::vector<TokenType> un_op_tokens = {TOKEN_TILDA, TOKEN_MINUS, TOKEN_AMPERSAND, TOKEN_STAR, TOKEN_INCREMENT, TOKEN_DECREMENT};
 
     bool match(TokenType type);
     bool match(std::vector<TokenType> &tokens);

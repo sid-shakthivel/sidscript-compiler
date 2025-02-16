@@ -1,9 +1,6 @@
 fn main() -> int {
-    double a = 10;
-    if (a < 7)
-    {
-        return 7;
-    }
-    return 9;
+    int a = 56;
+    *int b = &a;
+    return *b + 6;
 }
 

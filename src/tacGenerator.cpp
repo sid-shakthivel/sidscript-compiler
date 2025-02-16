@@ -380,6 +380,28 @@ std::string TacGenerator::generate_tac_expr(ASTNode *expr, Type type)
 
         return result;
     }
+    else if (expr->type == NodeType::NODE_DEREF)
+    {
+        DerefNode *deref = (DerefNode *)expr;
+
+        std::string var = generate_tac_expr(deref->expr.get());
+        std::string temp_var = gen_new_temp_var();
+        current_st->declare_temp_var(temp_var, deref->type);
+        instructions.emplace_back(TACOp::DEREF, var, "", temp_var);
+
+        return temp_var;
+    }
+    else if (expr->type == NodeType::NODE_ADDR_OF)
+    {
+        AddrOfNode *addr_of = (AddrOfNode *)expr;
+
+        std::string var = generate_tac_expr(addr_of->expr.get());
+        std::string temp_var = gen_new_temp_var();
+        current_st->declare_temp_var(temp_var, addr_of->type);
+        instructions.emplace_back(TACOp::ADDR_OF, var, "", temp_var);
+
+        return temp_var;
+    }
     else if (expr->type == NodeType::NODE_FUNC_CALL)
     {
         FuncCallNode *func = (FuncCallNode *)expr;
@@ -515,6 +537,10 @@ std::string TacGenerator::gen_tac_str(TACInstruction &instr)
             return "ENTER_LITERAL8";
         case TACOp::CONVERT_TYPE:
             return "CONVERT_TYPE";
+        case TACOp::DEREF:
+            return "DEREF";
+        case TACOp::ADDR_OF:
+            return "ADDR_OF";
         default:
             return "UNKNOWN";
         }
@@ -534,3 +560,17 @@ std::string TacGenerator::gen_tac_str(TACInstruction &instr)
 
     return str;
 }
+
+// void TacGenerator::generate_tac_expr(PointerDerefNode* node) {
+//     std::string ptr = generate_tac_expr(node->expr.get());
+//     std::string temp = gen_new_temp();
+//     instructions.emplace_back(TACOp::DEREF, ptr, "", temp);
+//     return temp;
+// }
+
+// void TacGenerator::generate_tac_expr(AddressOfNode* node) {
+//     std::string var = generate_tac_expr(node->expr.get());
+//     std::string temp = gen_new_temp();
+//     instructions.emplace_back(TACOp::ADDRESS_OF, var, "", temp);
+//     return temp;
+// }

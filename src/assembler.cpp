@@ -84,6 +84,10 @@ void Assembler::initialize_handlers()
 	{ handle_section(instr); };
 	handlers[TACOp::CONVERT_TYPE] = [this](TACInstruction instr)
 	{ handle_convert_type(instr); };
+	handlers[TACOp::ADDR_OF] = [this](TACInstruction instr)
+	{ handle_addr_of(instr); };
+	handlers[TACOp::DEREF] = [this](TACInstruction instr)
+	{ handle_deref(instr); };
 }
 
 void Assembler::assemble(const std::vector<TACInstruction> &instructions)
@@ -608,6 +612,29 @@ void Assembler::handle_convert_type(TACInstruction &instruction)
 	fprintf(file, "\n");
 }
 
+void Assembler::handle_deref(TACInstruction &instruction)
+{
+	Symbol *src = gst->get_symbol(current_func, instruction.arg1);
+	Symbol *dst = gst->get_symbol(current_func, instruction.result);
+
+	fprintf(file, "\t# %s\n", TacGenerator::gen_tac_str(instruction).c_str());
+
+	fprintf(file, "\tmovq %d(%%rbp), %%rax\n", src->stack_offset);
+	fprintf(file, "\tmovl (%%rax), %%r10d\n");
+	fprintf(file, "\tmovl %%r10d, %d(%%rbp)\n\n", dst->stack_offset);
+}
+
+void Assembler::handle_addr_of(TACInstruction &instruction)
+{
+	Symbol *src = gst->get_symbol(current_func, instruction.arg1);
+	Symbol *dst = gst->get_symbol(current_func, instruction.result);
+
+	fprintf(file, "\t# %s\n", TacGenerator::gen_tac_str(instruction).c_str());
+
+	fprintf(file, "\tleaq %d(%%rbp), %%rax\n", src->stack_offset);
+	fprintf(file, "\tmovq %%rax, %d(%%rbp)\n\n", dst->stack_offset);
+}
+
 bool Assembler::is_signed(Type &type)
 {
 	return type == Type::INT || type == Type::LONG;
@@ -615,7 +642,7 @@ bool Assembler::is_signed(Type &type)
 
 bool Assembler::is_8_bytes(Type &type)
 {
-	return type == Type::ULONG || type == Type::LONG || type == Type::DOUBLE;
+	return type == Type::ULONG || type == Type::LONG || type == Type::DOUBLE || type == Type::INT_POINTER;
 }
 
 std::string Assembler::double_to_hex(double value)

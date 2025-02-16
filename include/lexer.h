@@ -53,6 +53,7 @@ enum TokenType
     TOKEN_SIGNED,
     TOKEN_DOUBLE,
     TOKEN_FPN,
+    TOKEN_AMPERSAND,
     TOKEN_UNKNOWN_SYMBOL,
 };
 

@@ -38,6 +38,8 @@ private:
     void analyse_loop_control(ASTNode *node);
     void analyse_func_call(FuncCallNode *node);
     void analyse_cast(CastNode *node);
+    void analyse_addr_of(AddrOfNode *node);
+    void analyse_deref(DerefNode *node);
 
     Type infer_type(ASTNode *node);
     int get_type_size(Type &type);

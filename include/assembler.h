@@ -55,6 +55,8 @@ private:
     void handle_mod(TACInstruction &instruction);
     void handle_div(TACInstruction &instruction);
     void handle_convert_type(TACInstruction &instruction);
+    void handle_deref(TACInstruction &instruction);
+    void handle_addr_of(TACInstruction &instruction);
 
     bool is_signed(Type &type);
     bool is_8_bytes(Type &type);

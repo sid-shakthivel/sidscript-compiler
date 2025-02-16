@@ -72,10 +72,11 @@ void SemanticAnalyser::analyse_node(ASTNode *node)
     else if (node->type == NodeType::NODE_CAST)
         analyse_cast((CastNode *)node);
     else if (node->type == NodeType::NODE_BINARY)
-    {
-        printf("testing\n");
         analyse_binary((BinaryNode *)node);
-    }
+    else if (node->type == NodeType::NODE_ADDR_OF)
+        analyse_addr_of((AddrOfNode *)node);
+    else if (node->type == NodeType::NODE_DEREF)
+        analyse_deref((DerefNode *)node);
 }
 
 void SemanticAnalyser::analyse_cast(CastNode *node)
@@ -257,6 +258,29 @@ void SemanticAnalyser::analyse_func_call(FuncCallNode *node)
     }
 }
 
+void SemanticAnalyser::analyse_addr_of(AddrOfNode *node)
+{
+    analyse_node(node->expr.get());
+
+    Type expr_type = infer_type(node->expr.get());
+
+    if (node->expr->type != NodeType::NODE_VAR)
+        throw std::runtime_error("Semantic Error: Can only take address of variables");
+
+    node->type = Type::INT_POINTER; // For now, only supporting int*
+}
+
+void SemanticAnalyser::analyse_deref(DerefNode *node)
+{
+    analyse_node(node->expr.get());
+    Type expr_type = infer_type(node->expr.get());
+
+    if (expr_type != Type::INT_POINTER)
+        throw std::runtime_error("Semantic Error: Cannot dereference non-pointer type");
+
+    node->type = Type::INT; // Only supporting integers currently
+}
+
 Type SemanticAnalyser::infer_type(ASTNode *node)
 {
     switch (node->type)
@@ -317,6 +341,14 @@ Type SemanticAnalyser::infer_type(ASTNode *node)
         post_node->type = type;
         return type;
     }
+    case NodeType::NODE_DEREF:
+    {
+        return ((DerefNode *)node)->type;
+    }
+    case NodeType::NODE_ADDR_OF:
+    {
+        return ((AddrOfNode *)node)->type;
+    }
     default:
         throw std::runtime_error("Semantic Error: Cannot infer type of node of type ");
     }
@@ -326,7 +358,7 @@ int SemanticAnalyser::get_type_size(Type &type)
 {
     if (type == Type::INT || type == Type::UINT)
         return 4;
-    else if (type == Type::LONG || type == Type::ULONG)
+    else if (type == Type::LONG || type == Type::ULONG || type == Type::INT_POINTER)
         return 8;
 }
 
@@ -340,6 +372,13 @@ Type SemanticAnalyser::get_common_type(Type type1, Type type2)
     // If the types are the same, pick either one
     if (type1 == type2)
         return type1;
+
+    if (type1 == Type::INT_POINTER || type2 == Type::INT_POINTER)
+    {
+        if (type1 != type2)
+            throw std::runtime_error("Semantic Error: Cannot convert between pointer and non-pointer types");
+        return Type::INT_POINTER;
+    }
 
     // common type is double if either is a double
     if (type1 == Type::DOUBLE || type2 == Type::DOUBLE)

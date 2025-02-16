@@ -52,6 +52,8 @@ enum class NodeType
     NODE_FUNC_CALL,
     NODE_CAST,
     NODE_POSTFIX,
+    NODE_DEREF,
+    NODE_ADDR_OF
 };
 
 enum class Type
@@ -61,7 +63,8 @@ enum class Type
     UINT,
     ULONG,
     DOUBLE,
-    VOID
+    VOID,
+    INT_POINTER
 };
 
 enum class Specifier
@@ -314,3 +317,62 @@ public:
     ContinueNode(std::string l);
     void print(int tabs) override;
 };
+
+class DerefNode : public ASTNode
+{
+public:
+    std::unique_ptr<ASTNode> expr;
+    Type type = Type::VOID;
+
+    DerefNode(std::unique_ptr<ASTNode> expr);
+    void print(int tabs) override;
+};
+
+class AddrOfNode : public ASTNode
+{
+public:
+    std::unique_ptr<ASTNode> expr;
+    Type type = Type::VOID;
+
+    AddrOfNode(std::unique_ptr<ASTNode> expr);
+    void print(int tabs) override;
+};
+
+// New type
+/*
+enum class BaseType
+{
+    INT,
+    LONG,
+    UINT,
+    ULONG,
+    DOUBLE,
+    VOID,
+    STRUCT,  // New type for user-defined structs
+};
+
+struct TypeInfo
+{
+    BaseType baseType;
+    int pointerLevel = 0;  // 0 = not a pointer, 1 = *, 2 = **, etc.
+    std::vector<int> arraySizes; // Array dimensions (e.g., [3] for int[3], [3, 4] for int[3][4])
+    std::optional<std::string> structName; // Only used if `baseType == STRUCT`
+
+    // Constructor for primitive types
+    TypeInfo(BaseType baseType, int pointerLevel = 0)
+        : baseType(baseType), pointerLevel(pointerLevel) {}
+
+    // Constructor for structs
+    TypeInfo(std::string structName, int pointerLevel = 0)
+        : baseType(BaseType::STRUCT), pointerLevel(pointerLevel), structName(structName) {}
+
+    // Check if this type is a pointer
+    bool isPointer() const { return pointerLevel > 0; }
+
+    // Check if this type is an array
+    bool isArray() const { return !arraySizes.empty(); }
+
+    // Check if this type is a struct
+    bool isStruct() const { return baseType == BaseType::STRUCT; }
+};
+*/

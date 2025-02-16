@@ -17,7 +17,7 @@ UnaryOpType get_unary_op_type(const TokenType &t)
     case TOKEN_DECREMENT:
         return UnaryOpType::DECREMENT;
     default:
-        return UnaryOpType::DECREMENT;
+        throw std::runtime_error("Parser Error: Invalid unary operator");
     }
 }
 
@@ -85,6 +85,8 @@ std::string get_type_str(Type &t)
         return "void";
     case Type::DOUBLE:
         return "double";
+    case Type::INT_POINTER:
+        return "int pointer";
     default:
         return "unknown";
     }
@@ -393,4 +395,20 @@ BreakNode::BreakNode(std::string l) : ASTNode(NodeType::NODE_BREAK), label(l) {}
 void BreakNode::print(int tabs)
 {
     std::cout << std::string(tabs, ' ') << "Break " << label << std::endl;
+}
+
+DerefNode::DerefNode(std::unique_ptr<ASTNode> v) : ASTNode(NodeType::NODE_DEREF), expr(std::move(v)) {}
+
+void DerefNode::print(int tabs)
+{
+    std::cout << std::string(tabs, ' ') << "PointerDeref: " << std::endl;
+    expr->print(tabs + 1);
+}
+
+AddrOfNode::AddrOfNode(std::unique_ptr<ASTNode> v) : ASTNode(NodeType::NODE_ADDR_OF), expr(std::move(v)) {}
+
+void AddrOfNode::print(int tabs)
+{
+    std::cout << std::string(tabs, ' ') << "AddrOf: " << std::endl;
+    expr->print(tabs + 1);
 }

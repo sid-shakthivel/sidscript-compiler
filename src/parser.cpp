@@ -381,6 +381,10 @@ Type Parser::determine_type(std::vector<TokenType> &types)
         return Type::ULONG;
     else if (types.size() == 1 && types[0] == TOKEN_DOUBLE)
         return Type::DOUBLE;
+    else if (types.size() == 2 && types[0] == TOKEN_STAR && types[1] == TOKEN_INT)
+        return Type::INT_POINTER;
+    else
+        error("Invalid Type");
 }
 
 std::unique_ptr<VarAssignNode> Parser::parse_var_assign()
@@ -480,7 +484,7 @@ std::unique_ptr<ASTNode> Parser::parse_factor()
             error("Number out of range");
         }
     }
-    else if (match(TOKEN_TILDA) || match(TOKEN_MINUS) || match(TOKEN_INCREMENT) || match(TOKEN_DECREMENT))
+    else if (match(un_op_tokens))
     {
         auto op = current_token.type;
 
@@ -488,7 +492,12 @@ std::unique_ptr<ASTNode> Parser::parse_factor()
 
         std::unique_ptr<ASTNode> expr = parse_factor();
 
-        return std::make_unique<UnaryNode>(get_unary_op_type(op), std::move(expr));
+        if (op == TOKEN_AMPERSAND)
+            return std::make_unique<AddrOfNode>(std::move(expr));
+        else if (op == TOKEN_STAR)
+            return std::make_unique<DerefNode>(std::move(expr));
+        else
+            return std::make_unique<UnaryNode>(get_unary_op_type(op), std::move(expr));
     }
     else if (match(TOKEN_LPAREN))
     {

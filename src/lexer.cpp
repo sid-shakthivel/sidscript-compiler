@@ -50,6 +50,7 @@ std::unordered_map<std::string, TokenType> string_to_token = {
     {"unsigned", TOKEN_UNSIGNED},
     {"signed", TOKEN_SIGNED},
     {"double", TOKEN_DOUBLE},
+    {"&", TOKEN_AMPERSAND},
 };
 
 std::string token_to_string(TokenType token_type)
