@@ -22,7 +22,7 @@ std::unordered_map<BinOpType, int> precedence_map = {
     {BinOpType::MOD, 40},
 };
 
-Parser::Parser(Lexer *l) : lexer(l), current_token(TOKEN_EOF, "", 1)
+Parser::Parser(Lexer *l) : lexer(l), current_token(TOKEN_EOF, "", 1), previous_token(TOKEN_EOF, "", 1)
 {
     advance();
 }
@@ -41,12 +41,19 @@ bool Parser::match(std::vector<TokenType> &tokens)
 
 void Parser::advance()
 {
+    previous_token = current_token;
     current_token = lexer->get_next_token();
 }
 
 void Parser::retreat()
 {
     lexer->rewind();
+}
+
+void Parser::retreat_test()
+{
+    retreat();
+    current_token = previous_token;
 }
 
 void Parser::error(const std::string &message)
@@ -198,7 +205,27 @@ std::vector<std::unique_ptr<ASTNode>> Parser::parse_block()
         else if (match(addressable_types))
             elements.emplace_back(parse_var_decl());
         else if (match(TOKEN_IDENTIFIER))
-            elements.emplace_back(parse_var_assign());
+        {
+            /*
+            This could be one of three things
+                - Assigning a variable ie a = 5, a += 5;
+                - An expression ie func(), i++
+            */
+            advance();
+
+            if (match(assign_tokens))
+            {
+                retreat_test();
+                elements.emplace_back(parse_var_assign());
+            }
+            else
+            {
+                retreat_test();
+                std::cout << "here right?\n";
+                elements.emplace_back(parse_expr());
+                expect(TOKEN_SEMICOLON);
+            }
+        }
         else if (match(TOKEN_IF))
             elements.emplace_back(parse_if_stmt());
         else if (match(TOKEN_WHILE))
@@ -394,11 +421,24 @@ std::unique_ptr<VarAssignNode> Parser::parse_var_assign()
 
     advance();
 
-    expect_and_advance(TOKEN_ASSIGN);
+    TokenType assign_type = current_token.type;
+
+    expect_and_advance(assign_tokens);
 
     std::unique_ptr<ASTNode> expr = parse_expr();
 
-    return std::make_unique<VarAssignNode>(std::move(var), std::move(expr));
+    if (assign_type == TOKEN_ASSIGN)
+    {
+        return std::make_unique<VarAssignNode>(std::move(var), std::move(expr));
+    }
+    else
+    {
+        auto bin_op_type = get_bin_op_type(assign_type);
+        auto var_clone = std::make_unique<VarNode>(*var); // Clone var for the BinaryNode
+        auto right = std::make_unique<BinaryNode>(bin_op_type, std::move(var_clone), std::move(expr));
+
+        return std::make_unique<VarAssignNode>(std::move(var), std::move(right));
+    }
 }
 
 std::unique_ptr<ASTNode> Parser::parse_expr(int min_presedence)
@@ -552,6 +592,9 @@ std::unique_ptr<ASTNode> Parser::parse_factor()
 void Parser::parse_args_list(std::unique_ptr<FuncCallNode> &func_call)
 {
     advance();
+
+    if (match(TOKEN_RPAREN))
+        return;
 
     std::unique_ptr<ASTNode> expr = parse_expr();
 

@@ -51,6 +51,16 @@ BinOpType get_bin_op_type(const TokenType &t)
         return BinOpType::LESS_OR_EQUAL;
     case TOKEN_GE:
         return BinOpType::GREATER_OR_EQUAL;
+    case TOKEN_PLUS_EQUALS:
+        return BinOpType::ADD;
+    case TOKEN_MINUS_EQUALS:
+        return BinOpType::SUB;
+    case TOKEN_STAR_EQUALS:
+        return BinOpType::MUL;
+    case TOKEN_SLASH_EQUALS:
+        return BinOpType::DIV;
+    case TOKEN_MODULUS_EQUALS:
+        return BinOpType::MOD;
     default:
         return BinOpType::ADD;
     }
@@ -262,10 +272,12 @@ void PostfixNode::print(int tabs)
         case TOKEN_DECREMENT:
             return "DECREMENT";
         }
-        return "";
+        return "Unknown";
     };
 
     std::cout << std::string(tabs, ' ') << "Postfix: " << std::endl;
+    std::cout << std::string(tabs + 1, ' ') << "Type: " << get_postfix_op_string(op) << std::endl;
+    value->print(tabs + 1);
 }
 
 BinaryNode::BinaryNode(BinOpType o, std::unique_ptr<ASTNode> l, std::unique_ptr<ASTNode> r) : ASTNode(NodeType::NODE_BINARY), op(o), left(std::move(l)), right(std::move(r)) {}

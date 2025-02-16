@@ -77,6 +77,11 @@ void SemanticAnalyser::analyse_node(ASTNode *node)
         analyse_addr_of((AddrOfNode *)node);
     else if (node->type == NodeType::NODE_DEREF)
         analyse_deref((DerefNode *)node);
+    else if (node->type == NodeType::NODE_POSTFIX)
+    {
+        PostfixNode *postfix = dynamic_cast<PostfixNode *>(node);
+        analyse_node(postfix->value.get());
+    }
 }
 
 void SemanticAnalyser::analyse_cast(CastNode *node)
@@ -118,8 +123,8 @@ void SemanticAnalyser::analyser_var_assign(VarAssignNode *node)
 
     Type common_type = get_common_type(var_type, value_type);
 
-    // if (common_type != var_type)
-    // throw std::runtime_error("Semantic Error: Conflicting types " + get_type_str(var_type) + " and " + get_type_str(value_type) + " in assignment of " + node->var->name);
+    if (common_type != var_type)
+        throw std::runtime_error("Semantic Error: Conflicting types " + get_type_str(var_type) + " and " + get_type_str(value_type) + " in assignment of " + node->var->name);
 }
 
 void SemanticAnalyser::analyse_rtn(RtnNode *node)
@@ -382,7 +387,7 @@ Type SemanticAnalyser::get_common_type(Type type1, Type type2)
 
     // common type is double if either is a double
     if (type1 == Type::DOUBLE || type2 == Type::DOUBLE)
-        return type1;
+        return Type::DOUBLE;
 
     // If they’re the same size, choose the signed type
     if (get_type_size(type1) == get_type_size(type2))

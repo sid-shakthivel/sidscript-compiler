@@ -280,6 +280,17 @@ void TacGenerator::generate_tac_element(ASTNode *element)
     {
         UnaryNode *unary = (UnaryNode *)element;
     }
+    else if (element->type == NodeType::NODE_POSTFIX)
+    {
+        PostfixNode *postfix = (PostfixNode *)element;
+
+        std::string result = generate_tac_expr(postfix->value.get());
+
+        if (postfix->op == TokenType::TOKEN_INCREMENT)
+            instructions.emplace_back(TACOp::ADD, result, "1", result, postfix->type);
+        else if (postfix->op == TokenType::TOKEN_DECREMENT)
+            instructions.emplace_back(TACOp::SUB, result, "1", result, postfix->type);
+    }
 }
 
 std::string TacGenerator::generate_tac_expr(ASTNode *expr, Type type)
