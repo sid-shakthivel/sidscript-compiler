@@ -150,14 +150,6 @@ int SymbolTable::align_to(int size, int alignment)
 
 void SymbolTable::adjust_stack(Type &type)
 {
-    if (type == Type::LONG || type == Type::ULONG || type == Type::DOUBLE || type == Type::INT_POINTER)
-    {
-        stack_size = align_to(stack_size, 8);
-        stack_size += 8;
-    }
-    else if (type == Type::INT || type == Type::UINT)
-    {
-        stack_size = align_to(stack_size, 4);
-        stack_size += 4;
-    }
+    stack_size = align_to(stack_size, type.get_size());
+    stack_size += type.get_size();
 }

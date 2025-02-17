@@ -42,7 +42,4 @@ private:
     void analyse_deref(DerefNode *node);
 
     Type infer_type(ASTNode *node);
-    int get_type_size(Type &type);
-    bool is_signed(Type &type);
-    Type get_common_type(Type type1, Type type2);
 };

@@ -303,15 +303,15 @@ std::string TacGenerator::generate_tac_expr(ASTNode *expr, Type type)
     {
         CastNode *cast = (CastNode *)expr;
 
-        if (cast->target_type == Type::DOUBLE && cast->expr.get()->type == NodeType::NODE_NUMBER)
+        if (cast->target_type.has_base_type(BaseType::DOUBLE) && cast->expr.get()->type == NodeType::NODE_NUMBER)
         {
             // return generate_tac_expr(cast->expr.get(), cast->target_type);
             std::string const_var = gen_new_const_label();
-            current_st->declare_const_var(const_var, Type::DOUBLE);
+            current_st->declare_const_var(const_var, Type(BaseType::DOUBLE));
 
             std::string result = generate_tac_expr(cast->expr.get(), cast->target_type);
 
-            literal8_vars.emplace_back(TACOp::ASSIGN, const_var, "", result, Type::DOUBLE);
+            literal8_vars.emplace_back(TACOp::ASSIGN, const_var, "", result, Type(BaseType::DOUBLE));
 
             return const_var;
         }
@@ -320,27 +320,27 @@ std::string TacGenerator::generate_tac_expr(ASTNode *expr, Type type)
         current_st->declare_temp_var(temp_var, cast->target_type);
 
         std::string result = generate_tac_expr(cast->expr.get(), cast->target_type);
-        instructions.emplace_back(TACOp::CONVERT_TYPE, result, get_type_str(cast->src_type), temp_var, cast->target_type);
+        instructions.emplace_back(TACOp::CONVERT_TYPE, result, cast->src_type.to_string(), temp_var, cast->target_type);
 
         return temp_var;
     }
     else if (expr->type == NodeType::NODE_NUMBER)
     {
         NumericLiteral *num = (NumericLiteral *)expr;
-        if (num->value_type == Type::UINT)
+        if (num->value_type.has_base_type(BaseType::UINT))
             return std::to_string(((UIntegerLiteral *)num)->value);
-        else if (num->value_type == Type::ULONG)
+        else if (num->value_type.has_base_type(BaseType::ULONG))
             return std::to_string(((ULongLiteral *)num)->value);
-        else if (num->value_type == Type::LONG)
+        else if (num->value_type.has_base_type(BaseType::LONG))
             return std::to_string(((LongLiteral *)num)->value);
-        else if (num->value_type == Type::INT)
+        else if (num->value_type.has_base_type(BaseType::INT))
             return std::to_string(((IntegerLiteral *)num)->value);
-        else if (num->value_type == Type::DOUBLE)
+        else if (num->value_type.has_base_type(BaseType::DOUBLE))
         {
             // All double literals must be placed in a constant section
             std::string const_val = gen_new_const_label();
-            current_st->declare_const_var(const_val, Type::DOUBLE);
-            literal8_vars.emplace_back(TACOp::ASSIGN, const_val, "", std::to_string(((DoubleLiteral *)num)->value), Type::DOUBLE);
+            current_st->declare_const_var(const_val, BaseType::DOUBLE);
+            literal8_vars.emplace_back(TACOp::ASSIGN, const_val, "", std::to_string(((DoubleLiteral *)num)->value), Type(BaseType::DOUBLE));
             return const_val;
         }
     }
@@ -353,10 +353,10 @@ std::string TacGenerator::generate_tac_expr(ASTNode *expr, Type type)
         std::string temp_var = gen_new_temp_var();
         current_st->declare_temp_var(temp_var, unary->type);
 
-        if (unary->type == Type::DOUBLE)
+        if (unary->type.has_base_type(BaseType::DOUBLE))
         {
-            current_st->declare_const_var("_.Lsign_bit", Type::DOUBLE);
-            literal8_vars.emplace_back(TACOp::ASSIGN, "_.Lsign_bit", "", "9223372036854775808", Type::DOUBLE);
+            current_st->declare_const_var("_.Lsign_bit", Type(BaseType::DOUBLE));
+            literal8_vars.emplace_back(TACOp::ASSIGN, "_.Lsign_bit", "", "9223372036854775808", Type(BaseType::DOUBLE));
             instructions.emplace_back(convert_UnaryOpType_to_TACOp(unary->op), result, "_.Lsign_bit", temp_var, unary->type);
 
             return temp_var;
@@ -432,10 +432,10 @@ std::string TacGenerator::generate_tac_expr(ASTNode *expr, Type type)
                 else if (arg->type == NodeType::NODE_NUMBER)
                 {
                     NumericLiteral *num_literal = dynamic_cast<IntegerLiteral *>(arg);
-                    if (num_literal->value_type == Type::INT)
-                        instructions.emplace_back(TACOp::MOV, registers[i], "$" + std::to_string(((IntegerLiteral *)num_literal)->value), "", Type::INT);
-                    else if (num_literal->value_type == Type::LONG)
-                        instructions.emplace_back(TACOp::MOV, registers[i], "$" + std::to_string(((LongLiteral *)num_literal)->value), "", Type::LONG);
+                    if (num_literal->value_type.has_base_type(BaseType::INT))
+                        instructions.emplace_back(TACOp::MOV, registers[i], "$" + std::to_string(((IntegerLiteral *)num_literal)->value), "", Type(BaseType::INT));
+                    else if (num_literal->value_type.has_base_type(BaseType::LONG))
+                        instructions.emplace_back(TACOp::MOV, registers[i], "$" + std::to_string(((LongLiteral *)num_literal)->value), "", Type(BaseType::LONG));
                 }
             }
             else
@@ -456,7 +456,7 @@ std::string TacGenerator::generate_tac_expr(ASTNode *expr, Type type)
             instructions.emplace_back(TACOp::ALLOC_STACK, "8");
 
         std::string temp_var = gen_new_temp_var();
-        current_st->declare_temp_var(temp_var, Type::INT);
+        current_st->declare_temp_var(temp_var, Type(BaseType::INT));
 
         instructions.emplace_back(TACOp::MOV, temp_var, "%eax");
 
@@ -566,22 +566,8 @@ std::string TacGenerator::gen_tac_str(TACInstruction &instr)
     if (!instr.result.empty())
         str += " -> " + instr.result;
 
-    if (instr.type != Type::VOID)
-        str += " (" + get_type_str(instr.type) + ")";
+    if (!instr.type.has_base_type(BaseType::VOID))
+        str += " (" + instr.type.to_string() + ")";
 
     return str;
 }
-
-// void TacGenerator::generate_tac_expr(PointerDerefNode* node) {
-//     std::string ptr = generate_tac_expr(node->expr.get());
-//     std::string temp = gen_new_temp();
-//     instructions.emplace_back(TACOp::DEREF, ptr, "", temp);
-//     return temp;
-// }
-
-// void TacGenerator::generate_tac_expr(AddressOfNode* node) {
-//     std::string var = generate_tac_expr(node->expr.get());
-//     std::string temp = gen_new_temp();
-//     instructions.emplace_back(TACOp::ADDRESS_OF, var, "", temp);
-//     return temp;
-// }

@@ -34,7 +34,7 @@ struct Symbol
     Linkage linkage = Linkage::None;
     StorageDuration storage_duration = StorageDuration::Automatic;
     std::string unique_name;
-    Type type = Type::VOID;
+    Type type = Type(BaseType::VOID);
     bool is_literal8 = false;
 
     Symbol(std::string n, int o, bool it);
@@ -61,7 +61,7 @@ public:
     void enter_scope();
     void exit_scope();
 
-    std::tuple<bool, std::string> declare_var(const std::string &name, bool is_static = false, Type type = Type::INT);
+    std::tuple<bool, std::string> declare_var(const std::string &name, bool is_static = false, Type type = Type(BaseType::INT));
     void declare_temp_var(const std::string &name, Type type);
     void declare_const_var(const std::string &name, Type type);
 

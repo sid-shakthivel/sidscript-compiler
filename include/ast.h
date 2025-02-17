@@ -56,7 +56,7 @@ enum class NodeType
     NODE_ADDR_OF
 };
 
-enum class Type
+enum class BaseType
 {
     INT,
     LONG,
@@ -64,7 +64,44 @@ enum class Type
     ULONG,
     DOUBLE,
     VOID,
-    INT_POINTER
+    STRUCT
+};
+
+class Type
+{
+private:
+    BaseType base_type;
+    int pointer_level = 0;
+    std::vector<int> array_sizes;
+    std::optional<std::string> struct_name;
+
+public:
+    Type(BaseType base);
+    Type(BaseType base, int ptr_level);
+    Type(std::string struct_name);
+
+    Type &addArrayDimension(int size);
+
+    bool is_pointer() const;
+    bool is_array() const;
+    bool is_struct() const;
+    BaseType get_base_type() const;
+    bool has_base_type(BaseType other) const;
+
+    bool is_signed() const;
+
+    std::string to_string() const;
+
+    size_t get_size() const;
+    bool is_size_8() const;
+
+    // Type compatibility checks
+    bool can_assign_from(const Type &other) const;
+    bool can_convert_to(const Type &other) const;
+
+    // Equality operators
+    bool operator==(const Type &other) const;
+    bool operator!=(const Type &other) const;
 };
 
 enum class Specifier
@@ -78,7 +115,6 @@ UnaryOpType
 get_unary_op_type(const TokenType &t);
 BinOpType get_bin_op_type(const TokenType &t);
 Specifier get_specifier(const TokenType &t);
-std::string get_type_str(Type &t);
 Type get_type_from_str(std::string &t);
 
 class ASTNode
@@ -95,7 +131,7 @@ class NumericLiteral : public ASTNode
 {
 public:
     NumericLiteral(NodeType t);
-    Type value_type;
+    Type value_type = Type(BaseType::VOID);
 
     virtual ~NumericLiteral() = default;
 };
@@ -152,7 +188,7 @@ public:
     Type target_type;
     Type src_type;
 
-    CastNode(std::unique_ptr<ASTNode> e, Type t1, Type t2 = Type::VOID);
+    CastNode(std::unique_ptr<ASTNode> e, Type t1, Type t2 = Type(BaseType::VOID));
     void print(int tabs) override;
 };
 
@@ -171,7 +207,7 @@ public:
     std::string name;
     std::vector<std::unique_ptr<ASTNode>> params;
     std::vector<std::unique_ptr<ASTNode>> elements;
-    Type return_type;
+    Type return_type = Type(BaseType::VOID);
     Specifier specifier;
 
     FuncNode(const std::string &n, Specifier s = Specifier::NONE);
@@ -203,7 +239,7 @@ class UnaryNode : public ASTNode
 public:
     UnaryOpType op;
     std::unique_ptr<ASTNode> value;
-    Type type = Type::VOID;
+    Type type = Type(BaseType::VOID);
 
     UnaryNode(UnaryOpType o, std::unique_ptr<ASTNode> v);
     void print(int tabs) override;
@@ -214,7 +250,7 @@ class PostfixNode : public ASTNode
 public:
     TokenType op;
     std::unique_ptr<ASTNode> value;
-    Type type = Type::VOID;
+    Type type = Type(BaseType::VOID);
 
     PostfixNode(TokenType o, std::unique_ptr<ASTNode> v);
     void print(int tabs) override;
@@ -226,7 +262,7 @@ public:
     BinOpType op;
     std::unique_ptr<ASTNode> left;
     std::unique_ptr<ASTNode> right;
-    Type type = Type::VOID;
+    Type type = Type(BaseType::VOID);
 
     BinaryNode(BinOpType o, std::unique_ptr<ASTNode> l, std::unique_ptr<ASTNode> r);
     void print(int tabs) override;
@@ -322,7 +358,7 @@ class DerefNode : public ASTNode
 {
 public:
     std::unique_ptr<ASTNode> expr;
-    Type type = Type::VOID;
+    Type type = Type(BaseType::VOID);
 
     DerefNode(std::unique_ptr<ASTNode> expr);
     void print(int tabs) override;
@@ -332,47 +368,8 @@ class AddrOfNode : public ASTNode
 {
 public:
     std::unique_ptr<ASTNode> expr;
-    Type type = Type::VOID;
+    Type type = Type(BaseType::VOID);
 
     AddrOfNode(std::unique_ptr<ASTNode> expr);
     void print(int tabs) override;
 };
-
-// New type
-/*
-enum class BaseType
-{
-    INT,
-    LONG,
-    UINT,
-    ULONG,
-    DOUBLE,
-    VOID,
-    STRUCT,  // New type for user-defined structs
-};
-
-struct TypeInfo
-{
-    BaseType baseType;
-    int pointerLevel = 0;  // 0 = not a pointer, 1 = *, 2 = **, etc.
-    std::vector<int> arraySizes; // Array dimensions (e.g., [3] for int[3], [3, 4] for int[3][4])
-    std::optional<std::string> structName; // Only used if `baseType == STRUCT`
-
-    // Constructor for primitive types
-    TypeInfo(BaseType baseType, int pointerLevel = 0)
-        : baseType(baseType), pointerLevel(pointerLevel) {}
-
-    // Constructor for structs
-    TypeInfo(std::string structName, int pointerLevel = 0)
-        : baseType(BaseType::STRUCT), pointerLevel(pointerLevel), structName(structName) {}
-
-    // Check if this type is a pointer
-    bool isPointer() const { return pointerLevel > 0; }
-
-    // Check if this type is an array
-    bool isArray() const { return !arraySizes.empty(); }
-
-    // Check if this type is a struct
-    bool isStruct() const { return baseType == BaseType::STRUCT; }
-};
-*/

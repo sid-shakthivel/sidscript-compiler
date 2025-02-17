@@ -109,10 +109,10 @@ void Assembler::assemble(const std::vector<TACInstruction> &instructions)
 void Assembler::load_to_reg(const std::string &operand, const char *reg, Type type)
 {
 	Symbol *rhs = gst->get_symbol(current_func, operand);
-	std::string mov_text = is_8_bytes(type) ? "movq" : "movl";
+	std::string mov_text = type.is_size_8() ? "movq" : "movl";
 
 	std::string reg_name = reg;
-	reg_name += !is_8_bytes(type) && strcmp(reg, "%eax") != 0 ? "d" : "";
+	reg_name += !type.is_size_8() && strcmp(reg, "%eax") != 0 ? "d" : "";
 
 	if (rhs == nullptr)
 		fprintf(file, "\t%s\t$%s, %s\n", mov_text.c_str(), operand.c_str(), reg_name.c_str());
@@ -128,10 +128,10 @@ void Assembler::load_to_reg(const std::string &operand, const char *reg, Type ty
 void Assembler::store_from_reg(const std::string &operand, const char *reg, Type type)
 {
 	Symbol *rhs = gst->get_symbol(current_func, operand);
-	std::string mov_text = is_8_bytes(type) ? "movq" : "movl";
+	std::string mov_text = type.is_size_8() ? "movq" : "movl";
 
 	std::string reg_name = reg;
-	reg_name += !is_8_bytes(type) && strcmp(reg, "%eax") != 0 ? "d" : "";
+	reg_name += !type.is_size_8() && strcmp(reg, "%eax") != 0 ? "d" : "";
 
 	if (rhs != nullptr)
 	{
@@ -146,17 +146,17 @@ void Assembler::store_from_reg(const std::string &operand, const char *reg, Type
 
 void Assembler::apply_bin_op_to_reg(const std::string &operand, const char *reg, const std::string &op, Type type)
 {
-	if (type == Type::DOUBLE)
+	if (type.has_base_type(BaseType::DOUBLE))
 	{
 		fprintf(file, "\t%s\t%s, %%xmm0\n", op.c_str(), reg);
 		return;
 	}
 
 	Symbol *rhs = gst->get_symbol(current_func, operand);
-	std::string op_text = is_8_bytes(type) ? op + "q" : op + "l";
+	std::string op_text = type.is_size_8() ? op + "q" : op + "l";
 
 	std::string reg_name = reg;
-	reg_name += !is_8_bytes(type) && strcmp(reg, "%eax") != 0 ? "d" : "";
+	reg_name += !type.is_size_8() && strcmp(reg, "%eax") != 0 ? "d" : "";
 
 	if (rhs == nullptr)
 		fprintf(file, "\t%s\t$%s, %s\n", op_text.c_str(), operand.c_str(), reg_name.c_str());
@@ -169,10 +169,10 @@ void Assembler::compare_and_store_result(const std::string &operand_a, const std
 	load_to_reg(operand_a, reg, type);
 
 	Symbol *potential_var_b = gst->get_symbol(current_func, operand_b);
-	std::string cmp_text = is_8_bytes(type) ? "cmpq" : "cmpl";
+	std::string cmp_text = type.is_size_8() ? "cmpq" : "cmpl";
 
 	std::string reg_name = reg;
-	reg_name += !is_8_bytes(type) && strcmp(reg, "%eax") != 0 ? "d" : "";
+	reg_name += !type.is_size_8() && strcmp(reg, "%eax") != 0 ? "d" : "";
 
 	if (potential_var_b == nullptr)
 		fprintf(file, "\t%s\t$%s, %s\n", cmp_text.c_str(), operand_b.c_str(), reg_name.c_str());
@@ -180,7 +180,7 @@ void Assembler::compare_and_store_result(const std::string &operand_a, const std
 		fprintf(file, "\t%s\t%d(%%rbp), %s\n", cmp_text.c_str(), potential_var_b->stack_offset, reg_name.c_str());
 
 	std::string reg_b = reg_name;
-	if (!is_8_bytes(type))
+	if (!type.is_size_8())
 		reg_b.pop_back();
 	reg_b += "b";
 
@@ -220,8 +220,8 @@ void Assembler::handle_assign(TACInstruction &instruction)
 	{
 		Symbol *lhs = gst->get_symbol(current_func, instruction.arg1);
 		Symbol *rhs = gst->get_symbol(current_func, instruction.arg2);
-		std::string mov_text = is_8_bytes(instruction.type) ? "movq" : "movl";
-		std::string reg = is_8_bytes(instruction.type) ? "%r10" : "%r10d";
+		std::string mov_text = instruction.type.is_size_8() ? "movq" : "movl";
+		std::string reg = instruction.type.is_size_8() ? "%r10" : "%r10d";
 
 		fprintf(file, "\t# %s\n", TacGenerator::gen_tac_str(instruction).c_str());
 
@@ -268,7 +268,7 @@ void Assembler::handle_assign(TACInstruction &instruction)
 		if (instruction.arg2 == "global")
 			fprintf(file, "\t.global\t_%s\n", instruction.arg1.c_str());
 		fprintf(file, "_%s:\n", instruction.arg1.c_str());
-		if (is_8_bytes(instruction.type))
+		if (instruction.type.is_size_8())
 			fprintf(file, "\t.zero 8\n\n");
 		else
 			fprintf(file, "\t.zero 4\n\n");
@@ -283,7 +283,7 @@ void Assembler::handle_assign(TACInstruction &instruction)
 				fprintf(file, ".global	_%s\n", instruction.arg1.c_str());
 			fprintf(file, "_%s:\n", instruction.arg1.c_str());
 
-			if (is_8_bytes(instruction.type))
+			if (instruction.type.is_size_8())
 				fprintf(file, "\t.quad %s\n\n", instruction.result.c_str());
 			else
 				fprintf(file, "\t.long %s\n\n", instruction.result.c_str());
@@ -291,7 +291,7 @@ void Assembler::handle_assign(TACInstruction &instruction)
 	}
 	else if (current_var_type == VarType::LITERAL8)
 	{
-		if (instruction.type != Type::DOUBLE)
+		if (!instruction.type.has_base_type(BaseType::DOUBLE))
 			return;
 
 		fprintf(file, "_%s:\n", instruction.arg1.c_str());
@@ -305,7 +305,7 @@ void Assembler::handle_assign(TACInstruction &instruction)
 
 void Assembler::handle_return(TACInstruction &instruction)
 {
-	std::string reg = is_8_bytes(instruction.type) ? "%rax" : "%eax";
+	std::string reg = instruction.type.is_size_8() ? "%rax" : "%eax";
 	fprintf(file, "\t# %s\n", TacGenerator::gen_tac_str(instruction).c_str());
 	load_to_reg(instruction.arg1, reg.c_str(), instruction.type);
 	fprintf(file, "\tjmp\t.L%s_end\n", current_func.c_str());
@@ -315,27 +315,27 @@ void Assembler::handle_bin_op(TACInstruction &instruction, const std::string &op
 {
 	fprintf(file, "\t# %s\n", TacGenerator::gen_tac_str(instruction).c_str());
 
-	load_to_reg(instruction.arg1, instruction.type == Type::DOUBLE ? "%xmm0" : "%r10", instruction.type);
+	load_to_reg(instruction.arg1, instruction.type.has_base_type(BaseType::DOUBLE) ? "%xmm0" : "%r10", instruction.type);
 
-	if (instruction.type == Type::DOUBLE)
-		load_to_reg(instruction.arg2, instruction.type == Type::DOUBLE ? "%xmm1" : "%r10", instruction.type);
+	if (instruction.type.has_base_type(BaseType::DOUBLE))
+		load_to_reg(instruction.arg2, "%xmm1", instruction.type);
 
 	std::string actual_op = op;
-	if (op == "imul" && !is_signed(instruction.type))
+	if (op == "imul" && !instruction.type.is_signed())
 		actual_op = "mul"; // unsigned multiplication
 
-	if (instruction.type == Type::DOUBLE)
+	if (instruction.type.has_base_type(BaseType::DOUBLE))
 		actual_op = op + "sd";
 
-	apply_bin_op_to_reg(instruction.arg2, instruction.type == Type::DOUBLE ? "%xmm1" : "%r10", actual_op, instruction.type);
-	store_from_reg(instruction.result, instruction.type == Type::DOUBLE ? "%xmm0" : "%r10", instruction.type);
+	apply_bin_op_to_reg(instruction.arg2, instruction.type.has_base_type(BaseType::DOUBLE) ? "%xmm1" : "%r10", actual_op, instruction.type);
+	store_from_reg(instruction.result, instruction.type.has_base_type(BaseType::DOUBLE) ? "%xmm0" : "%r10", instruction.type);
 	fprintf(file, "\n");
 }
 
 void Assembler::handle_cmp_op(TACInstruction &instruction, const std::string &op)
 {
 	std::string actual_op = op;
-	if (!is_signed(instruction.type))
+	if (!instruction.type.is_signed())
 	{
 		if (op == "setl")
 			actual_op = "setb"; // below
@@ -349,7 +349,7 @@ void Assembler::handle_cmp_op(TACInstruction &instruction, const std::string &op
 
 	fprintf(file, "\t# %s\n", TacGenerator::gen_tac_str(instruction).c_str());
 
-	if (instruction.type == Type::DOUBLE)
+	if (instruction.type.has_base_type(BaseType::DOUBLE))
 	{
 		load_to_reg(instruction.arg1, "%xmm0", instruction.type);
 		load_to_reg(instruction.arg2, "%xmm1", instruction.type);
@@ -374,16 +374,16 @@ void Assembler::handle_if(TACInstruction &instruction)
 {
 	fprintf(file, "\t# %s\n", TacGenerator::gen_tac_str(instruction).c_str());
 	Symbol *potential_var = gst->get_symbol(current_func, instruction.arg1);
-	std::string cmp_text = is_8_bytes(instruction.type) ? "cmpq" : "cmpl";
+	std::string cmp_text = instruction.type.is_size_8() ? "cmpq" : "cmpl";
 
 	if (potential_var == nullptr)
 		fprintf(file, "\t%s\t$0, %s\n", cmp_text.c_str(), instruction.arg1.c_str());
 	else
 		fprintf(file, "\t%s\t$0, %d(%%rbp)\n", cmp_text.c_str(), potential_var->stack_offset);
 
-	if (instruction.type == Type::DOUBLE)
+	if (instruction.type.has_base_type(BaseType::DOUBLE))
 		fprintf(file, "\tjb\t%s\n", instruction.result.c_str());
-	else if (!is_signed(instruction.type))
+	else if (!instruction.type.is_signed())
 		fprintf(file, "\tjne\t%s\n", instruction.result.c_str());
 	else
 		fprintf(file, "\tjg\t%s\n", instruction.result.c_str());
@@ -409,7 +409,7 @@ void Assembler::handle_mov(TACInstruction &instruction)
 	fprintf(file, "\t# %s\n", TacGenerator::gen_tac_str(instruction).c_str());
 	Symbol *potential_var = gst->get_symbol(current_func, instruction.arg1);
 	Symbol *potential_var_2 = gst->get_symbol(current_func, instruction.arg2);
-	std::string mov_text = is_8_bytes(instruction.type) ? "movq" : "movl";
+	std::string mov_text = instruction.type.is_size_8() ? "movq" : "movl";
 
 	if (potential_var == nullptr && potential_var_2 == nullptr)
 		fprintf(file, "\t%s\t%s, %s\n", mov_text.c_str(), instruction.arg2.c_str(), instruction.arg1.c_str());
@@ -430,7 +430,7 @@ void Assembler::handle_div(TACInstruction &instruction)
 {
 	fprintf(file, "\t# %s\n", TacGenerator::gen_tac_str(instruction).c_str());
 
-	if (instruction.type == Type::DOUBLE)
+	if (instruction.type.has_base_type(BaseType::DOUBLE))
 	{
 		load_to_reg(instruction.arg1, "%xmm0", instruction.type);
 		load_to_reg(instruction.arg2, "%xmm1", instruction.type);
@@ -443,15 +443,15 @@ void Assembler::handle_div(TACInstruction &instruction)
 
 	load_to_reg(instruction.arg1, "%rax", instruction.type);
 
-	if (is_signed(instruction.type))
-		fprintf(file, "\t%s\n", is_8_bytes(instruction.type) ? "cqto" : "cdq"); // Sign-extend for signed division
+	if (instruction.type.is_signed())
+		fprintf(file, "\t%s\n", instruction.type.is_size_8() ? "cqto" : "cdq"); // Sign-extend for signed division
 	else
 		fprintf(file, "\txor\t%%rdx, %%rdx\n"); // Clear rdx for unsigned division
 
 	load_to_reg(instruction.arg2, "%r10", instruction.type);
 	fprintf(file, "\t%s\t%%r10%s\n",
-			is_signed(instruction.type) ? "idiv" : "div",
-			instruction.type == Type::INT ? "d" : "");
+			instruction.type.is_signed() ? "idiv" : "div",
+			instruction.type.has_base_type(BaseType::INT) ? "d" : "");
 	store_from_reg(instruction.result, "%rax", instruction.type);
 }
 
@@ -460,15 +460,15 @@ void Assembler::handle_mod(TACInstruction &instruction)
 	fprintf(file, "\t# %s\n", TacGenerator::gen_tac_str(instruction).c_str());
 	load_to_reg(instruction.arg1, "%rax", instruction.type);
 
-	if (is_signed(instruction.type))
-		fprintf(file, "\t%s\n", is_8_bytes(instruction.type) ? "cqto" : "cdq");
+	if (instruction.type.is_signed())
+		fprintf(file, "\t%s\n", instruction.type.is_size_8() ? "cqto" : "cdq");
 	else
 		fprintf(file, "\txor\t%%rdx, %%rdx\n");
 
 	load_to_reg(instruction.arg2, "%r10", instruction.type);
 	fprintf(file, "\t%s\t%%r10%s\n",
-			is_signed(instruction.type) ? "idiv" : "div",
-			instruction.type == Type::INT ? "d" : "");
+			instruction.type.is_signed() ? "idiv" : "div",
+			instruction.type.has_base_type(BaseType::INT) ? "d" : "");
 	store_from_reg(instruction.result, "%rdx", instruction.type);
 }
 
@@ -476,7 +476,7 @@ void Assembler::handle_unary_op(TACInstruction &instruction, const std::string &
 {
 	fprintf(file, "\t# %s\n", TacGenerator::gen_tac_str(instruction).c_str());
 
-	if (instruction.type == Type::DOUBLE && op == "neg")
+	if (instruction.type.has_base_type(BaseType::DOUBLE) && op == "neg")
 	{
 		load_to_reg(instruction.arg1, "%xmm0", instruction.type);
 		load_to_reg(instruction.arg2, "%xmm1", instruction.type);
@@ -489,9 +489,9 @@ void Assembler::handle_unary_op(TACInstruction &instruction, const std::string &
 		return;
 	}
 
-	std::string op_text = is_8_bytes(instruction.type) ? op + "q" : op + "l";
+	std::string op_text = instruction.type.is_size_8() ? op + "q" : op + "l";
 	load_to_reg(instruction.arg1, "%r10", instruction.type);
-	fprintf(file, "\t%s\t%%r10%s\n", op_text.c_str(), instruction.type == Type::INT ? "d" : "");
+	fprintf(file, "\t%s\t%%r10%s\n", op_text.c_str(), instruction.type.has_base_type(BaseType::INT) ? "d" : "");
 	store_from_reg(instruction.result, "%r10", instruction.type);
 }
 
@@ -547,46 +547,46 @@ void Assembler::handle_convert_type(TACInstruction &instruction)
 	fprintf(file, "\t# %s\n", TacGenerator::gen_tac_str(instruction).c_str());
 
 	// int -> long (sign extend)
-	if (src_type == Type::INT && dst_type == Type::LONG)
+	if (src_type.has_base_type(BaseType::INT) && dst_type.has_base_type(BaseType::LONG))
 	{
 		fprintf(file, "\tmovl %d(%%rbp), %%r10d\n", src->stack_offset);
 		fprintf(file, "\tmovslq %%r10d, %%r10\n");
 		fprintf(file, "\tmovq %%r10, %d(%%rbp)\n", dst->stack_offset);
 	}
 	// uint -> ulong (zero extend)
-	else if (src_type == Type::UINT && dst_type == Type::ULONG)
+	else if (src_type.has_base_type(BaseType::UINT) && dst_type.has_base_type(BaseType::ULONG))
 	{
 		fprintf(file, "\tmovl %d(%%rbp), %%r10d\n", src->stack_offset);
 		fprintf(file, "\tmovzxd %%r10d, %%r10\n"); // zero extend using movzx
 		fprintf(file, "\tmovq %%r10, %d(%%rbp)\n", dst->stack_offset);
 	}
 	// long/ulong -> int/uint (truncate)
-	else if ((src_type == Type::LONG || src_type == Type::ULONG) &&
-			 (dst_type == Type::INT || dst_type == Type::UINT))
+	else if ((src_type.has_base_type(BaseType::LONG) || src_type.has_base_type(BaseType::ULONG)) &&
+			 (dst_type.has_base_type(BaseType::INT) || dst_type.has_base_type(BaseType::UINT)))
 	{
 		fprintf(file, "\tmovq %d(%%rbp), %%r10\n", src->stack_offset);
 		fprintf(file, "\tmovl %%r10d, %d(%%rbp)\n", dst->stack_offset);
-		if (dst_type == Type::UINT)
+		if (dst_type.has_base_type(BaseType::UINT))
 			fprintf(file, "\tandl $0xFFFFFFFF, %d(%%rbp)\n", dst->stack_offset);
 	}
 	// int <-> uint (reinterpret, but mask for uint)
-	else if ((src_type == Type::INT && dst_type == Type::UINT) ||
-			 (src_type == Type::UINT && dst_type == Type::INT))
+	else if ((src_type.has_base_type(BaseType::INT) && dst_type.has_base_type(BaseType::UINT)) ||
+			 (src_type.has_base_type(BaseType::UINT) && dst_type.has_base_type(BaseType::INT)))
 	{
 		fprintf(file, "\tmovl %d(%%rbp), %%r10d\n", src->stack_offset);
 		fprintf(file, "\tmovl %%r10d, %d(%%rbp)\n", dst->stack_offset);
-		if (dst_type == Type::UINT)
+		if (dst_type.has_base_type(BaseType::UINT))
 			fprintf(file, "\tandl $0xFFFFFFFF, %d(%%rbp)\n", dst->stack_offset);
 	}
 	// double -> int
-	else if (src_type == Type::DOUBLE && dst_type == Type::INT)
+	else if (src_type.has_base_type(BaseType::DOUBLE) && dst_type.has_base_type(BaseType::INT))
 	{
 		fprintf(file, "\tmovsd %d(%%rbp), %%xmm0\n", src->stack_offset);
 		fprintf(file, "\tcvttsd2si %%xmm0, %%r10d\n"); // truncate double to signed int
 		fprintf(file, "\tmovl %%r10d, %d(%%rbp)\n", dst->stack_offset);
 	}
 	// double -> uint
-	else if (src_type == Type::DOUBLE && dst_type == Type::UINT)
+	else if (src_type.has_base_type(BaseType::DOUBLE) && dst_type.has_base_type(BaseType::UINT))
 	{
 		fprintf(file, "\tmovsd %d(%%rbp), %%xmm0\n", src->stack_offset);
 		fprintf(file, "\tcvttsd2si %%xmm0, %%r10d\n"); // truncate double to signed int
@@ -594,14 +594,14 @@ void Assembler::handle_convert_type(TACInstruction &instruction)
 		fprintf(file, "\tandl $0xFFFFFFFF, %d(%%rbp)\n", dst->stack_offset);
 	}
 	// int -> double
-	else if (src_type == Type::INT && dst_type == Type::DOUBLE)
+	else if (src_type.has_base_type(BaseType::INT) && dst_type.has_base_type(BaseType::DOUBLE))
 	{
 		fprintf(file, "\tmovl %d(%%rbp), %%r10d\n", src->stack_offset);
 		fprintf(file, "\tcvtsi2sd %%r10d, %%xmm0\n"); // convert signed int to double
 		fprintf(file, "\tmovsd %%xmm0, %d(%%rbp)\n", dst->stack_offset);
 	}
 	// uint -> double
-	else if (src_type == Type::UINT && dst_type == Type::DOUBLE)
+	else if (src_type.has_base_type(BaseType::UINT) && dst_type.has_base_type(BaseType::DOUBLE))
 	{
 		fprintf(file, "\tmovl %d(%%rbp), %%r10d\n", src->stack_offset);
 		fprintf(file, "\tmovl %%r10d, %%r10d\n");	 // zero extend to 64 bits
@@ -633,16 +633,6 @@ void Assembler::handle_addr_of(TACInstruction &instruction)
 
 	fprintf(file, "\tleaq %d(%%rbp), %%rax\n", src->stack_offset);
 	fprintf(file, "\tmovq %%rax, %d(%%rbp)\n\n", dst->stack_offset);
-}
-
-bool Assembler::is_signed(Type &type)
-{
-	return type == Type::INT || type == Type::LONG;
-}
-
-bool Assembler::is_8_bytes(Type &type)
-{
-	return type == Type::ULONG || type == Type::LONG || type == Type::DOUBLE || type == Type::INT_POINTER;
 }
 
 std::string Assembler::double_to_hex(double value)

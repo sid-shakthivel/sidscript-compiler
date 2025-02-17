@@ -104,10 +104,12 @@ void SemanticAnalyser::analyse_var_decl(VarDeclNode *node)
         Type var_type = node->var->type;
         Type value_type = infer_type(node->value.get());
 
-        Type common_type = get_common_type(var_type, value_type);
-
-        if (common_type != var_type)
-            throw std::runtime_error("Semantic Error: Conflicting types " + get_type_str(var_type) + " and " + get_type_str(value_type) + " in declaration of " + node->var->name);
+        if (!var_type.can_assign_from(value_type))
+        {
+            throw std::runtime_error("Semantic Error: Cannot assign " +
+                                     value_type.to_string() + " to " + var_type.to_string() +
+                                     " in declaration of " + node->var->name);
+        }
     }
 
     gst->declare_var(current_func_name, node->var.get());
@@ -121,10 +123,12 @@ void SemanticAnalyser::analyser_var_assign(VarAssignNode *node)
     Type var_type = gst->get_symbol(current_func_name, node->var->name)->type;
     Type value_type = infer_type(node->value.get());
 
-    Type common_type = get_common_type(var_type, value_type);
-
-    if (common_type != var_type)
-        throw std::runtime_error("Semantic Error: Conflicting types " + get_type_str(var_type) + " and " + get_type_str(value_type) + " in assignment of " + node->var->name);
+    if (!var_type.can_assign_from(value_type))
+    {
+        throw std::runtime_error("Semantic Error: Cannot assign " +
+                                 value_type.to_string() + " to " + var_type.to_string() +
+                                 " in assignment to " + node->var->name);
+    }
 }
 
 void SemanticAnalyser::analyse_rtn(RtnNode *node)
@@ -136,10 +140,12 @@ void SemanticAnalyser::analyse_rtn(RtnNode *node)
         FuncSymbol *func = gst->get_func_symbol(current_func_name);
         Type return_type = infer_type(node->value.get());
 
-        Type common_type = get_common_type(func->return_type, return_type);
-
-        if (common_type != func->return_type)
-            throw std::runtime_error("Semantic Error: Conflicting types in return of " + current_func_name);
+        if (!func->return_type.can_assign_from(return_type))
+        {
+            throw std::runtime_error("Semantic Error: Cannot return " +
+                                     return_type.to_string() + " from function returning " +
+                                     func->return_type.to_string());
+        }
     }
 }
 
@@ -256,10 +262,12 @@ void SemanticAnalyser::analyse_func_call(FuncCallNode *node)
         Type arg_type = infer_type(node->args[i].get());
         Type param_type = func->arg_types[i];
 
-        Type common_type = get_common_type(arg_type, param_type);
-
-        if (common_type != arg_type)
-            throw std::runtime_error("Semantic Error: Conflicting types in function call of '" + node->name + "'");
+        if (!param_type.can_assign_from(arg_type))
+        {
+            throw std::runtime_error("Semantic Error: Cannot pass " +
+                                     arg_type.to_string() + " as argument of type " +
+                                     param_type.to_string() + " in call to '" + node->name + "'");
+        }
     }
 }
 
@@ -272,7 +280,7 @@ void SemanticAnalyser::analyse_addr_of(AddrOfNode *node)
     if (node->expr->type != NodeType::NODE_VAR)
         throw std::runtime_error("Semantic Error: Can only take address of variables");
 
-    node->type = Type::INT_POINTER; // For now, only supporting int*
+    node->type = Type(BaseType::INT, 1); // For now, only supporting int*
 }
 
 void SemanticAnalyser::analyse_deref(DerefNode *node)
@@ -280,10 +288,10 @@ void SemanticAnalyser::analyse_deref(DerefNode *node)
     analyse_node(node->expr.get());
     Type expr_type = infer_type(node->expr.get());
 
-    if (expr_type != Type::INT_POINTER)
+    if (!expr_type.is_pointer())
         throw std::runtime_error("Semantic Error: Cannot dereference non-pointer type");
 
-    node->type = Type::INT; // Only supporting integers currently
+    node->type = Type(BaseType::INT); // Only supporting integers currently
 }
 
 Type SemanticAnalyser::infer_type(ASTNode *node)
@@ -305,29 +313,31 @@ Type SemanticAnalyser::infer_type(ASTNode *node)
         Type left = infer_type(bin_node->left.get());
         Type right = infer_type(bin_node->right.get());
 
-        Type common_type = get_common_type(left, right);
-
-        if (left != common_type)
+        if (left.can_convert_to(right))
         {
-            auto cast_node = std::make_unique<CastNode>(std::move(bin_node->left), common_type, left);
+            auto cast_node = std::make_unique<CastNode>(std::move(bin_node->left), right);
             bin_node->left = std::move(cast_node);
+            bin_node->type = right;
+            return right;
         }
-        if (right != common_type)
+        else if (right.can_convert_to(left))
         {
-            auto cast_node = std::make_unique<CastNode>(std::move(bin_node->right), common_type, right);
+            auto cast_node = std::make_unique<CastNode>(std::move(bin_node->right), left);
             bin_node->right = std::move(cast_node);
+            bin_node->type = left;
+            return left;
         }
 
-        bin_node->type = common_type;
-
-        return common_type;
+        throw std::runtime_error("Semantic Error: Cannot perform operation between " +
+                                 left.to_string() + " and " + right.to_string());
     }
     case NodeType::NODE_UNARY:
     {
         UnaryNode *un_node = dynamic_cast<UnaryNode *>(node);
 
         Type type = infer_type(un_node->value.get());
-        if (type == Type::DOUBLE && un_node->op == UnaryOpType::COMPLEMENT)
+
+        if (type.has_base_type(BaseType::DOUBLE) && un_node->op == UnaryOpType::COMPLEMENT)
             throw std::runtime_error("Semantic Error: Cannot take bitwise complement of a double");
 
         un_node->type = type;
@@ -357,42 +367,4 @@ Type SemanticAnalyser::infer_type(ASTNode *node)
     default:
         throw std::runtime_error("Semantic Error: Cannot infer type of node of type ");
     }
-}
-
-int SemanticAnalyser::get_type_size(Type &type)
-{
-    if (type == Type::INT || type == Type::UINT)
-        return 4;
-    else if (type == Type::LONG || type == Type::ULONG || type == Type::INT_POINTER)
-        return 8;
-}
-
-bool SemanticAnalyser::is_signed(Type &type)
-{
-    return type == Type::INT || type == Type::LONG;
-}
-
-Type SemanticAnalyser::get_common_type(Type type1, Type type2)
-{
-    // If the types are the same, pick either one
-    if (type1 == type2)
-        return type1;
-
-    if (type1 == Type::INT_POINTER || type2 == Type::INT_POINTER)
-    {
-        if (type1 != type2)
-            throw std::runtime_error("Semantic Error: Cannot convert between pointer and non-pointer types");
-        return Type::INT_POINTER;
-    }
-
-    // common type is double if either is a double
-    if (type1 == Type::DOUBLE || type2 == Type::DOUBLE)
-        return Type::DOUBLE;
-
-    // If they’re the same size, choose the signed type
-    if (get_type_size(type1) == get_type_size(type2))
-        return is_signed(type1) ? type1 : type2;
-
-    // If they’re not the same size, choose the bigger one
-    return (get_type_size(type1) > get_type_size(type2)) ? type1 : type2;
 }

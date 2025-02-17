@@ -4,6 +4,194 @@
 #include "../include/ast.h"
 #include "../include/lexer.h"
 
+Type::Type(BaseType base) : base_type(base) {}
+
+Type::Type(BaseType base, int ptr_level) : base_type(base), pointer_level(ptr_level) {}
+
+Type::Type(std::string struct_name) : base_type(BaseType::STRUCT), struct_name(struct_name) {}
+
+Type &Type::addArrayDimension(int size)
+{
+    array_sizes.push_back(size);
+    return *this;
+}
+
+bool Type::is_pointer() const { return pointer_level > 0; }
+bool Type::is_array() const { return array_sizes.size() > 0; }
+bool Type::is_struct() const { return base_type == BaseType::STRUCT; }
+
+BaseType Type::get_base_type() const { return base_type; }
+
+size_t Type::get_size() const
+{
+    size_t base_size;
+
+    if (is_pointer())
+        return 8;
+
+    switch (base_type)
+    {
+    case BaseType::INT:
+    case BaseType::UINT:
+        base_size = 4;
+        break;
+    case BaseType::LONG:
+    case BaseType::ULONG:
+    case BaseType::DOUBLE:
+        base_size = 8;
+        break;
+    case BaseType::VOID:
+        base_size = 0;
+        break;
+    case BaseType::STRUCT:
+        base_size = 0;
+        break;
+    }
+
+    if (is_array())
+    {
+        size_t totalSize = base_size;
+        for (int size : array_sizes)
+            totalSize *= size;
+        return totalSize;
+    }
+
+    return base_size;
+}
+
+bool Type::is_size_8() const
+{
+    return get_size() == 8;
+}
+
+std::string Type::to_string() const
+{
+    std::string result;
+
+    // Add base type
+    switch (base_type)
+    {
+    case BaseType::INT:
+        result = "int";
+        break;
+    case BaseType::LONG:
+        result = "long";
+        break;
+    case BaseType::UINT:
+        result = "unsigned int";
+        break;
+    case BaseType::ULONG:
+        result = "unsigned long";
+        break;
+    case BaseType::DOUBLE:
+        result = "double";
+        break;
+    case BaseType::VOID:
+        result = "void";
+        break;
+    case BaseType::STRUCT:
+        result = "struct " + (struct_name.has_value() ? struct_name.value() : "unknown");
+        break;
+    }
+
+    for (int i = 0; i < pointer_level; i++)
+        result += "*";
+
+    for (int size : array_sizes)
+        result += "[" + std::to_string(size) + "]";
+
+    return result;
+}
+
+bool Type::is_signed() const
+{
+    if (is_pointer() || is_array())
+        return false;
+
+    if (base_type == BaseType::INT || base_type == BaseType::LONG)
+        return true;
+
+    return false;
+}
+
+bool Type::operator==(const Type &other) const
+{
+    if (base_type != other.base_type)
+        return false;
+
+    if (pointer_level != other.pointer_level)
+        return false;
+
+    if (array_sizes != other.array_sizes)
+        return false;
+
+    if (base_type == BaseType::STRUCT)
+    {
+        if (!struct_name.has_value() || !other.struct_name.has_value())
+            return false;
+        return struct_name.value() == other.struct_name.value();
+    }
+
+    return true;
+}
+
+bool Type::operator!=(const Type &other) const
+{
+    return !(*this == other);
+}
+
+bool Type::can_assign_from(const Type &other) const
+{
+    if (*this == other)
+        return true;
+
+    if (is_pointer())
+    {
+        if (other.is_pointer())
+        {
+            // Allow void* to be assigned to any pointer
+            if (other.base_type == BaseType::VOID)
+                return true;
+        }
+        // Allow null (integer 0) to be assigned to pointers
+        if (other.base_type == BaseType::INT && !other.is_pointer())
+            return true;
+        return false;
+    }
+
+    if (!is_pointer() && !other.is_pointer())
+    {
+        // Allow smaller integers to larger ones
+        if (base_type == BaseType::LONG && other.base_type == BaseType::INT)
+            return true;
+
+        // Allow integers to double
+        if (base_type == BaseType::DOUBLE &&
+            (other.base_type == BaseType::INT || other.base_type == BaseType::LONG))
+            return true;
+    }
+}
+
+bool Type::can_convert_to(const Type &other) const
+{
+    if (can_assign_from(other))
+        return true;
+
+    if (!is_pointer() && !other.is_pointer() && !is_array() && !other.is_array())
+    {
+        if ((base_type != BaseType::VOID && base_type != BaseType::STRUCT) &&
+            (other.base_type != BaseType::VOID && other.base_type != BaseType::STRUCT))
+            return true;
+    }
+
+    return false;
+}
+
+bool Type::has_base_type(BaseType other) const
+{
+    return base_type == other;
+}
+
 UnaryOpType get_unary_op_type(const TokenType &t)
 {
     switch (t)
@@ -79,50 +267,27 @@ Specifier get_specifier(const TokenType &t)
     }
 }
 
-std::string get_type_str(Type &t)
-{
-    switch (t)
-    {
-    case Type::INT:
-        return "int";
-    case Type::LONG:
-        return "long";
-    case Type::UINT:
-        return "uint";
-    case Type::ULONG:
-        return "ulong";
-    case Type::VOID:
-        return "void";
-    case Type::DOUBLE:
-        return "double";
-    case Type::INT_POINTER:
-        return "int pointer";
-    default:
-        return "unknown";
-    }
-}
-
 Type get_type_from_str(std::string &t)
 {
     if (t == "int")
-        return Type::INT;
+        return Type(BaseType::INT);
     else if (t == "long")
-        return Type::LONG;
+        return Type(BaseType::LONG);
     else if (t == "uint")
-        return Type::UINT;
+        return Type(BaseType::UINT);
     else if (t == "ulong")
-        return Type::ULONG;
+        return Type(BaseType::ULONG);
     else if (t == "void")
-        return Type::VOID;
+        return Type(BaseType::VOID);
     else if (t == "double")
-        return Type::DOUBLE;
+        return Type(BaseType::DOUBLE);
 }
 
 NumericLiteral::NumericLiteral(NodeType t) : ASTNode(t) {}
 
 IntegerLiteral::IntegerLiteral(int v) : NumericLiteral(NodeType::NODE_NUMBER), value(v)
 {
-    value_type = Type::INT;
+    value_type = Type(BaseType::INT);
 }
 
 void IntegerLiteral::print(int tabs)
@@ -132,7 +297,7 @@ void IntegerLiteral::print(int tabs)
 
 LongLiteral::LongLiteral(long v) : NumericLiteral(NodeType::NODE_NUMBER), value(v)
 {
-    value_type = Type::LONG;
+    value_type = Type(BaseType::LONG);
 }
 
 void LongLiteral::print(int tabs)
@@ -142,7 +307,7 @@ void LongLiteral::print(int tabs)
 
 UIntegerLiteral::UIntegerLiteral(unsigned int v) : NumericLiteral(NodeType::NODE_NUMBER), value(v)
 {
-    value_type = Type::UINT;
+    value_type = Type(BaseType::UINT);
 }
 
 void UIntegerLiteral::print(int tabs)
@@ -152,7 +317,7 @@ void UIntegerLiteral::print(int tabs)
 
 ULongLiteral::ULongLiteral(unsigned long v) : NumericLiteral(NodeType::NODE_NUMBER), value(v)
 {
-    value_type = Type::ULONG;
+    value_type = Type(BaseType::UINT);
 }
 
 void ULongLiteral::print(int tabs)
@@ -162,7 +327,7 @@ void ULongLiteral::print(int tabs)
 
 DoubleLiteral::DoubleLiteral(double v) : NumericLiteral(NodeType::NODE_NUMBER), value(v)
 {
-    value_type = Type::DOUBLE;
+    value_type = Type(BaseType::DOUBLE);
 }
 
 void DoubleLiteral::print(int tabs)
@@ -174,9 +339,8 @@ CastNode::CastNode(std::unique_ptr<ASTNode> e, Type t1, Type t2) : ASTNode(NodeT
 
 void CastNode::print(int tabs)
 {
-    auto target_type_str = get_type_str(target_type);
     std::cout << std::string(tabs, ' ') << "Cast: " << std::endl;
-    std::cout << std::string(tabs + 1, ' ') << "Target Type: " << target_type_str << std::endl;
+    std::cout << std::string(tabs + 1, ' ') << "Target Type: " << target_type.to_string() << std::endl;
     expr->print(tabs + 1);
 }
 

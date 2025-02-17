@@ -63,7 +63,7 @@ struct TACInstruction
     TACOp op2; // Optional argument
 
     TACInstruction(TACOp op, const std::string &arg1 = "",
-                   const std::string &arg2 = "", const std::string &result = "", Type type = Type::VOID)
+                   const std::string &arg2 = "", const std::string &result = "", Type type = Type(BaseType::VOID))
         : op(op), arg1(arg1), arg2(arg2), result(result), op2(TACOp::NOP), type(type) {}
 };
 
@@ -101,5 +101,5 @@ private:
     void generate_tac_func(FuncNode *func);
     void generate_tac_element(ASTNode *element);
 
-    std::string generate_tac_expr(ASTNode *expr, Type type = Type::VOID);
+    std::string generate_tac_expr(ASTNode *expr, Type type = Type(BaseType::VOID));
 };

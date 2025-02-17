@@ -58,8 +58,5 @@ private:
     void handle_deref(TACInstruction &instruction);
     void handle_addr_of(TACInstruction &instruction);
 
-    bool is_signed(Type &type);
-    bool is_8_bytes(Type &type);
-
     std::string double_to_hex(double value);
 };

@@ -18,7 +18,7 @@ private:
     Token current_token;
     Token previous_token;
 
-    Type curr_decl_type = Type::INT;
+    Type curr_decl_type = Type(BaseType::INT);
 
     std::vector<TokenType> all_types = {TOKEN_VOID, TOKEN_INT, TOKEN_LONG, TOKEN_UNSIGNED, TOKEN_SIGNED, TOKEN_DOUBLE};
     std::vector<TokenType> addressable_types = {TOKEN_INT, TOKEN_LONG, TOKEN_UNSIGNED, TOKEN_SIGNED, TOKEN_DOUBLE, TOKEN_STAR};
