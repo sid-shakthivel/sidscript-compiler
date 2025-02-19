@@ -36,6 +36,7 @@ enum class BinOpType
 enum class NodeType
 {
     NODE_NUMBER,
+    NODE_ARRAY_INIT,
     NODE_RETURN,
     NODE_FUNCTION,
     NODE_PROGRAM,
@@ -178,6 +179,17 @@ public:
     double value;
 
     DoubleLiteral(double v);
+    void print(int tabs) override;
+};
+
+class ArrayLiteral : public ASTNode
+{
+public:
+    std::vector<std::unique_ptr<ASTNode>> values;
+
+    void add_element(std::unique_ptr<ASTNode> element);
+
+    ArrayLiteral();
     void print(int tabs) override;
 };
 

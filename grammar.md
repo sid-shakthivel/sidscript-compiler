@@ -26,13 +26,13 @@
 
 <expr> ::= <factor> | <expr> <binopr> <expr> | <factor> <postopr>
 <factor> ::= <literal> 
-    | <identifier> 
+    | <identifier> [ "[" <expr> "]" ]*
     | "(" { <type_specifier> }+ ")" <factor> 
     | <unopr> <factor> 
     | "(" <expr> ")" 
     | <identifier> "(" [ <argument-list> ] ")"
 
-<type_specifier> ::= { "*" } "int" | "long" | "unsigned" | "signed" | "double"
+<type_specifier> ::= { "*" } "int" | "long" | "unsigned" | "signed" | "double" [ "[" <expr> "]" ]*
 <specifier> ::= "static" | "extern"
 
 <binopr> ::= ::= "-" | "+" | "\*" | "/" | "%" | "&&" | "||"

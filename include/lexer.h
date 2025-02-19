@@ -60,6 +60,8 @@ enum TokenType
     TOKEN_SLASH_EQUALS,
     TOKEN_MODULUS_EQUALS,
     TOKEN_UNKNOWN_SYMBOL,
+    TOKEN_LSBRACE, // Left Square Brace
+    TOKEN_RSBRACE
 };
 
 extern std::unordered_map<std::string, TokenType> string_to_token;

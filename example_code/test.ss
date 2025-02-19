@@ -1,9 +1,5 @@
-fn test() -> int {
-    return 3;
-}
-
 fn main() -> int {
-    int a = 5 + test();
-    return a;
+    int arr[4] = {1, 2};
+    return 5;
 }
 

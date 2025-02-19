@@ -222,7 +222,6 @@ std::vector<std::unique_ptr<ASTNode>> Parser::parse_block()
             else
             {
                 retreat_test();
-                std::cout << "here right?\n";
                 elements.emplace_back(parse_expr());
                 expect(TOKEN_SEMICOLON);
             }
@@ -368,9 +367,23 @@ std::unique_ptr<VarDeclNode> Parser::parse_var_decl(TokenType specifier)
 
     expect(TOKEN_IDENTIFIER);
 
-    std::unique_ptr<VarNode> var = std::make_unique<VarNode>(current_token.text, curr_decl_type, get_specifier(specifier));
+    std::string var_name = current_token.text;
 
     advance();
+
+    // Handle array dimensions
+    while (match(TOKEN_LSBRACE))
+    {
+        advance();
+        std::unique_ptr<ASTNode> size_expr = parse_expr();
+        if (auto num = dynamic_cast<IntegerLiteral *>(size_expr.get()))
+            curr_decl_type.addArrayDimension(num->value);
+        else
+            error("Array size must be a constant integer");
+        expect_and_advance(TOKEN_RSBRACE);
+    }
+
+    std::unique_ptr<VarNode> var = std::make_unique<VarNode>(var_name, curr_decl_type, get_specifier(specifier));
 
     std::vector<TokenType> excepted_tokens = std::vector<TokenType>{TOKEN_ASSIGN, TOKEN_SEMICOLON};
     expect(excepted_tokens);
@@ -379,13 +392,17 @@ std::unique_ptr<VarDeclNode> Parser::parse_var_decl(TokenType specifier)
     {
         advance();
 
-        std::unique_ptr<ASTNode> expr = parse_expr();
+        std::unique_ptr<ASTNode> init_expr;
+        if (match(TOKEN_LBRACE) && curr_decl_type.is_array())
+            init_expr = parse_array_initialiser();
+        else
+            init_expr = parse_expr();
+
+        std::cout << current_token.text << std::endl;
 
         expect(TOKEN_SEMICOLON);
-
         curr_decl_type = Type(BaseType::INT);
-
-        return std::make_unique<VarDeclNode>(std::move(var), std::move(expr));
+        return std::make_unique<VarDeclNode>(std::move(var), std::move(init_expr));
     }
 
     curr_decl_type = Type(BaseType::INT);
@@ -583,12 +600,36 @@ std::unique_ptr<ASTNode> Parser::parse_factor()
         else
         {
             retreat();
-            // Fix this
             return std::make_unique<VarNode>(var_identifier, Type(BaseType::INT));
         }
     }
     else
         error("Expected expression");
+}
+
+std::unique_ptr<ArrayLiteral> Parser::parse_array_initialiser()
+{
+    expect_and_advance(TOKEN_LBRACE);
+
+    auto init_node = std::make_unique<ArrayLiteral>();
+
+    if (!match(TOKEN_RBRACE))
+    {
+        // Parse first element
+        init_node->add_element(parse_expr());
+
+        // Parse remaining elements
+        while (match(TOKEN_COMMA))
+        {
+            advance();
+            if (match(TOKEN_RBRACE))
+                break; // Allow trailing comma
+            init_node->add_element(parse_expr());
+        }
+    }
+
+    expect_and_advance(TOKEN_RBRACE);
+    return init_node;
 }
 
 void Parser::parse_args_list(std::unique_ptr<FuncCallNode> &func_call)

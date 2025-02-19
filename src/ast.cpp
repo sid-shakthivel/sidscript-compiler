@@ -335,6 +335,20 @@ void DoubleLiteral::print(int tabs)
     std::cout << std::string(tabs, ' ') << "(Double) Literal: " + std::to_string(value) << std::endl;
 }
 
+ArrayLiteral::ArrayLiteral() : ASTNode(NodeType::NODE_ARRAY_INIT) {}
+
+void ArrayLiteral::add_element(std::unique_ptr<ASTNode> e)
+{
+    values.push_back(std::move(e));
+}
+
+void ArrayLiteral::print(int tabs)
+{
+    std::cout << std::string(tabs, ' ') << "ArrayInit:" << std::endl;
+    for (const auto &elem : values)
+        elem->print(tabs + 1);
+}
+
 CastNode::CastNode(std::unique_ptr<ASTNode> e, Type t1, Type t2) : ASTNode(NodeType::NODE_CAST), expr(std::move(e)), target_type(t1), src_type(t2) {}
 
 void CastNode::print(int tabs)

@@ -56,6 +56,8 @@ std::unordered_map<std::string, TokenType> string_to_token = {
     {"*=", TOKEN_STAR_EQUALS},
     {"/=", TOKEN_SLASH_EQUALS},
     {"%=", TOKEN_MODULUS_EQUALS},
+    {"[", TOKEN_LSBRACE},
+    {"]", TOKEN_RSBRACE},
 };
 
 std::string token_to_string(TokenType token_type)
