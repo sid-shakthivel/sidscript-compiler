@@ -54,7 +54,8 @@ enum class NodeType
     NODE_CAST,
     NODE_POSTFIX,
     NODE_DEREF,
-    NODE_ADDR_OF
+    NODE_ADDR_OF,
+    NODE_ARRAY_ACCESS
 };
 
 enum class BaseType
@@ -81,7 +82,7 @@ public:
     Type(BaseType base, int ptr_level);
     Type(std::string struct_name);
 
-    Type &addArrayDimension(int size);
+    Type &add_array_dimension(int size);
 
     bool is_pointer() const;
     bool is_array() const;
@@ -94,6 +95,7 @@ public:
     std::string to_string() const;
 
     size_t get_size() const;
+    size_t get_array_size() const;
     bool is_size_8() const;
 
     // Type compatibility checks
@@ -124,8 +126,14 @@ public:
     NodeType type;
 
     ASTNode(NodeType t) : type(t) {}
-    virtual ~ASTNode() = default;
     virtual void print(int tabs) {};
+
+    virtual ASTNode *clone() const
+    {
+        return nullptr; // Base implementation
+    }
+
+    virtual ~ASTNode() = default;
 };
 
 class NumericLiteral : public ASTNode
@@ -186,10 +194,11 @@ class ArrayLiteral : public ASTNode
 {
 public:
     std::vector<std::unique_ptr<ASTNode>> values;
+    Type arr_type = Type(BaseType::VOID);
 
     void add_element(std::unique_ptr<ASTNode> element);
 
-    ArrayLiteral();
+    ArrayLiteral(Type t);
     void print(int tabs) override;
 };
 
@@ -284,10 +293,11 @@ class VarNode : public ASTNode
 {
 public:
     std::string name;
-    Type type;
-    Specifier specifier;
+    Type type = Type(BaseType::VOID);
+    Specifier specifier = Specifier::NONE;
 
     VarNode(const std::string &n, Type t, Specifier s = Specifier::NONE);
+    VarNode(const std::string &n);
     void print(int tabs) override;
 };
 
@@ -304,10 +314,10 @@ public:
 class VarAssignNode : public ASTNode
 {
 public:
-    std::unique_ptr<VarNode> var;
+    std::unique_ptr<ASTNode> var;
     std::unique_ptr<ASTNode> value;
 
-    VarAssignNode(std::unique_ptr<VarNode> v, std::unique_ptr<ASTNode> val);
+    VarAssignNode(std::unique_ptr<ASTNode> v, std::unique_ptr<ASTNode> val);
     void print(int tabs) override;
 };
 
@@ -383,5 +393,22 @@ public:
     Type type = Type(BaseType::VOID);
 
     AddrOfNode(std::unique_ptr<ASTNode> expr);
+    void print(int tabs) override;
+};
+
+class ArrayAccessNode : public ASTNode
+{
+public:
+    std::unique_ptr<VarNode> array;
+    std::unique_ptr<ASTNode> index;
+    Type type = Type(BaseType::VOID);
+
+    ArrayAccessNode(const ArrayAccessNode &other)
+        : ASTNode(NodeType::NODE_ARRAY_ACCESS),
+          array(std::make_unique<VarNode>(*other.array)),
+          index(other.index ? other.index->clone() : nullptr) {}
+
+    ArrayAccessNode(std::unique_ptr<VarNode> arr, std::unique_ptr<ASTNode> idx);
+
     void print(int tabs) override;
 };

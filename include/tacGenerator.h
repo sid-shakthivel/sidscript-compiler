@@ -47,6 +47,7 @@ enum class TACOp
     CONVERT_TYPE,
     DEREF,
     ADDR_OF,
+    STORE_ARRAY,
 };
 
 TACOp convert_UnaryOpType_to_TACOp(UnaryOpType op);
@@ -60,11 +61,12 @@ struct TACInstruction
     std::string result; // Result variable or temporary
     Type type;
 
-    TACOp op2; // Optional argument
+    TACOp op2;        // Optional argument
+    std::string arg3; // Another optional argument
 
     TACInstruction(TACOp op, const std::string &arg1 = "",
                    const std::string &arg2 = "", const std::string &result = "", Type type = Type(BaseType::VOID))
-        : op(op), arg1(arg1), arg2(arg2), result(result), op2(TACOp::NOP), type(type) {}
+        : op(op), arg1(arg1), arg2(arg2), result(result), op2(TACOp::NOP), type(type), arg3{""} {}
 };
 
 class TacGenerator

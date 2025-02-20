@@ -168,7 +168,7 @@ void Parser::parse_param_list(std::unique_ptr<FuncNode> &func)
     expect(TOKEN_IDENTIFIER);
 
     // Consider parameters which are not just integers
-    std::unique_ptr<VarNode> var = std::make_unique<VarNode>(current_token.text, Type(BaseType::INT));
+    std::unique_ptr<VarNode> var = std::make_unique<VarNode>(current_token.text);
     func->params.emplace_back(std::make_unique<VarDeclNode>(std::move(var), nullptr));
 
     advance();
@@ -184,7 +184,7 @@ void Parser::parse_param_list(std::unique_ptr<FuncNode> &func)
 
         expect(TOKEN_IDENTIFIER);
 
-        std::unique_ptr<VarNode> var = std::make_unique<VarNode>(current_token.text, Type(BaseType::INT));
+        std::unique_ptr<VarNode> var = std::make_unique<VarNode>(current_token.text);
         func->params.emplace_back(std::make_unique<VarDeclNode>(std::move(var), nullptr));
 
         advance();
@@ -212,16 +212,32 @@ std::vector<std::unique_ptr<ASTNode>> Parser::parse_block()
                 - Assigning a variable ie a = 5, a += 5;
                 - An expression ie func(), i++
             */
-            advance();
 
-            if (match(assign_tokens))
+            std::string identifier = current_token.text;
+
+            int current_pos = lexer->get_current_pos();
+            bool is_assignment = false;
+
+            while (!match(TOKEN_SEMICOLON) && !match(TOKEN_EOF))
             {
-                retreat_test();
+                advance();
+                if (match(assign_tokens))
+                {
+                    is_assignment = true;
+                    break;
+                }
+            }
+
+            // Reset position and restore token
+            lexer->set_pos(current_pos);
+            current_token = Token(TOKEN_IDENTIFIER, identifier, 1);
+
+            if (is_assignment)
+            {
                 elements.emplace_back(parse_var_assign());
             }
             else
             {
-                retreat_test();
                 elements.emplace_back(parse_expr());
                 expect(TOKEN_SEMICOLON);
             }
@@ -365,25 +381,7 @@ std::unique_ptr<VarDeclNode> Parser::parse_var_decl(TokenType specifier)
 
     curr_decl_type = determine_type(types);
 
-    expect(TOKEN_IDENTIFIER);
-
-    std::string var_name = current_token.text;
-
-    advance();
-
-    // Handle array dimensions
-    while (match(TOKEN_LSBRACE))
-    {
-        advance();
-        std::unique_ptr<ASTNode> size_expr = parse_expr();
-        if (auto num = dynamic_cast<IntegerLiteral *>(size_expr.get()))
-            curr_decl_type.addArrayDimension(num->value);
-        else
-            error("Array size must be a constant integer");
-        expect_and_advance(TOKEN_RSBRACE);
-    }
-
-    std::unique_ptr<VarNode> var = std::make_unique<VarNode>(var_name, curr_decl_type, get_specifier(specifier));
+    std::unique_ptr<VarNode> var = std::unique_ptr<VarNode>(dynamic_cast<VarNode *>(parse_var(get_specifier(specifier)).release()));
 
     std::vector<TokenType> excepted_tokens = std::vector<TokenType>{TOKEN_ASSIGN, TOKEN_SEMICOLON};
     expect(excepted_tokens);
@@ -394,11 +392,11 @@ std::unique_ptr<VarDeclNode> Parser::parse_var_decl(TokenType specifier)
 
         std::unique_ptr<ASTNode> init_expr;
         if (match(TOKEN_LBRACE) && curr_decl_type.is_array())
+        {
             init_expr = parse_array_initialiser();
+        }
         else
             init_expr = parse_expr();
-
-        std::cout << current_token.text << std::endl;
 
         expect(TOKEN_SEMICOLON);
         curr_decl_type = Type(BaseType::INT);
@@ -406,7 +404,6 @@ std::unique_ptr<VarDeclNode> Parser::parse_var_decl(TokenType specifier)
     }
 
     curr_decl_type = Type(BaseType::INT);
-
     return std::make_unique<VarDeclNode>(std::move(var), nullptr);
 }
 
@@ -434,11 +431,7 @@ Type Parser::determine_type(std::vector<TokenType> &types)
 
 std::unique_ptr<VarAssignNode> Parser::parse_var_assign()
 {
-    std::unique_ptr<ASTNode> factor = parse_factor();
-    std::unique_ptr<VarNode> var = std::unique_ptr<VarNode>(dynamic_cast<VarNode *>(factor.release()));
-
-    advance();
-
+    std::unique_ptr<ASTNode> target = parse_var();
     TokenType assign_type = current_token.type;
 
     expect_and_advance(assign_tokens);
@@ -447,15 +440,20 @@ std::unique_ptr<VarAssignNode> Parser::parse_var_assign()
 
     if (assign_type == TOKEN_ASSIGN)
     {
-        return std::make_unique<VarAssignNode>(std::move(var), std::move(expr));
+        return std::make_unique<VarAssignNode>(std::move(target), std::move(expr));
     }
     else
     {
         auto bin_op_type = get_bin_op_type(assign_type);
-        auto var_clone = std::make_unique<VarNode>(*var); // Clone var for the BinaryNode
-        auto right = std::make_unique<BinaryNode>(bin_op_type, std::move(var_clone), std::move(expr));
 
-        return std::make_unique<VarAssignNode>(std::move(var), std::move(right));
+        std::unique_ptr<ASTNode> target_clone;
+        if (auto var_node = dynamic_cast<VarNode *>(target.get()))
+            target_clone = std::make_unique<VarNode>(*var_node);
+        else if (auto array_access = dynamic_cast<ArrayAccessNode *>(target.get()))
+            target_clone = std::make_unique<ArrayAccessNode>(*array_access);
+
+        auto right = std::make_unique<BinaryNode>(bin_op_type, std::move(target_clone), std::move(expr));
+        return std::make_unique<VarAssignNode>(std::move(target), std::move(right));
     }
 }
 
@@ -586,13 +584,14 @@ std::unique_ptr<ASTNode> Parser::parse_factor()
     }
     else if (match(TOKEN_IDENTIFIER))
     {
-        std::string var_identifier = current_token.text;
+        std::string identifier = current_token.text;
+        std::unique_ptr<ASTNode> potential_var = parse_var();
 
         advance();
 
         if (match(TOKEN_LPAREN))
         {
-            std::unique_ptr<FuncCallNode> func_call = std::make_unique<FuncCallNode>(var_identifier);
+            std::unique_ptr<FuncCallNode> func_call = std::make_unique<FuncCallNode>(identifier);
             parse_args_list(func_call);
             expect(TOKEN_RPAREN);
             return func_call;
@@ -600,7 +599,7 @@ std::unique_ptr<ASTNode> Parser::parse_factor()
         else
         {
             retreat();
-            return std::make_unique<VarNode>(var_identifier, Type(BaseType::INT));
+            return potential_var;
         }
     }
     else
@@ -611,7 +610,7 @@ std::unique_ptr<ArrayLiteral> Parser::parse_array_initialiser()
 {
     expect_and_advance(TOKEN_LBRACE);
 
-    auto init_node = std::make_unique<ArrayLiteral>();
+    auto init_node = std::make_unique<ArrayLiteral>(curr_decl_type);
 
     if (!match(TOKEN_RBRACE))
     {
@@ -654,4 +653,27 @@ void Parser::parse_args_list(std::unique_ptr<FuncCallNode> &func_call)
 int Parser::get_precedence(TokenType op)
 {
     return precedence_map.at(get_bin_op_type(op));
+}
+
+std::unique_ptr<ASTNode> Parser::parse_var(Specifier specifier)
+{
+    expect(TOKEN_IDENTIFIER);
+    std::string var_name = current_token.text;
+    std::unique_ptr<VarNode> var = std::make_unique<VarNode>(var_name);
+
+    advance();
+
+    if (match(TOKEN_LSBRACE))
+    {
+        advance(); // consume '['
+        std::unique_ptr<ASTNode> index = parse_expr();
+        if (auto num = dynamic_cast<IntegerLiteral *>(index.get()))
+            curr_decl_type.add_array_dimension(num->value);
+        else
+            error("Array size must be a constant integer");
+        expect_and_advance(TOKEN_RSBRACE);
+        return std::make_unique<ArrayAccessNode>(std::move(var), std::move(index));
+    }
+
+    return var;
 }

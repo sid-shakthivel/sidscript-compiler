@@ -104,7 +104,23 @@ void SemanticAnalyser::analyse_var_decl(VarDeclNode *node)
         Type var_type = node->var->type;
         Type value_type = infer_type(node->value.get());
 
-        if (!var_type.can_assign_from(value_type))
+        if (var_type.is_array())
+        {
+            if (node->value->type != NodeType::NODE_ARRAY_INIT)
+                throw std::runtime_error("Semantic Error: Array initialisation of " + node->var->name + "requires array literal");
+
+            ArrayLiteral *array_init = dynamic_cast<ArrayLiteral *>(node->value.get());
+
+            if (array_init->values.size() > var_type.get_size())
+                throw std::runtime_error("Semantic Error: Too many elements in array initialisation of " + node->var->name);
+
+            for (auto &element : array_init->values)
+            {
+                if (!infer_type(element.get()).has_base_type(var_type.get_base_type()))
+                    throw std::runtime_error("Semantic Error: Type in array initialisation of " + node->var->name + " doesn't match");
+            }
+        }
+        else if (!var_type.can_assign_from(value_type))
         {
             throw std::runtime_error("Semantic Error: Cannot assign " +
                                      value_type.to_string() + " to " + var_type.to_string() +
@@ -118,16 +134,21 @@ void SemanticAnalyser::analyse_var_decl(VarDeclNode *node)
 
 void SemanticAnalyser::analyser_var_assign(VarAssignNode *node)
 {
-    node->var->name = gst->check_var_defined(current_func_name, node->var->name);
-    analyse_node(node->value.get());
-    Type var_type = gst->get_symbol(current_func_name, node->var->name)->type;
-    Type value_type = infer_type(node->value.get());
-
-    if (!var_type.can_assign_from(value_type))
+    if (node->var->type == NodeType::NODE_VAR)
     {
-        throw std::runtime_error("Semantic Error: Cannot assign " +
-                                 value_type.to_string() + " to " + var_type.to_string() +
-                                 " in assignment to " + node->var->name);
+        VarNode *var = (VarNode *)node->var.get();
+        var->name = gst->check_var_defined(current_func_name, var->name);
+
+        analyse_node(node->value.get());
+        Type var_type = gst->get_symbol(current_func_name, var->name)->type;
+        Type value_type = infer_type(node->value.get());
+
+        if (!var_type.can_assign_from(value_type))
+        {
+            throw std::runtime_error("Semantic Error: Cannot assign " +
+                                     value_type.to_string() + " to " + var_type.to_string() +
+                                     " in assignment to " + var->name);
+        }
     }
 }
 
@@ -363,6 +384,10 @@ Type SemanticAnalyser::infer_type(ASTNode *node)
     case NodeType::NODE_ADDR_OF:
     {
         return ((AddrOfNode *)node)->type;
+    }
+    case NodeType::NODE_ARRAY_INIT:
+    {
+        return ((ArrayLiteral *)node)->arr_type;
     }
     default:
         throw std::runtime_error("Semantic Error: Cannot infer type of node of type ");

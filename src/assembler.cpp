@@ -219,17 +219,25 @@ void Assembler::handle_assign(TACInstruction &instruction)
 	if (current_var_type == VarType::TEXT)
 	{
 		Symbol *lhs = gst->get_symbol(current_func, instruction.arg1);
-		Symbol *rhs = gst->get_symbol(current_func, instruction.arg2);
+		Symbol *rhs = gst->get_symbol(current_func, instruction.result);
 		std::string mov_text = instruction.type.is_size_8() ? "movq" : "movl";
 		std::string reg = instruction.type.is_size_8() ? "%r10" : "%r10d";
 
 		fprintf(file, "\t# %s\n", TacGenerator::gen_tac_str(instruction).c_str());
 
+		if (lhs->type.is_array())
+		{
+			int stack_offset = lhs->stack_offset + std::stod(instruction.arg2);
+			fprintf(file, "\t%s\t$%s, %d(%%rbp)\n", mov_text.c_str(), instruction.result.c_str(), stack_offset);
+			fprintf(file, "\n");
+			return;
+		}
+
 		if (rhs)
 		{
 			if (lhs->has_static_sd() && rhs->has_static_sd())
 			{
-				fprintf(file, "\t%s\t_%s(%%rip), %s\n", mov_text.c_str(), instruction.arg2.c_str(), reg.c_str());
+				fprintf(file, "\t%s\t_%s(%%rip), %s\n", mov_text.c_str(), instruction.result.c_str(), reg.c_str());
 				fprintf(file, "\t%s\t%s, _%s(%%rip)\n", mov_text.c_str(), reg.c_str(), instruction.arg1.c_str());
 			}
 			else if (lhs->has_static_sd())
@@ -239,7 +247,7 @@ void Assembler::handle_assign(TACInstruction &instruction)
 			}
 			else if (rhs->has_static_sd())
 			{
-				fprintf(file, "\t%s\t_%s(%%rip), %s\n", mov_text.c_str(), instruction.arg2.c_str(), reg.c_str());
+				fprintf(file, "\t%s\t_%s(%%rip), %s\n", mov_text.c_str(), instruction.result.c_str(), reg.c_str());
 				fprintf(file, "\t%s\t%s, %d(%%rbp)\n", mov_text.c_str(), reg.c_str(), lhs->stack_offset);
 			}
 			else if (rhs->is_literal8)
@@ -256,16 +264,16 @@ void Assembler::handle_assign(TACInstruction &instruction)
 		else
 		{
 			if (lhs->has_static_sd())
-				fprintf(file, "\t%s\t$%s, _%s(%%rip)\n", mov_text.c_str(), instruction.arg2.c_str(), instruction.arg1.c_str());
+				fprintf(file, "\t%s\t$%s, _%s(%%rip)\n", mov_text.c_str(), instruction.result.c_str(), instruction.arg1.c_str());
 			else
-				fprintf(file, "\t%s\t$%s, %d(%%rbp)\n", mov_text.c_str(), instruction.arg2.c_str(), lhs->stack_offset);
+				fprintf(file, "\t%s\t$%s, %d(%%rbp)\n", mov_text.c_str(), instruction.result.c_str(), lhs->stack_offset);
 		}
 
 		fprintf(file, "\n");
 	}
 	else if (current_var_type == VarType::BSS)
 	{
-		if (instruction.arg2 == "global")
+		if (instruction.arg3 == "global")
 			fprintf(file, "\t.global\t_%s\n", instruction.arg1.c_str());
 		fprintf(file, "_%s:\n", instruction.arg1.c_str());
 		if (instruction.type.is_size_8())
@@ -279,7 +287,7 @@ void Assembler::handle_assign(TACInstruction &instruction)
 
 		if (potential_var == nullptr)
 		{
-			if (instruction.arg2 == "global")
+			if (instruction.arg3 == "global")
 				fprintf(file, ".global	_%s\n", instruction.arg1.c_str());
 			fprintf(file, "_%s:\n", instruction.arg1.c_str());
 

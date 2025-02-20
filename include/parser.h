@@ -24,7 +24,7 @@ private:
     std::vector<TokenType> addressable_types = {TOKEN_INT, TOKEN_LONG, TOKEN_UNSIGNED, TOKEN_SIGNED, TOKEN_DOUBLE, TOKEN_STAR};
     std::vector<TokenType> bin_op_tokens = {TOKEN_PLUS, TOKEN_MINUS, TOKEN_STAR, TOKEN_SLASH, TOKEN_PERCENT, TOKEN_EQUALS, TOKEN_NOT_EQUALS, TOKEN_LT, TOKEN_GT, TOKEN_LE, TOKEN_GE, TOKEN_AND, TOKEN_OR};
     std::vector<TokenType> un_op_tokens = {TOKEN_TILDA, TOKEN_MINUS, TOKEN_AMPERSAND, TOKEN_STAR, TOKEN_INCREMENT, TOKEN_DECREMENT};
-    std::vector<TokenType> assign_tokens = {TOKEN_EQUALS, TOKEN_PLUS_EQUALS, TOKEN_MINUS_EQUALS, TOKEN_STAR_EQUALS, TOKEN_SLASH_EQUALS, TOKEN_MODULUS_EQUALS};
+    std::vector<TokenType> assign_tokens = {TOKEN_ASSIGN, TOKEN_PLUS_EQUALS, TOKEN_MINUS_EQUALS, TOKEN_STAR_EQUALS, TOKEN_SLASH_EQUALS, TOKEN_MODULUS_EQUALS};
 
     bool match(TokenType type);
     bool match(std::vector<TokenType> &tokens);
@@ -53,6 +53,8 @@ private:
     void parse_args_list(std::unique_ptr<FuncCallNode> &func_call);
     std::unique_ptr<ArrayLiteral> parse_array_initialiser();
     std::unique_ptr<ASTNode> parse_cast();
+
+    std::unique_ptr<ASTNode> parse_var(Specifier specifier = Specifier::NONE);
 
     int get_precedence(TokenType op);
     Type determine_type(std::vector<TokenType> &types);

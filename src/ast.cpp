@@ -10,7 +10,7 @@ Type::Type(BaseType base, int ptr_level) : base_type(base), pointer_level(ptr_le
 
 Type::Type(std::string struct_name) : base_type(BaseType::STRUCT), struct_name(struct_name) {}
 
-Type &Type::addArrayDimension(int size)
+Type &Type::add_array_dimension(int size)
 {
     array_sizes.push_back(size);
     return *this;
@@ -50,13 +50,26 @@ size_t Type::get_size() const
 
     if (is_array())
     {
-        size_t totalSize = base_size;
+        size_t total_size = base_size;
         for (int size : array_sizes)
-            totalSize *= size;
-        return totalSize;
+            total_size *= size;
+        return total_size;
     }
 
     return base_size;
+}
+
+size_t Type::get_array_size() const
+{
+    if (!is_array())
+        return 0;
+
+    size_t total_size = 1;
+
+    for (int size : array_sizes)
+        total_size *= size;
+
+    return total_size;
 }
 
 bool Type::is_size_8() const
@@ -205,7 +218,7 @@ UnaryOpType get_unary_op_type(const TokenType &t)
     case TOKEN_DECREMENT:
         return UnaryOpType::DECREMENT;
     default:
-        throw std::runtime_error("Parser Error: Invalid unary operator");
+        throw std::runtime_error("Parser Error: Invalid unary operator which is " + std::to_string(t));
     }
 }
 
@@ -335,7 +348,7 @@ void DoubleLiteral::print(int tabs)
     std::cout << std::string(tabs, ' ') << "(Double) Literal: " + std::to_string(value) << std::endl;
 }
 
-ArrayLiteral::ArrayLiteral() : ASTNode(NodeType::NODE_ARRAY_INIT) {}
+ArrayLiteral::ArrayLiteral(Type t) : ASTNode(NodeType::NODE_ARRAY_INIT), arr_type(t) {}
 
 void ArrayLiteral::add_element(std::unique_ptr<ASTNode> e)
 {
@@ -502,7 +515,13 @@ void BinaryNode::print(int tabs)
     right->print(tabs + 1);
 }
 
-VarNode::VarNode(const std::string &n, Type t, Specifier s) : ASTNode(NodeType::NODE_VAR), name(n), type(t), specifier(s) {}
+VarNode::VarNode(const std::string &n) : ASTNode(NodeType::NODE_VAR), name(n)
+{
+}
+
+VarNode::VarNode(const std::string &n, Type t, Specifier s) : ASTNode(NodeType::NODE_VAR), name(n), type(t), specifier(s)
+{
+}
 
 void VarNode::print(int tabs)
 {
@@ -514,7 +533,7 @@ void VarNode::print(int tabs)
         std::cout << std::string(tabs + 1, ' ') << "Specifier: EXTERN" << std::endl;
 }
 
-VarAssignNode::VarAssignNode(std::unique_ptr<VarNode> v, std::unique_ptr<ASTNode> val) : ASTNode(NodeType::NODE_VAR_ASSIGN), var(std::move(v)), value(std::move(val)) {}
+VarAssignNode::VarAssignNode(std::unique_ptr<ASTNode> v, std::unique_ptr<ASTNode> val) : ASTNode(NodeType::NODE_VAR_ASSIGN), var(std::move(v)), value(std::move(val)) {}
 
 void VarAssignNode::print(int tabs)
 {
@@ -601,4 +620,14 @@ void AddrOfNode::print(int tabs)
 {
     std::cout << std::string(tabs, ' ') << "AddrOf: " << std::endl;
     expr->print(tabs + 1);
+}
+
+ArrayAccessNode::ArrayAccessNode(std::unique_ptr<VarNode> arr, std::unique_ptr<ASTNode> idx) : ASTNode(NodeType::NODE_ARRAY_ACCESS), array(std::move(arr)), index(std::move(idx)) {}
+
+void ArrayAccessNode::print(int tabs)
+{
+    std::cout << std::string(tabs, ' ') << "ArrayAccess: " << std::endl;
+    std::cout << std::string(tabs + 1, ' ') << "Type: " << type.to_string() << std::endl;
+    array->print(tabs + 1);
+    index->print(tabs + 1);
 }

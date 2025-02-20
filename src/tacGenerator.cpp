@@ -157,31 +157,59 @@ void TacGenerator::generate_tac_element(ASTNode *element)
         {
             // Place in BSS if not initialised
             if (var_decl->value == nullptr)
-                bss_vars.emplace_back(TACOp::ASSIGN, var_decl->var->name, var_symbol->linkage == Linkage::External ? "global" : "", "0", var_symbol->type);
+            {
+                TACInstruction instruction(TACOp::ASSIGN, var_decl->var->name, "", "0", var_symbol->type);
+                instruction.arg3 = var_symbol->linkage == Linkage::External ? "global" : "";
+                bss_vars.emplace_back(instruction);
+            }
             else
             {
                 // Place in Data
                 std::string result = generate_tac_expr(var_decl->value.get());
-                data_vars.emplace_back(TACOp::ASSIGN, var_decl->var->name, var_symbol->linkage == Linkage::External ? "global" : "", result, var_symbol->type);
+                TACInstruction instruction(TACOp::ASSIGN, var_decl->var->name, "", result, var_symbol->type);
+                instruction.arg3 = var_symbol->linkage == Linkage::External ? "global" : "";
+                data_vars.emplace_back(instruction);
             }
 
             return;
         }
 
         // Only need to assign anything if initialised to a value otherwise ignore
-        if (var_decl->value != nullptr)
+
+        if (var_decl->value == nullptr)
+            return;
+
+        if (var_decl->var->type.is_array())
         {
-            std::string result = generate_tac_expr(var_decl->value.get(), var_symbol->type);
-            instructions.emplace_back(TACOp::ASSIGN, var_decl->var->name, result, "", var_symbol->type);
+            ArrayLiteral *array_init = dynamic_cast<ArrayLiteral *>(var_decl->value.get());
+            int array_size = var_decl->var->type.get_array_size();
+
+            for (size_t i = 0; i < array_init->values.size(); i++)
+            {
+                std::string result = generate_tac_expr(array_init->values[i].get(), var_symbol->type);
+                instructions.emplace_back(TACOp::ASSIGN, var_decl->var->name, std::to_string((array_size - 1 - i) * 4), result, var_symbol->type);
+            }
+
+            for (size_t i = array_init->values.size(); i < array_size; i++)
+                instructions.emplace_back(TACOp::ASSIGN, var_decl->var->name, std::to_string((array_size - 1 - i) * 4), "0", var_symbol->type);
+
+            return;
         }
+
+        std::string result = generate_tac_expr(var_decl->value.get(), var_symbol->type);
+        instructions.emplace_back(TACOp::ASSIGN, var_decl->var->name, result, "", var_symbol->type);
     }
     else if (element->type == NodeType::NODE_VAR_ASSIGN)
     {
         VarAssignNode *var_assign = (VarAssignNode *)element;
-        Symbol *var_symbol = gst->get_symbol(current_func, var_assign->var->name);
+        if (var_assign->var->type == NodeType::NODE_VAR)
+        {
+            VarNode *var = (VarNode *)var_assign->var.get();
+            Symbol *var_symbol = gst->get_symbol(current_func, var->name);
 
-        std::string result = generate_tac_expr(var_assign->value.get(), var_symbol->type);
-        instructions.emplace_back(TACOp::ASSIGN, var_assign->var->name, result, "", var_symbol->type);
+            std::string result = generate_tac_expr(var_assign->value.get(), var_symbol->type);
+            instructions.emplace_back(TACOp::ASSIGN, var->name, result, "", var_symbol->type);
+        }
     }
     else if (element->type == NodeType::NODE_IF)
     {
@@ -305,7 +333,6 @@ std::string TacGenerator::generate_tac_expr(ASTNode *expr, Type type)
 
         if (cast->target_type.has_base_type(BaseType::DOUBLE) && cast->expr.get()->type == NodeType::NODE_NUMBER)
         {
-            // return generate_tac_expr(cast->expr.get(), cast->target_type);
             std::string const_var = gen_new_const_label();
             current_st->declare_const_var(const_var, Type(BaseType::DOUBLE));
 

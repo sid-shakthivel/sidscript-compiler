@@ -39,8 +39,8 @@ int main()
 
     std::shared_ptr<GlobalSymbolTable> gst = std::make_shared<GlobalSymbolTable>();
 
-    SemanticAnalyser semanticAnalyser(gst);
-    semanticAnalyser.analyse(program);
+    // SemanticAnalyser semanticAnalyser(gst);
+    // semanticAnalyser.analyse(program);
 
     // TacGenerator tacGenerator(gst);
     // tacGenerator.generate_tac(program);

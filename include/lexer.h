@@ -85,6 +85,9 @@ public:
     void rewind();
     void print_all_tokens();
 
+    int get_current_pos();
+    void set_pos(int pos);
+
 private:
     std::string source;
     size_t index;

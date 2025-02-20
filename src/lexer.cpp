@@ -210,3 +210,18 @@ void Lexer::print_all_tokens()
         next_token = get_next_token();
     }
 }
+
+int Lexer::get_current_pos()
+{
+    return index;
+}
+void Lexer::set_pos(int pos)
+{
+    if (pos >= 0 && pos <= source.length())
+    {
+        index = pos;
+        shadow_index = pos;
+    }
+    else
+        throw std::runtime_error("Lexer Error: Invalid position");
+}
