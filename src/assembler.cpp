@@ -227,7 +227,7 @@ void Assembler::handle_assign(TACInstruction &instruction)
 
 		if (lhs->type.is_array())
 		{
-			int stack_offset = lhs->stack_offset + std::stod(instruction.arg2);
+			int stack_offset = lhs->stack_offset + std::stod(instruction.arg2) * 4;
 			fprintf(file, "\t%s\t$%s, %d(%%rbp)\n", mov_text.c_str(), instruction.result.c_str(), stack_offset);
 			fprintf(file, "\n");
 			return;
@@ -254,6 +254,12 @@ void Assembler::handle_assign(TACInstruction &instruction)
 			{
 				fprintf(file, "\t%s\t_%s(%%rip), %%xmm0\n", mov_text.c_str(), rhs->name.c_str());
 				fprintf(file, "\t%s\t%%xmm0, %d(%%rbp)\n", mov_text.c_str(), lhs->stack_offset);
+			}
+			else if (rhs->type.is_array())
+			{
+				int stack_offset = rhs->stack_offset + std::stod(instruction.arg2) * 4;
+				fprintf(file, "\t%s\t%d(%%rbp), %s\n", mov_text.c_str(), stack_offset, reg.c_str());
+				fprintf(file, "\t%s\t%s, %d(%%rbp)\n", mov_text.c_str(), reg.c_str(), lhs->stack_offset);
 			}
 			else
 			{

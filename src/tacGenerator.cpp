@@ -187,17 +187,17 @@ void TacGenerator::generate_tac_element(ASTNode *element)
             for (size_t i = 0; i < array_init->values.size(); i++)
             {
                 std::string result = generate_tac_expr(array_init->values[i].get(), var_symbol->type);
-                instructions.emplace_back(TACOp::ASSIGN, var_decl->var->name, std::to_string((array_size - 1 - i) * 4), result, var_symbol->type);
+                instructions.emplace_back(TACOp::ASSIGN, var_decl->var->name, std::to_string((i)), result, var_symbol->type);
             }
 
             for (size_t i = array_init->values.size(); i < array_size; i++)
-                instructions.emplace_back(TACOp::ASSIGN, var_decl->var->name, std::to_string((array_size - 1 - i) * 4), "0", var_symbol->type);
+                instructions.emplace_back(TACOp::ASSIGN, var_decl->var->name, std::to_string((i)), "0", var_symbol->type);
 
             return;
         }
 
         std::string result = generate_tac_expr(var_decl->value.get(), var_symbol->type);
-        instructions.emplace_back(TACOp::ASSIGN, var_decl->var->name, result, "", var_symbol->type);
+        instructions.emplace_back(TACOp::ASSIGN, var_decl->var->name, "", result, var_symbol->type);
     }
     else if (element->type == NodeType::NODE_VAR_ASSIGN)
     {
@@ -209,6 +209,15 @@ void TacGenerator::generate_tac_element(ASTNode *element)
 
             std::string result = generate_tac_expr(var_assign->value.get(), var_symbol->type);
             instructions.emplace_back(TACOp::ASSIGN, var->name, result, "", var_symbol->type);
+        }
+        else if (var_assign->var->type == NodeType::NODE_ARRAY_ACCESS)
+        {
+            ArrayAccessNode *array_access = (ArrayAccessNode *)var_assign->var.get();
+
+            std::string result = generate_tac_expr(var_assign->value.get(), array_access->type);
+            std::string index = generate_tac_expr(array_access->index.get());
+
+            instructions.emplace_back(TACOp::ASSIGN, array_access->array->name, index, result, array_access->type);
         }
     }
     else if (element->type == NodeType::NODE_IF)
@@ -437,6 +446,19 @@ std::string TacGenerator::generate_tac_expr(ASTNode *expr, Type type)
         std::string temp_var = gen_new_temp_var();
         current_st->declare_temp_var(temp_var, addr_of->type);
         instructions.emplace_back(TACOp::ADDR_OF, var, "", temp_var);
+
+        return temp_var;
+    }
+    else if (expr->type == NodeType::NODE_ARRAY_ACCESS)
+    {
+        ArrayAccessNode *array_access = (ArrayAccessNode *)expr;
+
+        std::string temp_var = gen_new_temp_var();
+        current_st->declare_temp_var(temp_var, array_access->array->type.get_base_type());
+
+        std::string index = generate_tac_expr(array_access->index.get());
+
+        instructions.emplace_back(TACOp::ASSIGN, temp_var, index, array_access->array->name, array_access->type);
 
         return temp_var;
     }

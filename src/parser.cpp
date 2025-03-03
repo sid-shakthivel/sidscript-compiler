@@ -76,7 +76,6 @@ void Parser::expect(std::vector<TokenType> &tokens)
         if (current_token.type != token)
             return;
 
-    // Fix this to include what it actually should be
     error("Expected " + token_to_string(tokens[0]));
 }
 
@@ -381,7 +380,24 @@ std::unique_ptr<VarDeclNode> Parser::parse_var_decl(TokenType specifier)
 
     curr_decl_type = determine_type(types);
 
-    std::unique_ptr<VarNode> var = std::unique_ptr<VarNode>(dynamic_cast<VarNode *>(parse_var(get_specifier(specifier)).release()));
+    expect(TOKEN_IDENTIFIER);
+
+    std::string var_name = current_token.text;
+
+    advance();
+
+    while (match(TOKEN_LSBRACE))
+    {
+        advance();
+        std::unique_ptr<ASTNode> size_expr = parse_expr();
+        if (auto num = dynamic_cast<IntegerLiteral *>(size_expr.get()))
+            curr_decl_type.add_array_dimension(num->value);
+        else
+            error("Array size must be a constant integer");
+        expect_and_advance(TOKEN_RSBRACE);
+    }
+
+    std::unique_ptr<VarNode> var = std::make_unique<VarNode>(var_name, curr_decl_type, get_specifier(specifier));
 
     std::vector<TokenType> excepted_tokens = std::vector<TokenType>{TOKEN_ASSIGN, TOKEN_SEMICOLON};
     expect(excepted_tokens);
@@ -587,20 +603,22 @@ std::unique_ptr<ASTNode> Parser::parse_factor()
         std::string identifier = current_token.text;
         std::unique_ptr<ASTNode> potential_var = parse_var();
 
-        advance();
+        retreat();
 
-        if (match(TOKEN_LPAREN))
-        {
-            std::unique_ptr<FuncCallNode> func_call = std::make_unique<FuncCallNode>(identifier);
-            parse_args_list(func_call);
-            expect(TOKEN_RPAREN);
-            return func_call;
-        }
-        else
-        {
-            retreat();
-            return potential_var;
-        }
+        return potential_var;
+
+        // if (match(TOKEN_LPAREN))
+        // {
+        //     std::unique_ptr<FuncCallNode> func_call = std::make_unique<FuncCallNode>(identifier);
+        //     parse_args_list(func_call);
+        //     expect(TOKEN_RPAREN);
+        //     return func_call;
+        // }
+        // else
+        // {
+        //     retreat();
+        //     return potential_var;
+        // }
     }
     else
         error("Expected expression");

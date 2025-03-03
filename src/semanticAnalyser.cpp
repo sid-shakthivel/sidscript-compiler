@@ -150,6 +150,10 @@ void SemanticAnalyser::analyser_var_assign(VarAssignNode *node)
                                      " in assignment to " + var->name);
         }
     }
+    else if (node->var->type == NodeType::NODE_ARRAY_ACCESS)
+    {
+        std::cout << "hey now\n";
+    }
 }
 
 void SemanticAnalyser::analyse_rtn(RtnNode *node)
@@ -334,6 +338,12 @@ Type SemanticAnalyser::infer_type(ASTNode *node)
         Type left = infer_type(bin_node->left.get());
         Type right = infer_type(bin_node->right.get());
 
+        if (left == right)
+        {
+            bin_node->type = left;
+            return left;
+        }
+
         if (left.can_convert_to(right))
         {
             auto cast_node = std::make_unique<CastNode>(std::move(bin_node->left), right);
@@ -388,6 +398,28 @@ Type SemanticAnalyser::infer_type(ASTNode *node)
     case NodeType::NODE_ARRAY_INIT:
     {
         return ((ArrayLiteral *)node)->arr_type;
+    }
+    case NodeType::NODE_ARRAY_ACCESS:
+    {
+        ArrayAccessNode *array_access_node = (ArrayAccessNode *)node;
+        Symbol *array_symbol = gst->get_symbol(current_func_name, array_access_node->array->name);
+
+        // Check if the index is a constant
+        if (auto index_literal = dynamic_cast<IntegerLiteral *>(array_access_node->index.get()))
+        {
+            if (index_literal->value < 0 || index_literal->value >= array_symbol->type.get_size())
+            {
+                throw std::runtime_error("Semantic Error: Array index " +
+                                         std::to_string(index_literal->value) +
+                                         " out of bounds for array '" + array_access_node->array->name +
+                                         "' of size " + std::to_string(array_symbol->type.get_size()));
+            }
+        }
+
+        array_access_node->type = array_symbol->type;
+        array_access_node->array->type = array_symbol->type;
+
+        return array_symbol->type.get_base_type();
     }
     default:
         throw std::runtime_error("Semantic Error: Cannot infer type of node of type ");
