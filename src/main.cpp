@@ -29,16 +29,16 @@ int main()
     code_file.close();
 
     Lexer lexer(file_contents);
-    lexer.print_all_tokens();
+    // lexer.print_all_tokens();
 
-    // Parser parser(&lexer);
+    Parser parser(&lexer);
 
-    // std::shared_ptr<ProgramNode> program = parser.parse();
+    std::shared_ptr<ProgramNode> program = parser.parse();
 
-    // std::shared_ptr<GlobalSymbolTable> gst = std::make_shared<GlobalSymbolTable>();
+    std::shared_ptr<GlobalSymbolTable> gst = std::make_shared<GlobalSymbolTable>();
 
-    // SemanticAnalyser semanticAnalyser(gst);
-    // semanticAnalyser.analyse(program);
+    SemanticAnalyser semanticAnalyser(gst);
+    semanticAnalyser.analyse(program);
 
     // TacGenerator tacGenerator(gst);
     // tacGenerator.generate_tac(program);

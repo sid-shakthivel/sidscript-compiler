@@ -68,7 +68,8 @@ enum class BaseType
     ULONG,
     DOUBLE,
     VOID,
-    STRUCT
+    STRUCT,
+    CHAR
 };
 
 class Type
@@ -95,6 +96,7 @@ public:
     bool is_signed() const;
 
     std::string to_string() const;
+    void print();
 
     size_t get_size() const;
     size_t get_array_size() const;
@@ -208,8 +210,9 @@ class CharLiteral : public ASTNode
 {
 public:
     char value;
+    Type value_type = Type(BaseType::CHAR);
 
-    CharLiteral(char v);
+    CharLiteral(char v, Type t);
     void print(int tabs) override;
 };
 
@@ -217,8 +220,9 @@ class StringLiteral : public ASTNode
 {
 public:
     std::string value;
+    Type value_type = Type(BaseType::VOID);
 
-    StringLiteral(const std::string &v);
+    StringLiteral(const std::string &v, Type t);
     void print(int tabs) override;
 };
 

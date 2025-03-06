@@ -82,6 +82,8 @@ void Assembler::initialize_handlers()
 	{ handle_section(instr); };
 	handlers[TACOp::ENTER_LITERAL8] = [this](TACInstruction instr)
 	{ handle_section(instr); };
+	handlers[TACOp::ENTER_STR] = [this](TACInstruction instr)
+	{ handle_section(instr); };
 	handlers[TACOp::CONVERT_TYPE] = [this](TACInstruction instr)
 	{ handle_convert_type(instr); };
 	handlers[TACOp::ADDR_OF] = [this](TACInstruction instr)
@@ -225,6 +227,15 @@ void Assembler::handle_assign(TACInstruction &instruction)
 
 		fprintf(file, "\t# %s\n", TacGenerator::gen_tac_str(instruction).c_str());
 
+		std::cout << "type is " << rhs->type.to_string() << std::endl;
+
+		if (rhs->type.is_pointer() && rhs->type.has_base_type(BaseType::CHAR))
+		{
+			fprintf(file, "\tleaq\t%s(%%rip), %s\n", instruction.arg2.c_str(), reg.c_str());
+			fprintf(file, "\tmovq\t%s, %d(%%rbp)\n", reg.c_str(), lhs->stack_offset);
+			return;
+		}
+
 		if (lhs->type.is_array())
 		{
 			int stack_offset = lhs->stack_offset + std::stod(instruction.arg2) * 4;
@@ -314,6 +325,14 @@ void Assembler::handle_assign(TACInstruction &instruction)
 		std::string double_hex = double_to_hex(value);
 
 		fprintf(file, "\t.quad %s # %s\n\n", double_hex.c_str(), instruction.result.c_str());
+	}
+	else if (current_var_type == VarType::STR)
+	{
+		if (!instruction.type.has_base_type(BaseType::CHAR))
+			return;
+
+		fprintf(file, "_%s:\n", instruction.arg1.c_str());
+		fprintf(file, "\t.asciz \"%s\"\n\n", instruction.result.c_str());
 	}
 }
 
@@ -541,6 +560,12 @@ void Assembler::handle_section(TACInstruction &instruction)
 	{
 		fprintf(file, ".section __TEXT,__literal8,8byte_literals\n");
 		current_var_type = VarType::LITERAL8;
+		break;
+	}
+	case TACOp::ENTER_STR:
+	{
+		fprintf(file, ".section __TEXT,__cstring,cstring_literals\n");
+		current_var_type = VarType::STR;
 		break;
 	}
 	default:

@@ -58,6 +58,7 @@ std::unordered_map<std::string, TokenType> string_to_token = {
     {"%=", TOKEN_MODULUS_EQUALS},
     {"[", TOKEN_LSBRACE},
     {"]", TOKEN_RSBRACE},
+    {"char", TOKEN_CHAR_TEXT},
 };
 
 std::string token_to_string(TokenType token_type)
@@ -108,12 +109,12 @@ std::string Lexer::process_number()
 
         // If no digits after E, it's invalid
         if (!has_exp_digits)
-            throw std::runtime_error("Lexer Error: Invalid number format on line " + line);
+            throw std::runtime_error("Lexer Error: Invalid number format on line " + std::to_string(line));
     }
 
     // Validate the number format
     if (temp_number == ".")
-        throw std::runtime_error("Lexer Error: Invalid number format on line " + line);
+        throw std::runtime_error("Lexer Error: Invalid number format on line " + std::to_string(line));
 
     return temp_number;
 }
@@ -173,7 +174,7 @@ Token Lexer::process_char()
             value = '"';
             break;
         default:
-            throw std::runtime_error("Lexer Error: Invalid escape sequence on line " + line);
+            throw std::runtime_error("Lexer Error: Invalid escape sequence on line " + std::to_string(line));
         }
     }
     else
@@ -182,7 +183,7 @@ Token Lexer::process_char()
     }
 
     if (source[++index] != '\'')
-        throw std::runtime_error("Lexer Error: Unterminanted char on line " + line);
+        throw std::runtime_error("Lexer Error: Unterminanted char on line " + std::to_string(line));
 
     index += 1;
     return Token(TOKEN_CHAR, std::string(1, value), line);
@@ -225,7 +226,7 @@ Token Lexer::process_string()
     }
 
     if (source[index] != '"')
-        throw std::runtime_error("Lexer Error: Unterminated string on line " + line);
+        throw std::runtime_error("Lexer Error: Unterminated string on line " + std::to_string(line));
 
     index += 1;
     return Token(TOKEN_STRING, str, line);

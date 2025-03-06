@@ -31,6 +31,9 @@ size_t Type::get_size() const
 
     switch (base_type)
     {
+    case BaseType::CHAR:
+        base_size = 1;
+        break;
     case BaseType::INT:
     case BaseType::UINT:
         base_size = 4;
@@ -102,6 +105,9 @@ std::string Type::to_string() const
     case BaseType::VOID:
         result = "void";
         break;
+    case BaseType::CHAR:
+        result = "char";
+        break;
     case BaseType::STRUCT:
         result = "struct " + (struct_name.has_value() ? struct_name.value() : "unknown");
         break;
@@ -114,6 +120,11 @@ std::string Type::to_string() const
         result += "[" + std::to_string(size) + "]";
 
     return result;
+}
+
+void Type::print()
+{
+    std::cout << to_string() << std::endl;
 }
 
 bool Type::is_signed() const
@@ -362,14 +373,14 @@ void ArrayLiteral::print(int tabs)
         elem->print(tabs + 1);
 }
 
-CharLiteral::CharLiteral(char v) : ASTNode(NodeType::NODE_CHAR), value(v) {}
+CharLiteral::CharLiteral(char v, Type t) : ASTNode(NodeType::NODE_CHAR), value(v), value_type(t) {}
 
 void CharLiteral::print(int tabs)
 {
     std::cout << std::string(tabs, ' ') << "Char: " << value << std::endl;
 }
 
-StringLiteral::StringLiteral(const std::string &v) : ASTNode(NodeType::NODE_STRING), value(v) {}
+StringLiteral::StringLiteral(const std::string &v, Type t) : ASTNode(NodeType::NODE_STRING), value(v), value_type(t) {}
 
 void StringLiteral::print(int tabs)
 {

@@ -112,7 +112,15 @@ void SymbolTable::declare_const_var(const std::string &name, Type type)
 {
     std::shared_ptr<Symbol> new_const_var = std::make_shared<Symbol>(name, 0, false);
     new_const_var->is_literal8 = true;
+    new_const_var->type = type;
     var_symbols[name] = new_const_var;
+}
+
+void SymbolTable::declare_str_var(const std::string &name, Type type)
+{
+    std::shared_ptr<Symbol> new_str_var = std::make_shared<Symbol>(name, 0, false);
+    new_str_var->type = type;
+    var_symbols[name] = new_str_var;
 }
 
 void SymbolTable::print()

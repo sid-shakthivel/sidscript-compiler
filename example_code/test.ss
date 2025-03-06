@@ -1,4 +1,4 @@
 fn main() -> int {
-    char* str = "hey there";
+    char hey[3];
     return 4;
 }

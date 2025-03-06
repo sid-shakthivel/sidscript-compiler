@@ -332,6 +332,10 @@ Type SemanticAnalyser::infer_type(ASTNode *node)
         FuncSymbol *func = gst->get_func_symbol(((FuncCallNode *)node)->name);
         return func->return_type;
     }
+    case NodeType::NODE_CHAR:
+        return ((CharLiteral *)node)->value_type;
+    case NodeType::NODE_STRING:
+        return ((StringLiteral *)node)->value_type;
     case NodeType::NODE_BINARY:
     {
         BinaryNode *bin_node = dynamic_cast<BinaryNode *>(node);

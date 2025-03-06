@@ -371,24 +371,32 @@ std::unique_ptr<VarDeclNode> Parser::parse_var_decl(TokenType specifier)
 {
     std::vector<TokenType> types;
 
+    std::cout << current_token.text << std::endl;
+
     while (match(addressable_types))
     {
         types.emplace_back(current_token.type);
 
+        std::cout << "are we gonna advance?\n";
         advance();
     }
 
     curr_decl_type = determine_type(types);
 
+    curr_decl_type.print();
+
     expect(TOKEN_IDENTIFIER);
 
     std::string var_name = current_token.text;
+
+    std::cout << var_name << std::endl;
 
     advance();
 
     while (match(TOKEN_LSBRACE))
     {
         advance();
+        std::cout << current_token.text << std::endl;
         std::unique_ptr<ASTNode> size_expr = parse_expr();
         if (auto num = dynamic_cast<IntegerLiteral *>(size_expr.get()))
             curr_decl_type.add_array_dimension(num->value);
@@ -441,6 +449,10 @@ Type Parser::determine_type(std::vector<TokenType> &types)
         return Type(BaseType::DOUBLE);
     else if (types.size() == 2 && types[0] == TOKEN_STAR && types[1] == TOKEN_INT)
         return Type(BaseType::INT, 1);
+    else if (types.size() == 1 && types[0] == TOKEN_CHAR_TEXT)
+        return Type(BaseType::CHAR);
+    else if (types.size() == 2 && types[0] == TOKEN_CHAR_TEXT && types[1] == TOKEN_STAR)
+        return Type(BaseType::CHAR, 1);
     else
         error("Invalid Type");
 }
@@ -516,6 +528,7 @@ std::unique_ptr<ASTNode> Parser::parse_factor()
             }
             else if (curr_decl_type.has_base_type(BaseType::INT))
             {
+                std::cout << "why is we not here?\n";
                 int number = std::stoi(current_token.text);
                 return std::make_unique<IntegerLiteral>(number);
             }
@@ -542,6 +555,8 @@ std::unique_ptr<ASTNode> Parser::parse_factor()
             return std::make_unique<LongLiteral>(number);
         }
 
+        // ok this is the issue!
+
         error("Unknown number type");
     }
     else if (match(TOKEN_FPN))
@@ -555,6 +570,14 @@ std::unique_ptr<ASTNode> Parser::parse_factor()
         {
             error("Number out of range");
         }
+    }
+    else if (match(TOKEN_CHAR))
+    {
+        return std::make_unique<CharLiteral>(current_token.text[1], curr_decl_type);
+    }
+    else if (match(TOKEN_STRING))
+    {
+        return std::make_unique<StringLiteral>(current_token.text, curr_decl_type);
     }
     else if (match(un_op_tokens))
     {

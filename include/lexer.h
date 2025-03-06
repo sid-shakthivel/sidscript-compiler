@@ -64,6 +64,7 @@ enum TokenType
     TOKEN_RSBRACE,
     TOKEN_CHAR,
     TOKEN_STRING,
+    TOKEN_CHAR_TEXT,
 };
 
 extern std::unordered_map<std::string, TokenType> string_to_token;

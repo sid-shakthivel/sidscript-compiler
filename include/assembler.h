@@ -16,6 +16,7 @@ enum class VarType
     DATA,
     TEXT,
     LITERAL8,
+    STR,
 };
 
 class Assembler

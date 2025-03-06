@@ -64,6 +64,7 @@ public:
     std::tuple<bool, std::string> declare_var(const std::string &name, bool is_static = false, Type type = Type(BaseType::INT));
     void declare_temp_var(const std::string &name, Type type);
     void declare_const_var(const std::string &name, Type type);
+    void declare_str_var(const std::string &name, Type type);
 
     std::tuple<bool, std::string> check_var_defined(const std::string &name);
 

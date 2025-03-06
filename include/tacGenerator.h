@@ -43,6 +43,7 @@ enum class TACOp
     ENTER_BSS,
     ENTER_DATA,
     ENTER_TEXT,
+    ENTER_STR,
     ENTER_LITERAL8,
     CONVERT_TYPE,
     DEREF,
@@ -89,6 +90,7 @@ private:
     std::vector<TACInstruction> bss_vars;
     std::vector<TACInstruction> data_vars;
     std::vector<TACInstruction> literal8_vars;
+    std::vector<TACInstruction> str_vars;
 
     std::array<std::string, 6> registers = {"%edi", "%esi", "%edx", "%ecx", "%r8", "%r9"};
 

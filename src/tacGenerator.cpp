@@ -92,6 +92,12 @@ void TacGenerator::generate_tac(std::shared_ptr<ProgramNode> program)
         instructions.insert(instructions.begin(), literal8_vars.begin(), literal8_vars.end());
         instructions.insert(instructions.begin(), TACInstruction(TACOp::ENTER_LITERAL8));
     }
+
+    if (!str_vars.empty())
+    {
+        instructions.insert(instructions.begin(), str_vars.begin(), str_vars.end());
+        instructions.insert(instructions.begin(), TACInstruction(TACOp::ENTER_STR));
+    }
 }
 
 void TacGenerator::generate_tac_func(FuncNode *func)
@@ -380,6 +386,20 @@ std::string TacGenerator::generate_tac_expr(ASTNode *expr, Type type)
             return const_val;
         }
     }
+    else if (expr->type == NodeType::NODE_CHAR)
+    {
+        return std::to_string((int)((CharLiteral *)expr)->value);
+    }
+    else if (expr->type == NodeType::NODE_STRING)
+    {
+        StringLiteral *str = (StringLiteral *)expr;
+        std::string label = gen_new_const_label();
+
+        current_st->declare_str_var(label, str->value_type);
+
+        str_vars.emplace_back(TACOp::ASSIGN, label, "", str->value, str->value_type);
+        return label;
+    }
     else if (expr->type == NodeType::NODE_UNARY)
     {
         UnaryNode *unary = (UnaryNode *)expr;
@@ -595,6 +615,8 @@ std::string TacGenerator::gen_tac_str(TACInstruction &instr)
             return "ENTER_TEXT";
         case TACOp::ENTER_LITERAL8:
             return "ENTER_LITERAL8";
+        case TACOp::ENTER_STR:
+            return "ENTER_STR";
         case TACOp::CONVERT_TYPE:
             return "CONVERT_TYPE";
         case TACOp::DEREF:
