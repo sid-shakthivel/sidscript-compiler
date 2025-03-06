@@ -55,7 +55,9 @@ enum class NodeType
     NODE_POSTFIX,
     NODE_DEREF,
     NODE_ADDR_OF,
-    NODE_ARRAY_ACCESS
+    NODE_ARRAY_ACCESS,
+    NODE_CHAR,
+    NODE_STRING
 };
 
 enum class BaseType
@@ -199,6 +201,24 @@ public:
     void add_element(std::unique_ptr<ASTNode> element);
 
     ArrayLiteral(Type t);
+    void print(int tabs) override;
+};
+
+class CharLiteral : public ASTNode
+{
+public:
+    char value;
+
+    CharLiteral(char v);
+    void print(int tabs) override;
+};
+
+class StringLiteral : public ASTNode
+{
+public:
+    std::string value;
+
+    StringLiteral(const std::string &v);
     void print(int tabs) override;
 };
 

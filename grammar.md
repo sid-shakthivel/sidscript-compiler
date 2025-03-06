@@ -25,22 +25,22 @@
 <argument_list> ::= <exp> { "," <exp> }
 
 <expr> ::= <factor> | <expr> <binopr> <expr> | <factor> <postopr>
-<factor> ::= <literal> 
-    | <identifier> [ "[" <expr> "]" ]*
-    | "(" { <type_specifier> }+ ")" <factor> 
-    | <unopr> <factor> 
-    | "(" <expr> ")" 
-    | <identifier> "(" [ <argument-list> ] ")"
+<factor> ::= <literal>
+| <identifier> [ "[" <expr> "]" ]\*
+| "(" { <type_specifier> }+ ")" <factor>
+| <unopr> <factor>
+| "(" <expr> ")"
+| <identifier> "(" [ <argument-list> ] ")"
 
-<type_specifier> ::= { "*" } "int" | "long" | "unsigned" | "signed" | "double" [ "[" <expr> "]" ]*
+<type*specifier> ::= { "*" } "int" | "long" | "unsigned" | "signed" | "double" | "char" [ "[" <expr> "]" ]\_
 <specifier> ::= "static" | "extern"
 
 <binopr> ::= ::= "-" | "+" | "\*" | "/" | "%" | "&&" | "||"
 | "==" | "!=" | "<" | "<=" | ">" | ">="
-<unopr> ::= "-" | "~" | "++" | "--" | "&" | "*"
+<unopr> ::= "-" | "~" | "++" | "--" | "&" | "\*"
 <postopr> ::= "++" | "--"
 
-<literal> ::= <int> | <long> | <uint> | <ulong> | <double>
+<literal> ::= <int> | <long> | <uint> | <ulong> | <double> | <char> | <string>
 
 <identifier> ::= ? An identifier token ?
 <int> ::= ? A int (4 bytes) token ?
@@ -48,6 +48,8 @@
 <uint> ::= ? An unsigned int (4 bytes) token ?
 <ulong> ::= ? An unsigned long (8 bytes) token ?
 <double> ::= ? A floating-point constant token ?
+<char> ::= "'" ? any single character ? "'"
+<string> ::= '"' ? any sequence of characters ? '"'
 
 A declaration introduces/defines entities (variables, functions, types)
 A statement is an action which is executed (assignment, if, while, for, return)

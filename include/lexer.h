@@ -61,7 +61,9 @@ enum TokenType
     TOKEN_MODULUS_EQUALS,
     TOKEN_UNKNOWN_SYMBOL,
     TOKEN_LSBRACE, // Left Square Brace
-    TOKEN_RSBRACE
+    TOKEN_RSBRACE,
+    TOKEN_CHAR,
+    TOKEN_STRING,
 };
 
 extern std::unordered_map<std::string, TokenType> string_to_token;
@@ -97,4 +99,6 @@ private:
     std::string process_number();
     std::string process_identifier();
     std::string process_symbol();
+    Token process_char();
+    Token process_string();
 };

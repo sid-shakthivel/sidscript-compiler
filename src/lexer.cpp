@@ -148,6 +148,89 @@ std::string Lexer::process_symbol()
     return symbol;
 }
 
+Token Lexer::process_char()
+{
+    char value;
+
+    if (source[++index] == '\\')
+    {
+        index += 1;
+        switch (source[index])
+        {
+        case 'n':
+            value = '\n';
+            break;
+        case 't':
+            value = '\t';
+            break;
+        case '\\':
+            value = '\\';
+            break;
+        case '\'':
+            value = '\'';
+            break;
+        case '"':
+            value = '"';
+            break;
+        default:
+            throw std::runtime_error("Lexer Error: Invalid escape sequence on line " + line);
+        }
+    }
+    else
+    {
+        value = source[index];
+    }
+
+    if (source[++index] != '\'')
+        throw std::runtime_error("Lexer Error: Unterminanted char on line " + line);
+
+    index += 1;
+    return Token(TOKEN_CHAR, std::string(1, value), line);
+}
+
+Token Lexer::process_string()
+{
+    std::string str;
+
+    index += 1;
+
+    while (source[index] != '"' && index <= source.length())
+    {
+        if (source[index] == '\\')
+        {
+            index += 1;
+            switch (source[index])
+            {
+            case 'n':
+                str += '\n';
+                break;
+            case 't':
+                str += '\t';
+                break;
+            case '\\':
+                str += '\\';
+                break;
+            case '"':
+                str += '"';
+                break;
+            default:
+                str += source[index];
+            }
+        }
+        else
+        {
+            str += source[index];
+        }
+        index += 1;
+    }
+
+    if (source[index] != '"')
+        throw std::runtime_error("Lexer Error: Unterminated string on line " + line);
+
+    index += 1;
+    return Token(TOKEN_STRING, str, line);
+}
+
 Token Lexer::get_next_token()
 {
     if (index >= source.length())
@@ -159,7 +242,15 @@ Token Lexer::get_next_token()
     if (c == '\n')
         line++;
 
-    if (isdigit(c) || c == '.')
+    if (c == '\'')
+    {
+        return process_char();
+    }
+    else if (c == '"')
+    {
+        return process_string();
+    }
+    else if (isdigit(c) || c == '.')
     {
         std::string num = process_number();
         if (num.find('.') != std::string::npos ||

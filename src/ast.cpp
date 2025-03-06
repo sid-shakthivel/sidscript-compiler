@@ -362,6 +362,20 @@ void ArrayLiteral::print(int tabs)
         elem->print(tabs + 1);
 }
 
+CharLiteral::CharLiteral(char v) : ASTNode(NodeType::NODE_CHAR), value(v) {}
+
+void CharLiteral::print(int tabs)
+{
+    std::cout << std::string(tabs, ' ') << "Char: " << value << std::endl;
+}
+
+StringLiteral::StringLiteral(const std::string &v) : ASTNode(NodeType::NODE_STRING), value(v) {}
+
+void StringLiteral::print(int tabs)
+{
+    std::cout << std::string(tabs, ' ') << "String: " << value << std::endl;
+}
+
 CastNode::CastNode(std::unique_ptr<ASTNode> e, Type t1, Type t2) : ASTNode(NodeType::NODE_CAST), expr(std::move(e)), target_type(t1), src_type(t2) {}
 
 void CastNode::print(int tabs)
