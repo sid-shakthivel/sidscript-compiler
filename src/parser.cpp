@@ -371,33 +371,27 @@ std::unique_ptr<VarDeclNode> Parser::parse_var_decl(TokenType specifier)
 {
     std::vector<TokenType> types;
 
-    std::cout << current_token.text << std::endl;
-
     while (match(addressable_types))
     {
         types.emplace_back(current_token.type);
-
-        std::cout << "are we gonna advance?\n";
         advance();
     }
 
     curr_decl_type = determine_type(types);
 
-    curr_decl_type.print();
-
     expect(TOKEN_IDENTIFIER);
 
     std::string var_name = current_token.text;
-
-    std::cout << var_name << std::endl;
 
     advance();
 
     while (match(TOKEN_LSBRACE))
     {
         advance();
-        std::cout << current_token.text << std::endl;
+        Type saved_type = curr_decl_type;
+        curr_decl_type = Type(BaseType::INT);
         std::unique_ptr<ASTNode> size_expr = parse_expr();
+        curr_decl_type = saved_type;
         if (auto num = dynamic_cast<IntegerLiteral *>(size_expr.get()))
             curr_decl_type.add_array_dimension(num->value);
         else
@@ -528,7 +522,6 @@ std::unique_ptr<ASTNode> Parser::parse_factor()
             }
             else if (curr_decl_type.has_base_type(BaseType::INT))
             {
-                std::cout << "why is we not here?\n";
                 int number = std::stoi(current_token.text);
                 return std::make_unique<IntegerLiteral>(number);
             }
@@ -555,7 +548,10 @@ std::unique_ptr<ASTNode> Parser::parse_factor()
             return std::make_unique<LongLiteral>(number);
         }
 
-        // ok this is the issue!
+        /*
+        ok the issue is parsing something like char[4] because it uses curr_decl_type
+        which is char not int so doesnt work
+        */
 
         error("Unknown number type");
     }

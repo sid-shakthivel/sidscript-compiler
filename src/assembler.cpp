@@ -223,22 +223,14 @@ void Assembler::handle_assign(TACInstruction &instruction)
 		Symbol *lhs = gst->get_symbol(current_func, instruction.arg1);
 		Symbol *rhs = gst->get_symbol(current_func, instruction.result);
 		std::string mov_text = instruction.type.is_size_8() ? "movq" : "movl";
+		mov_text = instruction.type.get_size() == 1 ? "movb" : mov_text;
 		std::string reg = instruction.type.is_size_8() ? "%r10" : "%r10d";
 
 		fprintf(file, "\t# %s\n", TacGenerator::gen_tac_str(instruction).c_str());
 
-		std::cout << "type is " << rhs->type.to_string() << std::endl;
-
-		if (rhs->type.is_pointer() && rhs->type.has_base_type(BaseType::CHAR))
-		{
-			fprintf(file, "\tleaq\t%s(%%rip), %s\n", instruction.arg2.c_str(), reg.c_str());
-			fprintf(file, "\tmovq\t%s, %d(%%rbp)\n", reg.c_str(), lhs->stack_offset);
-			return;
-		}
-
 		if (lhs->type.is_array())
 		{
-			int stack_offset = lhs->stack_offset + std::stod(instruction.arg2) * 4;
+			int stack_offset = lhs->stack_offset + std::stod(instruction.arg2) * instruction.type.get_size();
 			fprintf(file, "\t%s\t$%s, %d(%%rbp)\n", mov_text.c_str(), instruction.result.c_str(), stack_offset);
 			fprintf(file, "\n");
 			return;
@@ -246,6 +238,14 @@ void Assembler::handle_assign(TACInstruction &instruction)
 
 		if (rhs)
 		{
+			if (rhs->type.is_pointer() && rhs->type.has_base_type(BaseType::CHAR))
+			{
+				std::cout << "huh?\n";
+				fprintf(file, "\tleaq\t%s(%%rip), %s\n", instruction.arg2.c_str(), reg.c_str());
+				fprintf(file, "\tmovq\t%s, %d(%%rbp)\n", reg.c_str(), lhs->stack_offset);
+				return;
+			}
+
 			if (lhs->has_static_sd() && rhs->has_static_sd())
 			{
 				fprintf(file, "\t%s\t_%s(%%rip), %s\n", mov_text.c_str(), instruction.result.c_str(), reg.c_str());
@@ -268,6 +268,7 @@ void Assembler::handle_assign(TACInstruction &instruction)
 			}
 			else if (rhs->type.is_array())
 			{
+				std::cout << "we here?\n";
 				int stack_offset = rhs->stack_offset + std::stod(instruction.arg2) * 4;
 				fprintf(file, "\t%s\t%d(%%rbp), %s\n", mov_text.c_str(), stack_offset, reg.c_str());
 				fprintf(file, "\t%s\t%s, %d(%%rbp)\n", mov_text.c_str(), reg.c_str(), lhs->stack_offset);

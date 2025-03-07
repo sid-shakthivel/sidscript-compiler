@@ -40,18 +40,18 @@ int main()
     SemanticAnalyser semanticAnalyser(gst);
     semanticAnalyser.analyse(program);
 
-    // TacGenerator tacGenerator(gst);
-    // tacGenerator.generate_tac(program);
-    // tacGenerator.print_all_tac();
+    TacGenerator tacGenerator(gst);
+    tacGenerator.generate_tac(program);
+    tacGenerator.print_all_tac();
 
     // program->print();
 
-    // gst->print();
+    gst->print();
 
-    // auto &instructions = tacGenerator.get_instructions();
+    auto &instructions = tacGenerator.get_instructions();
 
-    // Assembler assembler(gst, "test.s");
-    // assembler.assemble(instructions);
+    Assembler assembler(gst, "test.s");
+    assembler.assemble(instructions);
 
     return 0;
 }

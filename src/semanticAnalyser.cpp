@@ -104,10 +104,21 @@ void SemanticAnalyser::analyse_var_decl(VarDeclNode *node)
         Type var_type = node->var->type;
         Type value_type = infer_type(node->value.get());
 
-        if (var_type.is_array())
+        if (var_type.is_array() && var_type.has_base_type(BaseType::CHAR))
+        {
+            if (node->value->type != NodeType::NODE_STRING)
+                throw std::runtime_error("Semantic Error: String initialisation of " + node->var->name + " requires string literal");
+
+            StringLiteral *string_literal = dynamic_cast<StringLiteral *>(node->value.get());
+
+            // +1 due to null terminator
+            if (string_literal->value.size() + 1 > var_type.get_size())
+                throw std::runtime_error("Semantic Error: Too many characters in string initialisation of " + node->var->name);
+        }
+        else if (var_type.is_array())
         {
             if (node->value->type != NodeType::NODE_ARRAY_INIT)
-                throw std::runtime_error("Semantic Error: Array initialisation of " + node->var->name + "requires array literal");
+                throw std::runtime_error("Semantic Error: Array initialisation of " + node->var->name + " requires array literal");
 
             ArrayLiteral *array_init = dynamic_cast<ArrayLiteral *>(node->value.get());
 

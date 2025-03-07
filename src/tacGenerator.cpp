@@ -185,6 +185,30 @@ void TacGenerator::generate_tac_element(ASTNode *element)
         if (var_decl->value == nullptr)
             return;
 
+        if (var_decl->var->type.is_array() && var_decl->var->type.has_base_type(BaseType::CHAR))
+        {
+            // Handle string literal initialization
+            StringLiteral *str = dynamic_cast<StringLiteral *>(var_decl->value.get());
+            size_t str_size = str->value.length();
+            int array_size = var_decl->var->type.get_array_size();
+
+            // Copy characters from string
+            for (size_t i = 0; i < str_size; i++)
+            {
+                instructions.emplace_back(TACOp::ASSIGN, var_decl->var->name,
+                                          std::to_string(i), std::to_string(static_cast<int>(str->value[i])),
+                                          Type(BaseType::CHAR));
+            }
+
+            // Fill remaining space with null terminators if any
+            for (size_t i = str_size; i < array_size; i++)
+            {
+                instructions.emplace_back(TACOp::ASSIGN, var_decl->var->name,
+                                          std::to_string(i), "0", Type(BaseType::CHAR));
+            }
+
+            return;
+        }
         if (var_decl->var->type.is_array())
         {
             ArrayLiteral *array_init = dynamic_cast<ArrayLiteral *>(var_decl->value.get());
