@@ -35,6 +35,8 @@ int main()
 
     std::shared_ptr<ProgramNode> program = parser.parse();
 
+    // program->print();
+
     std::shared_ptr<GlobalSymbolTable> gst = std::make_shared<GlobalSymbolTable>();
 
     SemanticAnalyser semanticAnalyser(gst);
@@ -43,8 +45,6 @@ int main()
     TacGenerator tacGenerator(gst);
     tacGenerator.generate_tac(program);
     tacGenerator.print_all_tac();
-
-    // program->print();
 
     gst->print();
 

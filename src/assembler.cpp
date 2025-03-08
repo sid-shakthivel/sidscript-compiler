@@ -240,7 +240,6 @@ void Assembler::handle_assign(TACInstruction &instruction)
 		{
 			if (rhs->type.is_pointer() && rhs->type.has_base_type(BaseType::CHAR))
 			{
-				std::cout << "huh?\n";
 				fprintf(file, "\tleaq\t%s(%%rip), %s\n", instruction.arg2.c_str(), reg.c_str());
 				fprintf(file, "\tmovq\t%s, %d(%%rbp)\n", reg.c_str(), lhs->stack_offset);
 				return;
@@ -268,10 +267,19 @@ void Assembler::handle_assign(TACInstruction &instruction)
 			}
 			else if (rhs->type.is_array())
 			{
-				std::cout << "we here?\n";
-				int stack_offset = rhs->stack_offset + std::stod(instruction.arg2) * 4;
-				fprintf(file, "\t%s\t%d(%%rbp), %s\n", mov_text.c_str(), stack_offset, reg.c_str());
-				fprintf(file, "\t%s\t%s, %d(%%rbp)\n", mov_text.c_str(), reg.c_str(), lhs->stack_offset);
+				if (instruction.arg2.empty())
+				{
+					// Array-to-pointer decay: get address of array start
+					fprintf(file, "\tleaq\t%d(%%rbp), %s\n", rhs->stack_offset, reg.c_str());
+					fprintf(file, "\tmovq\t%s, %d(%%rbp)\n", reg.c_str(), lhs->stack_offset);
+				}
+				else
+				{
+					// Array element access: calculate offset and load value
+					int stack_offset = rhs->stack_offset + std::stod(instruction.arg2) * instruction.type.get_size();
+					fprintf(file, "\t%s\t%d(%%rbp), %s\n", mov_text.c_str(), stack_offset, reg.c_str());
+					fprintf(file, "\t%s\t%s, %d(%%rbp)\n", mov_text.c_str(), reg.c_str(), lhs->stack_offset);
+				}
 			}
 			else
 			{

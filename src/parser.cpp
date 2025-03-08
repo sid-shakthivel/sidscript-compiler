@@ -410,9 +410,7 @@ std::unique_ptr<VarDeclNode> Parser::parse_var_decl(TokenType specifier)
 
         std::unique_ptr<ASTNode> init_expr;
         if (match(TOKEN_LBRACE) && curr_decl_type.is_array())
-        {
             init_expr = parse_array_initialiser();
-        }
         else
             init_expr = parse_expr();
 
@@ -442,6 +440,8 @@ Type Parser::determine_type(std::vector<TokenType> &types)
     else if (types.size() == 1 && types[0] == TOKEN_DOUBLE)
         return Type(BaseType::DOUBLE);
     else if (types.size() == 2 && types[0] == TOKEN_STAR && types[1] == TOKEN_INT)
+        return Type(BaseType::INT, 1);
+    else if (types.size() == 2 && types[0] == TOKEN_INT && types[1] == TOKEN_STAR)
         return Type(BaseType::INT, 1);
     else if (types.size() == 1 && types[0] == TOKEN_CHAR_TEXT)
         return Type(BaseType::CHAR);
@@ -569,7 +569,7 @@ std::unique_ptr<ASTNode> Parser::parse_factor()
     }
     else if (match(TOKEN_CHAR))
     {
-        return std::make_unique<CharLiteral>(current_token.text[1], curr_decl_type);
+        return std::make_unique<CharLiteral>(current_token.text[0], curr_decl_type);
     }
     else if (match(TOKEN_STRING))
     {

@@ -1,4 +1,9 @@
 fn main() -> int {
-    char hey[3] = "ok";
-    return 4;
+    int arr[3] = {5, 10, 15};
+    int* ptr = arr;      
+    
+    ptr = ptr + 2;      
+    int value = *ptr;    
+    
+    return value;        
 }

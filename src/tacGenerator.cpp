@@ -217,11 +217,11 @@ void TacGenerator::generate_tac_element(ASTNode *element)
             for (size_t i = 0; i < array_init->values.size(); i++)
             {
                 std::string result = generate_tac_expr(array_init->values[i].get(), var_symbol->type);
-                instructions.emplace_back(TACOp::ASSIGN, var_decl->var->name, std::to_string((i)), result, var_symbol->type);
+                instructions.emplace_back(TACOp::ASSIGN, var_decl->var->name, std::to_string((i)), result, var_symbol->type.get_base_type());
             }
 
             for (size_t i = array_init->values.size(); i < array_size; i++)
-                instructions.emplace_back(TACOp::ASSIGN, var_decl->var->name, std::to_string((i)), "0", var_symbol->type);
+                instructions.emplace_back(TACOp::ASSIGN, var_decl->var->name, std::to_string((i)), "0", var_symbol->type.get_base_type());
 
             return;
         }
@@ -238,7 +238,7 @@ void TacGenerator::generate_tac_element(ASTNode *element)
             Symbol *var_symbol = gst->get_symbol(current_func, var->name);
 
             std::string result = generate_tac_expr(var_assign->value.get(), var_symbol->type);
-            instructions.emplace_back(TACOp::ASSIGN, var->name, result, "", var_symbol->type);
+            instructions.emplace_back(TACOp::ASSIGN, var->name, "", result, var_symbol->type);
         }
         else if (var_assign->var->type == NodeType::NODE_ARRAY_ACCESS)
         {
@@ -452,9 +452,27 @@ std::string TacGenerator::generate_tac_expr(ASTNode *expr, Type type)
         std::string arg1 = generate_tac_expr(binary->left.get());
         std::string arg2 = generate_tac_expr(binary->right.get());
 
+        // if ((binary->op == BinOpType::ADD || binary->op == BinOpType::SUB) && binary->left->type.is_pointer())
+        // {
+        //     // Get the size of the pointed-to type
+        //     int type_size = binary->left->type.get_base_type().get_size();
+
+        //     // Create a temporary for the scaled offset
+        //     std::string scaled_offset = gen_new_temp_var();
+        //     current_st->declare_temp_var(scaled_offset, binary->right->type);
+
+        //     // Multiply the offset by the type size
+        //     instructions.emplace_back(TACOp::MUL, arg2, std::to_string(type_size), scaled_offset, binary->right->type);
+
+        //     // Use the scaled offset in the pointer arithmetic
+        //     std::string temp_var = gen_new_temp_var();
+        //     current_st->declare_temp_var(temp_var, binary->type);
+        //     instructions.emplace_back(convert_BinOpType_to_TACOp(binary->op), arg1, scaled_offset, temp_var, binary->type);
+        //     return temp_var;
+        // }
+
         std::string temp_var = gen_new_temp_var();
         current_st->declare_temp_var(temp_var, binary->type);
-
         instructions.emplace_back(convert_BinOpType_to_TACOp(binary->op), arg1, arg2, temp_var, binary->type);
         return temp_var;
     }

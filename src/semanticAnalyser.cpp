@@ -163,7 +163,23 @@ void SemanticAnalyser::analyser_var_assign(VarAssignNode *node)
     }
     else if (node->var->type == NodeType::NODE_ARRAY_ACCESS)
     {
-        std::cout << "hey now\n";
+        ArrayAccessNode *array_access = dynamic_cast<ArrayAccessNode *>(node->var.get());
+
+        Symbol *symbol = gst->get_symbol(current_func_name, array_access->array->name);
+
+        if (symbol == nullptr)
+            throw std::runtime_error("Semantic Error: Array '" + array_access->array->name + "' not defined");
+        if (!symbol->type.is_array())
+            throw std::runtime_error("Semantic Error: Array '" + array_access->array->name + "' is not an array");
+
+        Type value_type = infer_type(node->value.get());
+
+        if (symbol->type.has_base_type(BaseType::CHAR) && !symbol->type.is_pointer())
+            if (node->value->type == NodeType::NODE_STRING)
+                throw std::runtime_error("Semantic Error: Cannot assign string literal to single char element in array '" + array_access->array->name + "'");
+
+        if (!(Type(symbol->type.get_base_type())).can_assign_from(value_type))
+            throw std::runtime_error("Semantic Error: Cannot assign " + value_type.to_string() + " to array element of type " + Type(symbol->type.get_base_type()).to_string() + " in array '" + array_access->array->name + "'");
     }
 }
 
@@ -352,6 +368,20 @@ Type SemanticAnalyser::infer_type(ASTNode *node)
         BinaryNode *bin_node = dynamic_cast<BinaryNode *>(node);
         Type left = infer_type(bin_node->left.get());
         Type right = infer_type(bin_node->right.get());
+
+        if (bin_node->op == BinOpType::ADD || bin_node->op == BinOpType::SUB)
+        {
+            if (left.is_pointer() && right.is_integral())
+            {
+                bin_node->type = left;
+                return left;
+            }
+            else if (right.is_pointer() && left.is_integral())
+            {
+                bin_node->type = right;
+                return right;
+            }
+        }
 
         if (left == right)
         {

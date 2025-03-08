@@ -216,6 +216,15 @@ bool Type::has_base_type(BaseType other) const
     return base_type == other;
 }
 
+bool Type::is_integral() const
+{
+    return has_base_type(BaseType::INT) ||
+           has_base_type(BaseType::UINT) ||
+           has_base_type(BaseType::LONG) ||
+           has_base_type(BaseType::ULONG) ||
+           has_base_type(BaseType::CHAR);
+}
+
 UnaryOpType get_unary_op_type(const TokenType &t)
 {
     switch (t)

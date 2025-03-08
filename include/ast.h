@@ -109,6 +109,8 @@ public:
     // Equality operators
     bool operator==(const Type &other) const;
     bool operator!=(const Type &other) const;
+
+    bool is_integral() const;
 };
 
 enum class Specifier

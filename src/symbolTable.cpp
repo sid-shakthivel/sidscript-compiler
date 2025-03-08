@@ -104,7 +104,9 @@ Symbol *SymbolTable::get_symbol(const std::string &name)
 void SymbolTable::declare_temp_var(const std::string &name, Type type)
 {
     adjust_stack(type);
-    var_symbols[name] = std::make_shared<Symbol>(name, stack_size * -1, true);
+    std::shared_ptr<Symbol> new_temp_var = std::make_shared<Symbol>(name, stack_size * -1, true);
+    new_temp_var->type = type;
+    var_symbols[name] = new_temp_var;
     var_count += 1;
 }
 
@@ -141,7 +143,9 @@ void SymbolTable::print()
                       << " (name: " << pair.second->name
                       << ", offset: " << pair.second->stack_offset
                       << ", temp: " << pair.second->is_temporary
-                      << ", addr: " << pair.second.get() << ")" << std::endl;
+                      << ", addr: " << pair.second.get() << ")"
+                      << ", size: " << pair.second.get()->type.get_size()
+                      << std::endl;
         }
     }
     catch (const std::exception &e)
