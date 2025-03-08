@@ -8,9 +8,9 @@ void SemanticAnalyser::analyse(std::shared_ptr<ProgramNode> program)
 {
     for (auto &decl : program->decls)
     {
-        if (decl->type == NodeType::NODE_FUNCTION)
+        if (decl->node_type == NodeType::NODE_FUNCTION)
             analyse_func(dynamic_cast<FuncNode *>(decl.get()));
-        else if (decl->type == NodeType::NODE_VAR_DECL)
+        else if (decl->node_type == NodeType::NODE_VAR_DECL)
             analyse_var_decl(dynamic_cast<VarDeclNode *>(decl.get()));
     }
 }
@@ -47,37 +47,37 @@ void SemanticAnalyser::analyse_func(FuncNode *func)
 
 void SemanticAnalyser::analyse_node(ASTNode *node)
 {
-    if (node->type == NodeType::NODE_VAR_DECL)
+    if (node->node_type == NodeType::NODE_VAR_DECL)
         analyse_var_decl((VarDeclNode *)node);
-    else if (node->type == NodeType::NODE_VAR_ASSIGN)
+    else if (node->node_type == NodeType::NODE_VAR_ASSIGN)
         analyser_var_assign((VarAssignNode *)node);
-    else if (node->type == NodeType::NODE_IF)
+    else if (node->node_type == NodeType::NODE_IF)
         analyse_if_stmt((IfNode *)node);
-    else if (node->type == NodeType::NODE_RETURN)
+    else if (node->node_type == NodeType::NODE_RETURN)
         analyse_rtn((RtnNode *)node);
-    else if (node->type == NodeType::NODE_BINARY)
+    else if (node->node_type == NodeType::NODE_BINARY)
         analyse_binary((BinaryNode *)node);
-    else if (node->type == NodeType::NODE_UNARY)
+    else if (node->node_type == NodeType::NODE_UNARY)
         analyse_unary((UnaryNode *)node);
-    else if (node->type == NodeType::NODE_VAR)
+    else if (node->node_type == NodeType::NODE_VAR)
         analyse_var((VarNode *)node);
-    else if (node->type == NodeType::NODE_WHILE)
+    else if (node->node_type == NodeType::NODE_WHILE)
         analyse_while_stmt((WhileNode *)node);
-    else if (node->type == NodeType::NODE_FOR)
+    else if (node->node_type == NodeType::NODE_FOR)
         analyse_for_stmt((ForNode *)node);
-    else if (node->type == NodeType::NODE_BREAK || node->type == NodeType::NODE_CONTINUE)
+    else if (node->node_type == NodeType::NODE_BREAK || node->node_type == NodeType::NODE_CONTINUE)
         analyse_loop_control(node);
-    else if (node->type == NodeType::NODE_FUNC_CALL)
+    else if (node->node_type == NodeType::NODE_FUNC_CALL)
         analyse_func_call((FuncCallNode *)node);
-    else if (node->type == NodeType::NODE_CAST)
+    else if (node->node_type == NodeType::NODE_CAST)
         analyse_cast((CastNode *)node);
-    else if (node->type == NodeType::NODE_BINARY)
+    else if (node->node_type == NodeType::NODE_BINARY)
         analyse_binary((BinaryNode *)node);
-    else if (node->type == NodeType::NODE_ADDR_OF)
+    else if (node->node_type == NodeType::NODE_ADDR_OF)
         analyse_addr_of((AddrOfNode *)node);
-    else if (node->type == NodeType::NODE_DEREF)
+    else if (node->node_type == NodeType::NODE_DEREF)
         analyse_deref((DerefNode *)node);
-    else if (node->type == NodeType::NODE_POSTFIX)
+    else if (node->node_type == NodeType::NODE_POSTFIX)
     {
         PostfixNode *postfix = dynamic_cast<PostfixNode *>(node);
         analyse_node(postfix->value.get());
@@ -94,7 +94,7 @@ void SemanticAnalyser::analyse_var_decl(VarDeclNode *node)
     // Global variables are only allowed to have constant values ie 5 rather then expressions
     if (current_func_name == "")
         if (node->value != nullptr)
-            if (node->value->type != NodeType::NODE_NUMBER)
+            if (node->value->node_type != NodeType::NODE_NUMBER)
                 throw std::runtime_error("Semantic Error: Global variable " + node->var->name + " must have constant value");
 
     if (node->value != nullptr)
@@ -106,7 +106,7 @@ void SemanticAnalyser::analyse_var_decl(VarDeclNode *node)
 
         if (var_type.is_array() && var_type.has_base_type(BaseType::CHAR))
         {
-            if (node->value->type != NodeType::NODE_STRING)
+            if (node->value->node_type != NodeType::NODE_STRING)
                 throw std::runtime_error("Semantic Error: String initialisation of " + node->var->name + " requires string literal");
 
             StringLiteral *string_literal = dynamic_cast<StringLiteral *>(node->value.get());
@@ -117,7 +117,7 @@ void SemanticAnalyser::analyse_var_decl(VarDeclNode *node)
         }
         else if (var_type.is_array())
         {
-            if (node->value->type != NodeType::NODE_ARRAY_INIT)
+            if (node->value->node_type != NodeType::NODE_ARRAY_INIT)
                 throw std::runtime_error("Semantic Error: Array initialisation of " + node->var->name + " requires array literal");
 
             ArrayLiteral *array_init = dynamic_cast<ArrayLiteral *>(node->value.get());
@@ -145,7 +145,7 @@ void SemanticAnalyser::analyse_var_decl(VarDeclNode *node)
 
 void SemanticAnalyser::analyser_var_assign(VarAssignNode *node)
 {
-    if (node->var->type == NodeType::NODE_VAR)
+    if (node->var->node_type == NodeType::NODE_VAR)
     {
         VarNode *var = (VarNode *)node->var.get();
         var->name = gst->check_var_defined(current_func_name, var->name);
@@ -161,7 +161,7 @@ void SemanticAnalyser::analyser_var_assign(VarAssignNode *node)
                                      " in assignment to " + var->name);
         }
     }
-    else if (node->var->type == NodeType::NODE_ARRAY_ACCESS)
+    else if (node->var->node_type == NodeType::NODE_ARRAY_ACCESS)
     {
         ArrayAccessNode *array_access = dynamic_cast<ArrayAccessNode *>(node->var.get());
 
@@ -175,7 +175,7 @@ void SemanticAnalyser::analyser_var_assign(VarAssignNode *node)
         Type value_type = infer_type(node->value.get());
 
         if (symbol->type.has_base_type(BaseType::CHAR) && !symbol->type.is_pointer())
-            if (node->value->type == NodeType::NODE_STRING)
+            if (node->value->node_type == NodeType::NODE_STRING)
                 throw std::runtime_error("Semantic Error: Cannot assign string literal to single char element in array '" + array_access->array->name + "'");
 
         if (!(Type(symbol->type.get_base_type())).can_assign_from(value_type))
@@ -293,9 +293,9 @@ void SemanticAnalyser::exit_loop_scope()
 
 void SemanticAnalyser::analyse_loop_control(ASTNode *node)
 {
-    if (node->type == NodeType::NODE_CONTINUE)
+    if (node->node_type == NodeType::NODE_CONTINUE)
         ((ContinueNode *)node)->label = loop_scopes.top();
-    else if (node->type == NodeType::NODE_BREAK)
+    else if (node->node_type == NodeType::NODE_BREAK)
         ((BreakNode *)node)->label = loop_scopes.top();
 }
 
@@ -329,7 +329,7 @@ void SemanticAnalyser::analyse_addr_of(AddrOfNode *node)
 
     Type expr_type = infer_type(node->expr.get());
 
-    if (node->expr->type != NodeType::NODE_VAR)
+    if (node->expr->node_type != NodeType::NODE_VAR)
         throw std::runtime_error("Semantic Error: Can only take address of variables");
 
     node->type = Type(BaseType::INT, 1); // For now, only supporting int*
@@ -348,7 +348,7 @@ void SemanticAnalyser::analyse_deref(DerefNode *node)
 
 Type SemanticAnalyser::infer_type(ASTNode *node)
 {
-    switch (node->type)
+    switch (node->node_type)
     {
     case NodeType::NODE_NUMBER:
         return ((NumericLiteral *)node)->value_type;
@@ -373,11 +373,24 @@ Type SemanticAnalyser::infer_type(ASTNode *node)
         {
             if (left.is_pointer() && right.is_integral())
             {
+                // here for now
+                auto scale_node = std::make_unique<BinaryNode>(
+                    BinOpType::MUL,
+                    std::move(bin_node->right),
+                    std::make_unique<IntegerLiteral>(Type(left.get_base_type()).get_size()));
+                scale_node->type = left;
+                bin_node->right = std::move(scale_node);
                 bin_node->type = left;
                 return left;
             }
             else if (right.is_pointer() && left.is_integral())
             {
+                auto scale_node = std::make_unique<BinaryNode>(
+                    BinOpType::MUL,
+                    std::move(bin_node->left),
+                    std::make_unique<IntegerLiteral>(Type(right.get_base_type()).get_size()));
+                scale_node->type = left;
+                bin_node->left = std::move(scale_node);
                 bin_node->type = right;
                 return right;
             }

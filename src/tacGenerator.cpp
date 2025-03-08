@@ -67,9 +67,9 @@ void TacGenerator::generate_tac(std::shared_ptr<ProgramNode> program)
 {
     for (auto &decl : program->decls)
     {
-        if (decl->type == NodeType::NODE_FUNCTION)
+        if (decl->node_type == NodeType::NODE_FUNCTION)
             generate_tac_func(dynamic_cast<FuncNode *>(decl.get()));
-        else if (decl->type == NodeType::NODE_VAR_DECL)
+        else if (decl->node_type == NodeType::NODE_VAR_DECL)
             generate_tac_element(dynamic_cast<VarDeclNode *>(decl.get()));
     }
 
@@ -146,14 +146,14 @@ void TacGenerator::generate_tac_element(ASTNode *element)
         }
     };
 
-    if (element->type == NodeType::NODE_RETURN)
+    if (element->node_type == NodeType::NODE_RETURN)
     {
         FuncSymbol *func = gst->get_func_symbol(current_func);
         RtnNode *rtn = (RtnNode *)element;
         std::string result = generate_tac_expr(rtn->value.get());
         instructions.emplace_back(TACOp::RETURN, result, "", "", func->return_type);
     }
-    else if (element->type == NodeType::NODE_VAR_DECL)
+    else if (element->node_type == NodeType::NODE_VAR_DECL)
     {
         VarDeclNode *var_decl = (VarDeclNode *)element;
         Symbol *var_symbol = gst->get_symbol(current_func, var_decl->var->name);
@@ -229,10 +229,10 @@ void TacGenerator::generate_tac_element(ASTNode *element)
         std::string result = generate_tac_expr(var_decl->value.get(), var_symbol->type);
         instructions.emplace_back(TACOp::ASSIGN, var_decl->var->name, "", result, var_symbol->type);
     }
-    else if (element->type == NodeType::NODE_VAR_ASSIGN)
+    else if (element->node_type == NodeType::NODE_VAR_ASSIGN)
     {
         VarAssignNode *var_assign = (VarAssignNode *)element;
-        if (var_assign->var->type == NodeType::NODE_VAR)
+        if (var_assign->var->node_type == NodeType::NODE_VAR)
         {
             VarNode *var = (VarNode *)var_assign->var.get();
             Symbol *var_symbol = gst->get_symbol(current_func, var->name);
@@ -240,7 +240,7 @@ void TacGenerator::generate_tac_element(ASTNode *element)
             std::string result = generate_tac_expr(var_assign->value.get(), var_symbol->type);
             instructions.emplace_back(TACOp::ASSIGN, var->name, "", result, var_symbol->type);
         }
-        else if (var_assign->var->type == NodeType::NODE_ARRAY_ACCESS)
+        else if (var_assign->var->node_type == NodeType::NODE_ARRAY_ACCESS)
         {
             ArrayAccessNode *array_access = (ArrayAccessNode *)var_assign->var.get();
 
@@ -250,7 +250,7 @@ void TacGenerator::generate_tac_element(ASTNode *element)
             instructions.emplace_back(TACOp::ASSIGN, array_access->array->name, index, result, array_access->type);
         }
     }
-    else if (element->type == NodeType::NODE_IF)
+    else if (element->node_type == NodeType::NODE_IF)
     {
         IfNode *if_stmt = (IfNode *)element;
 
@@ -274,7 +274,7 @@ void TacGenerator::generate_tac_element(ASTNode *element)
         for (auto &element : if_stmt->else_elements)
             generate_tac_element(element.get());
     }
-    else if (element->type == NodeType::NODE_WHILE)
+    else if (element->node_type == NodeType::NODE_WHILE)
     {
         WhileNode *while_stmt = (WhileNode *)element;
 
@@ -303,7 +303,7 @@ void TacGenerator::generate_tac_element(ASTNode *element)
 
         instructions.emplace_back(TACOp::LABEL, end);
     }
-    else if (element->type == NodeType::NODE_FOR)
+    else if (element->node_type == NodeType::NODE_FOR)
     {
         ForNode *for_stmt = (ForNode *)element;
 
@@ -335,19 +335,19 @@ void TacGenerator::generate_tac_element(ASTNode *element)
 
         instructions.emplace_back(TACOp::LABEL, end);
     }
-    else if (element->type == NodeType::NODE_BREAK)
+    else if (element->node_type == NodeType::NODE_BREAK)
     {
         instructions.emplace_back(TACOp::GOTO, "", "", ((BreakNode *)element)->label + "_end");
     }
-    else if (element->type == NodeType::NODE_CONTINUE)
+    else if (element->node_type == NodeType::NODE_CONTINUE)
     {
         instructions.emplace_back(TACOp::GOTO, "", "", ((ContinueNode *)element)->label + "_post");
     }
-    else if (element->type == NodeType::NODE_UNARY)
+    else if (element->node_type == NodeType::NODE_UNARY)
     {
         UnaryNode *unary = (UnaryNode *)element;
     }
-    else if (element->type == NodeType::NODE_POSTFIX)
+    else if (element->node_type == NodeType::NODE_POSTFIX)
     {
         PostfixNode *postfix = (PostfixNode *)element;
 
@@ -362,15 +362,15 @@ void TacGenerator::generate_tac_element(ASTNode *element)
 
 std::string TacGenerator::generate_tac_expr(ASTNode *expr, Type type)
 {
-    if (expr->type == NodeType::NODE_VAR)
+    if (expr->node_type == NodeType::NODE_VAR)
     {
         return ((VarNode *)expr)->name;
     }
-    else if (expr->type == NodeType::NODE_CAST)
+    else if (expr->node_type == NodeType::NODE_CAST)
     {
         CastNode *cast = (CastNode *)expr;
 
-        if (cast->target_type.has_base_type(BaseType::DOUBLE) && cast->expr.get()->type == NodeType::NODE_NUMBER)
+        if (cast->target_type.has_base_type(BaseType::DOUBLE) && cast->expr.get()->node_type == NodeType::NODE_NUMBER)
         {
             std::string const_var = gen_new_const_label();
             current_st->declare_const_var(const_var, Type(BaseType::DOUBLE));
@@ -390,7 +390,7 @@ std::string TacGenerator::generate_tac_expr(ASTNode *expr, Type type)
 
         return temp_var;
     }
-    else if (expr->type == NodeType::NODE_NUMBER)
+    else if (expr->node_type == NodeType::NODE_NUMBER)
     {
         NumericLiteral *num = (NumericLiteral *)expr;
         if (num->value_type.has_base_type(BaseType::UINT))
@@ -410,11 +410,11 @@ std::string TacGenerator::generate_tac_expr(ASTNode *expr, Type type)
             return const_val;
         }
     }
-    else if (expr->type == NodeType::NODE_CHAR)
+    else if (expr->node_type == NodeType::NODE_CHAR)
     {
         return std::to_string((int)((CharLiteral *)expr)->value);
     }
-    else if (expr->type == NodeType::NODE_STRING)
+    else if (expr->node_type == NodeType::NODE_STRING)
     {
         StringLiteral *str = (StringLiteral *)expr;
         std::string label = gen_new_const_label();
@@ -424,7 +424,7 @@ std::string TacGenerator::generate_tac_expr(ASTNode *expr, Type type)
         str_vars.emplace_back(TACOp::ASSIGN, label, "", str->value, str->value_type);
         return label;
     }
-    else if (expr->type == NodeType::NODE_UNARY)
+    else if (expr->node_type == NodeType::NODE_UNARY)
     {
         UnaryNode *unary = (UnaryNode *)expr;
 
@@ -445,38 +445,19 @@ std::string TacGenerator::generate_tac_expr(ASTNode *expr, Type type)
         instructions.emplace_back(convert_UnaryOpType_to_TACOp(unary->op), result, "", temp_var, unary->type);
         return temp_var;
     }
-    else if (expr->type == NodeType::NODE_BINARY)
+    else if (expr->node_type == NodeType::NODE_BINARY)
     {
-        BinaryNode *binary = (BinaryNode *)expr;
+        BinaryNode *bin_node = dynamic_cast<BinaryNode *>(expr);
 
-        std::string arg1 = generate_tac_expr(binary->left.get());
-        std::string arg2 = generate_tac_expr(binary->right.get());
-
-        // if ((binary->op == BinOpType::ADD || binary->op == BinOpType::SUB) && binary->left->type.is_pointer())
-        // {
-        //     // Get the size of the pointed-to type
-        //     int type_size = binary->left->type.get_base_type().get_size();
-
-        //     // Create a temporary for the scaled offset
-        //     std::string scaled_offset = gen_new_temp_var();
-        //     current_st->declare_temp_var(scaled_offset, binary->right->type);
-
-        //     // Multiply the offset by the type size
-        //     instructions.emplace_back(TACOp::MUL, arg2, std::to_string(type_size), scaled_offset, binary->right->type);
-
-        //     // Use the scaled offset in the pointer arithmetic
-        //     std::string temp_var = gen_new_temp_var();
-        //     current_st->declare_temp_var(temp_var, binary->type);
-        //     instructions.emplace_back(convert_BinOpType_to_TACOp(binary->op), arg1, scaled_offset, temp_var, binary->type);
-        //     return temp_var;
-        // }
+        std::string arg1 = generate_tac_expr(bin_node->left.get());
+        std::string arg2 = generate_tac_expr(bin_node->right.get());
 
         std::string temp_var = gen_new_temp_var();
-        current_st->declare_temp_var(temp_var, binary->type);
-        instructions.emplace_back(convert_BinOpType_to_TACOp(binary->op), arg1, arg2, temp_var, binary->type);
+        current_st->declare_temp_var(temp_var, bin_node->type);
+        instructions.emplace_back(convert_BinOpType_to_TACOp(bin_node->op), arg1, arg2, temp_var, bin_node->type);
         return temp_var;
     }
-    else if (expr->type == NodeType::NODE_POSTFIX)
+    else if (expr->node_type == NodeType::NODE_POSTFIX)
     {
         PostfixNode *postfix = (PostfixNode *)expr;
 
@@ -489,7 +470,7 @@ std::string TacGenerator::generate_tac_expr(ASTNode *expr, Type type)
 
         return result;
     }
-    else if (expr->type == NodeType::NODE_DEREF)
+    else if (expr->node_type == NodeType::NODE_DEREF)
     {
         DerefNode *deref = (DerefNode *)expr;
 
@@ -500,7 +481,7 @@ std::string TacGenerator::generate_tac_expr(ASTNode *expr, Type type)
 
         return temp_var;
     }
-    else if (expr->type == NodeType::NODE_ADDR_OF)
+    else if (expr->node_type == NodeType::NODE_ADDR_OF)
     {
         AddrOfNode *addr_of = (AddrOfNode *)expr;
 
@@ -511,7 +492,7 @@ std::string TacGenerator::generate_tac_expr(ASTNode *expr, Type type)
 
         return temp_var;
     }
-    else if (expr->type == NodeType::NODE_ARRAY_ACCESS)
+    else if (expr->node_type == NodeType::NODE_ARRAY_ACCESS)
     {
         ArrayAccessNode *array_access = (ArrayAccessNode *)expr;
 
@@ -524,7 +505,7 @@ std::string TacGenerator::generate_tac_expr(ASTNode *expr, Type type)
 
         return temp_var;
     }
-    else if (expr->type == NodeType::NODE_FUNC_CALL)
+    else if (expr->node_type == NodeType::NODE_FUNC_CALL)
     {
         FuncCallNode *func = (FuncCallNode *)expr;
 
@@ -534,13 +515,13 @@ std::string TacGenerator::generate_tac_expr(ASTNode *expr, Type type)
             {
                 ASTNode *arg = func->args[i].get();
 
-                if (arg->type == NodeType::NODE_VAR)
+                if (arg->node_type == NodeType::NODE_VAR)
                 {
                     VarNode *var_node = dynamic_cast<VarNode *>(arg);
                     Type type = gst->get_symbol(current_func, var_node->name)->type;
                     instructions.emplace_back(TACOp::MOV, registers[i], var_node->name, "", type);
                 }
-                else if (arg->type == NodeType::NODE_NUMBER)
+                else if (arg->node_type == NodeType::NODE_NUMBER)
                 {
                     NumericLiteral *num_literal = dynamic_cast<IntegerLiteral *>(arg);
                     if (num_literal->value_type.has_base_type(BaseType::INT))

@@ -234,6 +234,11 @@ void Assembler::handle_assign(TACInstruction &instruction)
 			fprintf(file, "\t%s\t$%s, %d(%%rbp)\n", mov_text.c_str(), instruction.result.c_str(), stack_offset);
 			fprintf(file, "\n");
 			return;
+
+			// int stack_offset = lhs->stack_offset + (lhs->type.get_size() - 1 - std::stod(instruction.arg2)) * instruction.type.get_size();
+			// fprintf(file, "\t%s\t$%s, %d(%%rbp)\n", mov_text.c_str(), instruction.result.c_str(), stack_offset);
+			// fprintf(file, "\n");
+			// return;
 		}
 
 		if (rhs)
@@ -363,8 +368,8 @@ void Assembler::handle_bin_op(TACInstruction &instruction, const std::string &op
 		load_to_reg(instruction.arg2, "%xmm1", instruction.type);
 
 	std::string actual_op = op;
-	if (op == "imul" && !instruction.type.is_signed())
-		actual_op = "mul"; // unsigned multiplication
+	// if (op == "imul" && !instruction.type.is_signed())
+	// 	actual_op = "mul"; // unsigned multiplication
 
 	if (instruction.type.has_base_type(BaseType::DOUBLE))
 		actual_op = op + "sd";
@@ -667,9 +672,18 @@ void Assembler::handle_deref(TACInstruction &instruction)
 
 	fprintf(file, "\t# %s\n", TacGenerator::gen_tac_str(instruction).c_str());
 
-	fprintf(file, "\tmovq %d(%%rbp), %%rax\n", src->stack_offset);
-	fprintf(file, "\tmovl (%%rax), %%r10d\n");
-	fprintf(file, "\tmovl %%r10d, %d(%%rbp)\n\n", dst->stack_offset);
+	// fprintf(file, "\tmovq %d(%%rbp), %%rax\n", src->stack_offset);
+	// fprintf(file, "\tmovl (%%rax), %%r10d\n");
+	// fprintf(file, "\tmovl %%r10d, %d(%%rbp)\n\n", dst->stack_offset);
+
+	// First, get the pointer value into a register
+	fprintf(file, "\tmovq\t%d(%%rbp), %%rax\n", src->stack_offset);
+
+	// Now dereference it and store the value
+	fprintf(file, "\tmovl\t(%%rax), %%r10d\n");
+	fprintf(file, "\tmovl\t%%r10d, %d(%%rbp)\n", dst->stack_offset);
+
+	fprintf(file, "\n");
 }
 
 void Assembler::handle_addr_of(TACInstruction &instruction)

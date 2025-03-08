@@ -129,9 +129,9 @@ Type get_type_from_str(std::string &t);
 class ASTNode
 {
 public:
-    NodeType type;
+    NodeType node_type;
 
-    ASTNode(NodeType t) : type(t) {}
+    ASTNode(NodeType t) : node_type(t) {}
     virtual void print(int tabs) {};
 
     virtual ASTNode *clone() const
