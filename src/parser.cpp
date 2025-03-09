@@ -622,22 +622,22 @@ std::unique_ptr<ASTNode> Parser::parse_factor()
         std::string identifier = current_token.text;
         std::unique_ptr<ASTNode> potential_var = parse_var();
 
-        retreat();
+        // retreat();
 
-        return potential_var;
+        // return potential_var;
 
-        // if (match(TOKEN_LPAREN))
-        // {
-        //     std::unique_ptr<FuncCallNode> func_call = std::make_unique<FuncCallNode>(identifier);
-        //     parse_args_list(func_call);
-        //     expect(TOKEN_RPAREN);
-        //     return func_call;
-        // }
-        // else
-        // {
-        //     retreat();
-        //     return potential_var;
-        // }
+        if (match(TOKEN_LPAREN))
+        {
+            std::unique_ptr<FuncCallNode> func_call = std::make_unique<FuncCallNode>(identifier);
+            parse_args_list(func_call);
+            expect(TOKEN_RPAREN);
+            return func_call;
+        }
+        else
+        {
+            retreat();
+            return potential_var;
+        }
     }
     else
         error("Expected expression");

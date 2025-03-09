@@ -90,6 +90,8 @@ void Assembler::initialize_handlers()
 	{ handle_addr_of(instr); };
 	handlers[TACOp::DEREF] = [this](TACInstruction instr)
 	{ handle_deref(instr); };
+	handlers[TACOp::PRINTF] = [this](TACInstruction instr)
+	{ handle_printf(instr); };
 }
 
 void Assembler::assemble(const std::vector<TACInstruction> &instructions)
@@ -199,6 +201,7 @@ void Assembler::handle_func_begin(TACInstruction &instruction)
 	current_func = instruction.arg1;
 	if (instruction.arg2 == "global")
 		fprintf(file, ".global _%s\n", instruction.arg1.c_str());
+	fprintf(file, ".extern _printf\n");
 	fprintf(file, "_%s: # %s\n", instruction.arg1.c_str(), TacGenerator::gen_tac_str(instruction).c_str());
 	fprintf(file, "\tpushq\t%%rbp\n");
 	fprintf(file, "\tmovq\t%%rsp, %%rbp\n");
@@ -234,11 +237,6 @@ void Assembler::handle_assign(TACInstruction &instruction)
 			fprintf(file, "\t%s\t$%s, %d(%%rbp)\n", mov_text.c_str(), instruction.result.c_str(), stack_offset);
 			fprintf(file, "\n");
 			return;
-
-			// int stack_offset = lhs->stack_offset + (lhs->type.get_size() - 1 - std::stod(instruction.arg2)) * instruction.type.get_size();
-			// fprintf(file, "\t%s\t$%s, %d(%%rbp)\n", mov_text.c_str(), instruction.result.c_str(), stack_offset);
-			// fprintf(file, "\n");
-			// return;
 		}
 
 		if (rhs)
@@ -711,4 +709,16 @@ std::string Assembler::double_to_hex(double value)
 	ss << "0x" << std::uppercase << std::hex << std::setfill('0') << std::setw(16) << converter.i;
 
 	return ss.str();
+}
+
+void Assembler::handle_printf(TACInstruction &instruction)
+{
+	fprintf(file, "\t# %s\n", TacGenerator::gen_tac_str(instruction).c_str());
+
+	fprintf(file, "\tleaq\t_%s(%%rip), %%rdi\n", instruction.arg1.c_str());
+
+	// Set float argument count
+	// fprintf(file, "\tmovb\t$%s, %%al\n", instruction.arg2.c_str());
+
+	fprintf(file, "\tcall\t_printf\n\n");
 }

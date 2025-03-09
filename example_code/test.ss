@@ -1,9 +1,5 @@
 fn main() -> int {
-    int arr[3] = {5, 10, 15};
-    int* ptr = arr;      
-    
-    ptr = ptr + 1;      
-    int value = *ptr;    
-    
-    return value;        
+    int a = 5;
+    printf("hello there %d\n", a);
+    return 2;      
 }

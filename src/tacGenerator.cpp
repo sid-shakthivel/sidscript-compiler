@@ -43,6 +43,10 @@ TACOp convert_UnaryOpType_to_TACOp(UnaryOpType op)
         return TACOp::NEGATE;
     case UnaryOpType::COMPLEMENT:
         return TACOp::COMPLEMENT;
+    case UnaryOpType::DECREMENT:
+        return TACOp::DECREMENT;
+    case UnaryOpType::INCREMENT:
+        return TACOp::INCREMENT;
     }
 }
 
@@ -358,6 +362,10 @@ void TacGenerator::generate_tac_element(ASTNode *element)
         else if (postfix->op == TokenType::TOKEN_DECREMENT)
             instructions.emplace_back(TACOp::SUB, result, "1", result, postfix->type);
     }
+    else if (element->node_type == NodeType::NODE_FUNC_CALL)
+    {
+        std::string result = generate_tac_expr(element);
+    }
 }
 
 std::string TacGenerator::generate_tac_expr(ASTNode *expr, Type type)
@@ -507,11 +515,17 @@ std::string TacGenerator::generate_tac_expr(ASTNode *expr, Type type)
     }
     else if (expr->node_type == NodeType::NODE_FUNC_CALL)
     {
+        std::cout << "i assume we get here\n";
         FuncCallNode *func = (FuncCallNode *)expr;
 
-        for (int i = 0; i < func->args.size(); i++)
+        if (func->name == "printf")
         {
-            if (i < 6)
+            std::string fmt_label = gen_new_const_label();
+            current_st->declare_str_var(fmt_label, Type(BaseType::CHAR));
+            StringLiteral *first_arg = (StringLiteral *)func->args[0].get();
+            str_vars.emplace_back(TACOp::ASSIGN, fmt_label, "", first_arg->value, Type(BaseType::CHAR));
+
+            for (size_t i = 1; i < func->args.size(); i++)
             {
                 ASTNode *arg = func->args[i].get();
 
@@ -526,33 +540,58 @@ std::string TacGenerator::generate_tac_expr(ASTNode *expr, Type type)
                     NumericLiteral *num_literal = dynamic_cast<IntegerLiteral *>(arg);
                     if (num_literal->value_type.has_base_type(BaseType::INT))
                         instructions.emplace_back(TACOp::MOV, registers[i], "$" + std::to_string(((IntegerLiteral *)num_literal)->value), "", Type(BaseType::INT));
-                    else if (num_literal->value_type.has_base_type(BaseType::LONG))
-                        instructions.emplace_back(TACOp::MOV, registers[i], "$" + std::to_string(((LongLiteral *)num_literal)->value), "", Type(BaseType::LONG));
                 }
             }
-            else
-            {
-                // Need to consider what happens when pushing a variable - need to reference the bit of memory
-                // instructions.emplace_back(TACOp::PUSH, func->args[i], "", "");
-            }
+
+            instructions.emplace_back(TACOp::PRINTF, fmt_label, "", "", Type(BaseType::VOID));
+
+            return "";
         }
 
-        int stack_offset = (func->args.size() - 6) + current_st->get_stack_size();
+        // for (int i = 0; i < func->args.size(); i++)
+        // {
+        //     if (i < 6)
+        //     {
+        //         ASTNode *arg = func->args[i].get();
 
-        if (stack_offset % 2 != 0 && stack_offset > 0)
-            instructions.emplace_back(TACOp::DEALLOC_STACK, "8");
+        //         if (arg->node_type == NodeType::NODE_VAR)
+        //         {
+        //             VarNode *var_node = dynamic_cast<VarNode *>(arg);
+        //             Type type = gst->get_symbol(current_func, var_node->name)->type;
+        //             instructions.emplace_back(TACOp::MOV, registers[i], var_node->name, "", type);
+        //         }
+        //         else if (arg->node_type == NodeType::NODE_NUMBER)
+        //         {
+        //             NumericLiteral *num_literal = dynamic_cast<IntegerLiteral *>(arg);
+        //             if (num_literal->value_type.has_base_type(BaseType::INT))
+        //                 instructions.emplace_back(TACOp::MOV, registers[i], "$" + std::to_string(((IntegerLiteral *)num_literal)->value), "", Type(BaseType::INT));
+        //             else if (num_literal->value_type.has_base_type(BaseType::LONG))
+        //                 instructions.emplace_back(TACOp::MOV, registers[i], "$" + std::to_string(((LongLiteral *)num_literal)->value), "", Type(BaseType::LONG));
+        //         }
+        //     }
+        //     else
+        //     {
+        //         // Need to consider what happens when pushing a variable - need to reference the bit of memory
+        //         // instructions.emplace_back(TACOp::PUSH, func->args[i], "", "");
+        //     }
+        // }
 
-        instructions.emplace_back(TACOp::CALL, func->name);
+        // int stack_offset = (func->args.size() - 6) + current_st->get_stack_size();
 
-        if (stack_offset % 2 != 0 && stack_offset > 0)
-            instructions.emplace_back(TACOp::ALLOC_STACK, "8");
+        // if (stack_offset % 2 != 0 && stack_offset > 0)
+        //     instructions.emplace_back(TACOp::DEALLOC_STACK, "8");
 
-        std::string temp_var = gen_new_temp_var();
-        current_st->declare_temp_var(temp_var, Type(BaseType::INT));
+        // instructions.emplace_back(TACOp::CALL, func->name);
 
-        instructions.emplace_back(TACOp::MOV, temp_var, "%eax");
+        // if (stack_offset % 2 != 0 && stack_offset > 0)
+        //     instructions.emplace_back(TACOp::ALLOC_STACK, "8");
 
-        return temp_var;
+        // std::string temp_var = gen_new_temp_var();
+        // current_st->declare_temp_var(temp_var, Type(BaseType::INT));
+
+        // instructions.emplace_back(TACOp::MOV, temp_var, "%eax");
+
+        // return temp_var;
     }
 
     throw std::runtime_error("Tac Generation: Invalid expression");
@@ -646,6 +685,8 @@ std::string TacGenerator::gen_tac_str(TACInstruction &instr)
             return "DEREF";
         case TACOp::ADDR_OF:
             return "ADDR_OF";
+        case TACOp::PRINTF:
+            return "PRINTF";
         default:
             return "UNKNOWN";
         }

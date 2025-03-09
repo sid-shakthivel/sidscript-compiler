@@ -303,6 +303,12 @@ void SemanticAnalyser::analyse_func_call(FuncCallNode *node)
 {
     FuncSymbol *func = gst->get_func_symbol(node->name);
 
+    if (node->name == "printf")
+        return;
+
+    if (func == nullptr)
+        throw std::runtime_error("Semantic Error: Function '" + node->name + "' not defined");
+
     if (func->arg_count != node->args.size())
         throw std::runtime_error("Semantic Error: Function '" + node->name + "' has " + std::to_string(func->arg_count) + " arguments, but " + std::to_string(node->args.size()) + " were provided");
 

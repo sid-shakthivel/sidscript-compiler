@@ -49,6 +49,7 @@ enum class TACOp
     DEREF,
     ADDR_OF,
     STORE_ARRAY,
+    PRINTF,
 };
 
 TACOp convert_UnaryOpType_to_TACOp(UnaryOpType op);

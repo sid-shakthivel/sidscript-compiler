@@ -35,7 +35,7 @@ int main()
 
     std::shared_ptr<ProgramNode> program = parser.parse();
 
-    // program->print();
+    program->print();
 
     std::shared_ptr<GlobalSymbolTable> gst = std::make_shared<GlobalSymbolTable>();
 
@@ -46,7 +46,7 @@ int main()
     tacGenerator.generate_tac(program);
     tacGenerator.print_all_tac();
 
-    gst->print();
+    // gst->print();
 
     auto &instructions = tacGenerator.get_instructions();
 

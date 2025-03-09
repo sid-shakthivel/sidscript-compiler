@@ -58,6 +58,7 @@ private:
     void handle_convert_type(TACInstruction &instruction);
     void handle_deref(TACInstruction &instruction);
     void handle_addr_of(TACInstruction &instruction);
+    void handle_printf(TACInstruction &instruction);
 
     std::string double_to_hex(double value);
 };
