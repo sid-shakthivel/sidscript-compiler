@@ -30,7 +30,6 @@ private:
     bool match(std::vector<TokenType> &tokens);
     void advance();
     void retreat();
-    void retreat_test();
     void expect(TokenType token_type);
     void expect_and_advance(TokenType token_type);
     void expect_and_advance(std::vector<TokenType> &tokens);

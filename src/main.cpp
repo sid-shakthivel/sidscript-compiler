@@ -14,7 +14,7 @@
 int main()
 {
     std::string file_line;
-    std::ifstream code_file("../example_code/test.ss");
+    std::ifstream code_file("../tests/test.ss");
 
     if (!code_file)
     {

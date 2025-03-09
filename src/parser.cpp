@@ -34,9 +34,7 @@ bool Parser::match(TokenType type)
 
 bool Parser::match(std::vector<TokenType> &tokens)
 {
-    for (auto token : tokens)
-        if (current_token.type == token)
-            return true;
+    return std::find(tokens.begin(), tokens.end(), current_token.type) != tokens.end();
 }
 
 void Parser::advance()
@@ -50,12 +48,6 @@ void Parser::retreat()
     lexer->rewind();
 }
 
-void Parser::retreat_test()
-{
-    retreat();
-    current_token = previous_token;
-}
-
 void Parser::error(const std::string &message)
 {
     throw std::runtime_error("Parser Error: " + message + " but found " + current_token.text + " on line " + std::to_string(current_token.line));
@@ -63,20 +55,14 @@ void Parser::error(const std::string &message)
 
 void Parser::expect(TokenType token_type)
 {
-    if (!(current_token.type == token_type))
-    {
-        std::string expected_token = token_to_string(token_type);
-        error("Expected " + expected_token);
-    }
+    if (current_token.type != token_type)
+        error("Expected " + token_to_string(token_type));
 }
 
 void Parser::expect(std::vector<TokenType> &tokens)
 {
-    for (auto token : tokens)
-        if (current_token.type != token)
-            return;
-
-    error("Expected " + token_to_string(tokens[0]));
+    if (!match(tokens))
+        error("Expected " + token_to_string(tokens[0]));
 }
 
 void Parser::expect_and_advance(TokenType token_type)
@@ -232,9 +218,8 @@ std::vector<std::unique_ptr<ASTNode>> Parser::parse_block()
             current_token = Token(TOKEN_IDENTIFIER, identifier, 1);
 
             if (is_assignment)
-            {
+
                 elements.emplace_back(parse_var_assign());
-            }
             else
             {
                 elements.emplace_back(parse_expr());
@@ -548,11 +533,6 @@ std::unique_ptr<ASTNode> Parser::parse_factor()
             return std::make_unique<LongLiteral>(number);
         }
 
-        /*
-        ok the issue is parsing something like char[4] because it uses curr_decl_type
-        which is char not int so doesnt work
-        */
-
         error("Unknown number type");
     }
     else if (match(TOKEN_FPN))
@@ -621,10 +601,6 @@ std::unique_ptr<ASTNode> Parser::parse_factor()
     {
         std::string identifier = current_token.text;
         std::unique_ptr<ASTNode> potential_var = parse_var();
-
-        // retreat();
-
-        // return potential_var;
 
         if (match(TOKEN_LPAREN))
         {
