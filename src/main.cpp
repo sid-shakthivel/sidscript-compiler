@@ -30,6 +30,7 @@ int main()
 
     Lexer lexer(file_contents);
     // lexer.print_all_tokens();
+    // lexer.print_stack();
 
     Parser parser(&lexer);
 
@@ -37,21 +38,21 @@ int main()
 
     program->print();
 
-    std::shared_ptr<GlobalSymbolTable> gst = std::make_shared<GlobalSymbolTable>();
+    // std::shared_ptr<GlobalSymbolTable> gst = std::make_shared<GlobalSymbolTable>();
 
-    SemanticAnalyser semanticAnalyser(gst);
-    semanticAnalyser.analyse(program);
+    // SemanticAnalyser semanticAnalyser(gst);
+    // semanticAnalyser.analyse(program);
 
-    TacGenerator tacGenerator(gst);
-    tacGenerator.generate_tac(program);
-    tacGenerator.print_all_tac();
+    // TacGenerator tacGenerator(gst);
+    // tacGenerator.generate_tac(program);
+    // tacGenerator.print_all_tac();
 
     // gst->print();
 
-    auto &instructions = tacGenerator.get_instructions();
+    // auto &instructions = tacGenerator.get_instructions();
 
-    Assembler assembler(gst, "test.s");
-    assembler.assemble(instructions);
+    // Assembler assembler(gst, "test.s");
+    // assembler.assemble(instructions);
 
     return 0;
 }

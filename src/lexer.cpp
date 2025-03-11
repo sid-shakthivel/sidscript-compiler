@@ -4,6 +4,9 @@
 
 #include "../include/lexer.h"
 
+Token::Token(TokenType t, const std::string &txt, size_t l, size_t i)
+    : type(t), text(txt), line(l), index(i) {}
+
 std::unordered_map<std::string, TokenType> string_to_token = {
     {"int", TOKEN_INT},
     {"void", TOKEN_VOID},
@@ -151,6 +154,7 @@ std::string Lexer::process_symbol()
 
 Token Lexer::process_char()
 {
+    size_t init_index = index;
     char value;
 
     if (source[++index] == '\\')
@@ -186,11 +190,13 @@ Token Lexer::process_char()
         throw std::runtime_error("Lexer Error: Unterminanted char on line " + std::to_string(line));
 
     index += 1;
-    return Token(TOKEN_CHAR, std::string(1, value), line);
+    state_stack.push({init_index, line});
+    return Token(TOKEN_CHAR, std::string(1, value), line, init_index);
 }
 
 Token Lexer::process_string()
 {
+    size_t init_index = index;
     std::string str;
 
     index += 1;
@@ -229,15 +235,17 @@ Token Lexer::process_string()
         throw std::runtime_error("Lexer Error: Unterminated string on line " + std::to_string(line));
 
     index += 1;
-    return Token(TOKEN_STRING, str, line);
+    state_stack.push({init_index, line});
+    return Token(TOKEN_STRING, str, line, init_index);
 }
 
 Token Lexer::get_next_token()
 {
     if (index >= source.length())
-        return Token(TOKEN_EOF, "", line);
+    {
+        return Token(TOKEN_EOF, "", line, index);
+    }
 
-    shadow_index = index;
     char c = source[index];
 
     if (c == '\n')
@@ -253,26 +261,32 @@ Token Lexer::get_next_token()
     }
     else if (isdigit(c) || c == '.')
     {
+        size_t init_index = index;
         std::string num = process_number();
         if (num.find('.') != std::string::npos ||
             num.find('e') != std::string::npos ||
             num.find('E') != std::string::npos)
         {
-            return Token(TOKEN_FPN, num, line);
+            state_stack.push({init_index, line});
+            return Token(TOKEN_FPN, num, line, init_index);
         }
-        return Token(TOKEN_NUMBER, num, line);
+        state_stack.push({init_index, line});
+        return Token(TOKEN_NUMBER, num, line, init_index);
     }
     else if (isalpha(c))
     {
+        size_t init_index = index;
         std::string temp_identifier = process_identifier();
 
         auto it = string_to_token.find(temp_identifier);
         TokenType token_type = (it != string_to_token.end()) ? it->second : TOKEN_IDENTIFIER;
 
-        return Token(token_type, temp_identifier, line);
+        state_stack.push({init_index, line});
+        return Token(token_type, temp_identifier, line, init_index);
     }
     else if (!isspace(c))
     {
+        size_t init_index = index;
         std::string temp_symbol = process_symbol();
 
         auto it = string_to_token.find(temp_symbol);
@@ -281,16 +295,29 @@ Token Lexer::get_next_token()
         if (token_type == TOKEN_UNKNOWN_SYMBOL)
             std::cout << "Lexer Error: Unknown symbol\n";
 
-        return Token(token_type, temp_symbol, line);
+        state_stack.push({init_index, line});
+        return Token(token_type, temp_symbol, line, init_index);
     }
 
     index++;
     return get_next_token();
 }
 
-void Lexer::rewind()
+Token Lexer::rewind(int iterations)
 {
-    index = shadow_index;
+    if (state_stack.size() > 1)
+    {
+        for (int i = 0; i < iterations; i++)
+            state_stack.pop();
+
+        LexerState state = state_stack.top();
+        index = state.index;
+        line = state.line;
+        return get_next_token();
+    }
+
+    state_stack.push({index, line});
+    return Token(TOKEN_EOF, "", line, index);
 }
 
 void Lexer::print_all_tokens()
@@ -298,22 +325,20 @@ void Lexer::print_all_tokens()
     Token next_token = get_next_token();
     while (next_token.type != TOKEN_EOF)
     {
-        std::cout << next_token.text << "\n";
+        std::cout << next_token.text << " " << next_token.index << " " << source[next_token.index] << std::endl;
         next_token = get_next_token();
     }
 }
 
-int Lexer::get_current_pos()
+void Lexer::print_stack()
 {
-    return index;
-}
-void Lexer::set_pos(int pos)
-{
-    if (pos >= 0 && pos <= source.length())
+    std::stack<LexerState> temp_stack = state_stack;
+    std::cout << "Stack size is " << temp_stack.size() << std::endl;
+    std::cout << "Stack contents (top to bottom):\n";
+    while (!temp_stack.empty())
     {
-        index = pos;
-        shadow_index = pos;
+        LexerState state = temp_stack.top();
+        std::cout << "Index: " << state.index << ", Line: " << state.line << ", Char: " << source[state.index] << "\n";
+        temp_stack.pop();
     }
-    else
-        throw std::runtime_error("Lexer Error: Invalid position");
 }

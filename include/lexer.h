@@ -2,6 +2,7 @@
 
 #include <unordered_map>
 #include <string>
+#include <stack>
 
 enum TokenType
 {
@@ -76,8 +77,9 @@ public:
     TokenType type;
     std::string text;
     size_t line;
+    size_t index;
 
-    Token(TokenType t, const std::string &txt, size_t l) : type(t), text(txt), line(l) {}
+    Token(TokenType t, const std::string &txt, size_t l, size_t i);
 };
 
 class Lexer
@@ -85,17 +87,22 @@ class Lexer
 public:
     Lexer(const std::string &source);
     Token get_next_token();
-    void rewind();
+    Token rewind(int iterations = 1);
     void print_all_tokens();
-
-    int get_current_pos();
-    void set_pos(int pos);
+    void print_stack();
 
 private:
     std::string source;
     size_t index;
-    size_t shadow_index;
     size_t line = 1;
+
+    struct LexerState
+    {
+        size_t index;
+        size_t line;
+    };
+
+    std::stack<LexerState> state_stack;
 
     std::string process_number();
     std::string process_identifier();

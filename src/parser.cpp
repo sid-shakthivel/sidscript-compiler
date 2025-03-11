@@ -22,7 +22,7 @@ std::unordered_map<BinOpType, int> precedence_map = {
     {BinOpType::MOD, 40},
 };
 
-Parser::Parser(Lexer *l) : lexer(l), current_token(TOKEN_EOF, "", 1), previous_token(TOKEN_EOF, "", 1)
+Parser::Parser(Lexer *l) : lexer(l), current_token(TOKEN_EOF, "", 1, 0)
 {
     advance();
 }
@@ -39,13 +39,12 @@ bool Parser::match(std::vector<TokenType> &tokens)
 
 void Parser::advance()
 {
-    previous_token = current_token;
     current_token = lexer->get_next_token();
 }
 
-void Parser::retreat()
+void Parser::retreat(int iterations)
 {
-    lexer->rewind();
+    current_token = lexer->rewind(iterations);
 }
 
 void Parser::error(const std::string &message)
@@ -62,7 +61,7 @@ void Parser::expect(TokenType token_type)
 void Parser::expect(std::vector<TokenType> &tokens)
 {
     if (!match(tokens))
-        error("Expected " + token_to_string(tokens[0]));
+        error("Expected (multiple) " + token_to_string(tokens[0]));
 }
 
 void Parser::expect_and_advance(TokenType token_type)
@@ -195,17 +194,17 @@ std::vector<std::unique_ptr<ASTNode>> Parser::parse_block()
             /*
             This could be one of three things
                 - Assigning a variable ie a = 5, a += 5;
+                - Assigning an array ie arr[3] = 5;
                 - An expression ie func(), i++
             */
 
-            std::string identifier = current_token.text;
-
-            int current_pos = lexer->get_current_pos();
+            int retreat_num = 0;
             bool is_assignment = false;
 
             while (!match(TOKEN_SEMICOLON) && !match(TOKEN_EOF))
             {
                 advance();
+                retreat_num += 1;
                 if (match(assign_tokens))
                 {
                     is_assignment = true;
@@ -213,15 +212,14 @@ std::vector<std::unique_ptr<ASTNode>> Parser::parse_block()
                 }
             }
 
-            // Reset position and restore token
-            lexer->set_pos(current_pos);
-            current_token = Token(TOKEN_IDENTIFIER, identifier, 1);
-
             if (is_assignment)
-
+            {
+                retreat(retreat_num);
                 elements.emplace_back(parse_var_assign());
+            }
             else
             {
+                retreat(retreat_num);
                 elements.emplace_back(parse_expr());
                 expect(TOKEN_SEMICOLON);
             }
@@ -270,9 +268,14 @@ std::unique_ptr<IfNode> Parser::parse_if_stmt()
     std::unique_ptr<ASTNode> expr = parse_expr();
     std::unique_ptr<BinaryNode> binary_expr = std::unique_ptr<BinaryNode>(dynamic_cast<BinaryNode *>(expr.release()));
 
+    binary_expr->print(0);
+
     expect_and_advance(TOKEN_RPAREN);
 
-    std::vector<std::unique_ptr<ASTNode>> then_elements = parse_block();
+    std::cout << current_token.type << " " << current_token.text << std::endl;
+
+    std::vector<std::unique_ptr<ASTNode>>
+        then_elements = parse_block();
     std::vector<std::unique_ptr<ASTNode>> else_elements;
 
     advance();
@@ -283,7 +286,9 @@ std::unique_ptr<IfNode> Parser::parse_if_stmt()
         else_elements = parse_block();
     }
     else
+    {
         retreat();
+    }
 
     return std::make_unique<IfNode>(std::move(binary_expr), std::move(then_elements), std::move(else_elements));
 }

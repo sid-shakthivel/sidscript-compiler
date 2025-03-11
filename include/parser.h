@@ -16,7 +16,6 @@ public:
 private:
     Lexer *lexer;
     Token current_token;
-    Token previous_token;
 
     Type curr_decl_type = Type(BaseType::INT);
 
@@ -29,7 +28,7 @@ private:
     bool match(TokenType type);
     bool match(std::vector<TokenType> &tokens);
     void advance();
-    void retreat();
+    void retreat(int iterations = 1);
     void expect(TokenType token_type);
     void expect_and_advance(TokenType token_type);
     void expect_and_advance(std::vector<TokenType> &tokens);

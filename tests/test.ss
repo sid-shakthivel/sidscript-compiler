@@ -1,6 +1,9 @@
 fn main() -> int {
-    int arr[3] = {1, 2, 3};
-    int b = arr[2];
-    printf("ok");
-    return 2;      
+int a = 5;
+if (a == 3)
+{
+a = 5;
+}
+test = 2;
+return 2;  
 }
