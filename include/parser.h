@@ -17,7 +17,7 @@ private:
     Lexer *lexer;
     Token current_token;
 
-    Type curr_decl_type = Type(BaseType::INT);
+    // Type curr_decl_type = Type(BaseType::INT);
 
     std::vector<TokenType> all_types = {TOKEN_VOID, TOKEN_INT, TOKEN_LONG, TOKEN_UNSIGNED, TOKEN_SIGNED, TOKEN_DOUBLE, TOKEN_CHAR_TEXT};
     std::vector<TokenType> addressable_types = {TOKEN_INT, TOKEN_LONG, TOKEN_UNSIGNED, TOKEN_SIGNED, TOKEN_DOUBLE, TOKEN_STAR, TOKEN_CHAR_TEXT};
@@ -49,11 +49,11 @@ private:
     std::unique_ptr<ASTNode> parse_for_init();
     std::unique_ptr<ASTNode> parse_loop_control();
     void parse_args_list(std::unique_ptr<FuncCallNode> &func_call);
-    std::unique_ptr<ArrayLiteral> parse_array_initialiser();
-    std::unique_ptr<ASTNode> parse_cast();
-
+    std::unique_ptr<ArrayLiteral> parse_array_initialiser(const Type &array_type);
+    // std::unique_ptr<ASTNode> parse_cast();
     std::unique_ptr<ASTNode> parse_var(Specifier specifier = Specifier::NONE);
 
     int get_precedence(TokenType op);
     Type determine_type(std::vector<TokenType> &types);
+    Type parse_type();
 };

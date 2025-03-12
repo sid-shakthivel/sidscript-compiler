@@ -123,16 +123,7 @@ std::unique_ptr<FuncNode> Parser::parse_func_decl(TokenType specifier)
 
     expect_and_advance(TOKEN_ARROW);
 
-    std::vector<TokenType> types;
-
-    while (match(addressable_types))
-    {
-        types.emplace_back(current_token.type);
-
-        advance();
-    }
-
-    func->return_type = determine_type(types);
+    func->return_type = parse_type();
 
     std::vector<std::unique_ptr<ASTNode>> elements = parse_block();
 
@@ -147,34 +138,20 @@ void Parser::parse_param_list(std::unique_ptr<FuncNode> &func)
     if (match(TOKEN_RPAREN))
         return;
 
-    expect_and_advance(addressable_types);
-
-    expect(TOKEN_IDENTIFIER);
-
-    // Consider parameters which are not just integers
-    std::unique_ptr<VarNode> var = std::make_unique<VarNode>(current_token.text);
-    func->params.emplace_back(std::make_unique<VarDeclNode>(std::move(var), nullptr));
-
-    advance();
-
-    if (match(TOKEN_RPAREN))
-        return;
-
-    while (current_token.type != TOKEN_RPAREN)
+    while (!match(TOKEN_RPAREN))
     {
-        expect_and_advance(TOKEN_COMMA);
-
-        expect_and_advance(addressable_types);
+        Type param_type = parse_type();
 
         expect(TOKEN_IDENTIFIER);
+        std::string param_name = current_token.text;
+        advance();
 
-        std::unique_ptr<VarNode> var = std::make_unique<VarNode>(current_token.text);
+        std::unique_ptr<VarNode> var = std::make_unique<VarNode>(param_name, param_type);
         func->params.emplace_back(std::make_unique<VarDeclNode>(std::move(var), nullptr));
 
-        advance();
+        if (!match(TOKEN_RPAREN))
+            expect_and_advance(TOKEN_COMMA);
     }
-
-    return;
 }
 
 std::vector<std::unique_ptr<ASTNode>> Parser::parse_block()
@@ -268,11 +245,7 @@ std::unique_ptr<IfNode> Parser::parse_if_stmt()
     std::unique_ptr<ASTNode> expr = parse_expr();
     std::unique_ptr<BinaryNode> binary_expr = std::unique_ptr<BinaryNode>(dynamic_cast<BinaryNode *>(expr.release()));
 
-    binary_expr->print(0);
-
     expect_and_advance(TOKEN_RPAREN);
-
-    std::cout << current_token.type << " " << current_token.text << std::endl;
 
     std::vector<std::unique_ptr<ASTNode>>
         then_elements = parse_block();
@@ -286,9 +259,7 @@ std::unique_ptr<IfNode> Parser::parse_if_stmt()
         else_elements = parse_block();
     }
     else
-    {
         retreat();
-    }
 
     return std::make_unique<IfNode>(std::move(binary_expr), std::move(then_elements), std::move(else_elements));
 }
@@ -355,41 +326,29 @@ std::unique_ptr<ASTNode> Parser::parse_loop_control()
         return std::make_unique<ContinueNode>("");
     else if (token_type == TOKEN_BREAK)
         return std::make_unique<BreakNode>("");
+    else
+        error("Expected continue or break statement");
 }
 
 std::unique_ptr<VarDeclNode> Parser::parse_var_decl(TokenType specifier)
 {
-    std::vector<TokenType> types;
-
-    while (match(addressable_types))
-    {
-        types.emplace_back(current_token.type);
-        advance();
-    }
-
-    curr_decl_type = determine_type(types);
+    Type var_type = parse_type();
 
     expect(TOKEN_IDENTIFIER);
-
     std::string var_name = current_token.text;
-
     advance();
 
     while (match(TOKEN_LSBRACE))
     {
-        advance();
-        Type saved_type = curr_decl_type;
-        curr_decl_type = Type(BaseType::INT);
         std::unique_ptr<ASTNode> size_expr = parse_expr();
-        curr_decl_type = saved_type;
         if (auto num = dynamic_cast<IntegerLiteral *>(size_expr.get()))
-            curr_decl_type.add_array_dimension(num->value);
+            var_type.add_array_dimension(num->value);
         else
             error("Array size must be a constant integer");
         expect_and_advance(TOKEN_RSBRACE);
     }
 
-    std::unique_ptr<VarNode> var = std::make_unique<VarNode>(var_name, curr_decl_type, get_specifier(specifier));
+    std::unique_ptr<VarNode> var = std::make_unique<VarNode>(var_name, var_type, get_specifier(specifier));
 
     std::vector<TokenType> excepted_tokens = std::vector<TokenType>{TOKEN_ASSIGN, TOKEN_SEMICOLON};
     expect(excepted_tokens);
@@ -397,48 +356,58 @@ std::unique_ptr<VarDeclNode> Parser::parse_var_decl(TokenType specifier)
     if (match(TOKEN_ASSIGN))
     {
         advance();
-
         std::unique_ptr<ASTNode> init_expr;
-        if (match(TOKEN_LBRACE) && curr_decl_type.is_array())
-            init_expr = parse_array_initialiser();
+
+        if (match(TOKEN_LBRACE) && var_type.is_array())
+            init_expr = parse_array_initialiser(var_type);
         else
             init_expr = parse_expr();
 
         expect(TOKEN_SEMICOLON);
-        curr_decl_type = Type(BaseType::INT);
         return std::make_unique<VarDeclNode>(std::move(var), std::move(init_expr));
     }
 
-    curr_decl_type = Type(BaseType::INT);
     return std::make_unique<VarDeclNode>(std::move(var), nullptr);
 }
 
 Type Parser::determine_type(std::vector<TokenType> &types)
 {
-    if (types.size() == 1 && types[0] == TOKEN_INT)
-        return Type(BaseType::INT);
-    else if (types.size() == 2 && types[0] == TOKEN_SIGNED && types[1] == TOKEN_INT)
-        return Type(BaseType::INT);
-    else if (types.size() == 1 && types[0] == TOKEN_LONG)
-        return Type(BaseType::LONG);
-    else if (types.size() == 2 && types[0] == TOKEN_SIGNED && types[1] == TOKEN_LONG)
-        return Type(BaseType::LONG);
-    else if (types.size() == 2 && types[0] == TOKEN_UNSIGNED && types[1] == TOKEN_INT)
-        return Type(BaseType::UINT);
-    else if (types.size() == 2 && types[0] == TOKEN_UNSIGNED && types[1] == TOKEN_LONG)
-        return Type(BaseType::ULONG);
-    else if (types.size() == 1 && types[0] == TOKEN_DOUBLE)
-        return Type(BaseType::DOUBLE);
-    else if (types.size() == 2 && types[0] == TOKEN_STAR && types[1] == TOKEN_INT)
-        return Type(BaseType::INT, 1);
-    else if (types.size() == 2 && types[0] == TOKEN_INT && types[1] == TOKEN_STAR)
-        return Type(BaseType::INT, 1);
-    else if (types.size() == 1 && types[0] == TOKEN_CHAR_TEXT)
-        return Type(BaseType::CHAR);
-    else if (types.size() == 2 && types[0] == TOKEN_CHAR_TEXT && types[1] == TOKEN_STAR)
-        return Type(BaseType::CHAR, 1);
-    else
-        error("Invalid Type");
+    BaseType base_type = BaseType::INT;
+    bool is_unsigned = false;
+    int pointer_level = 0;
+
+    for (const auto &type : types)
+    {
+        if (type == TOKEN_UNSIGNED)
+            is_unsigned = true;
+        else if (type == TOKEN_STAR)
+            pointer_level++;
+    }
+
+    for (const auto &type : types)
+    {
+        switch (type)
+        {
+        case TOKEN_INT:
+            base_type = is_unsigned ? BaseType::UINT : BaseType::INT;
+            break;
+        case TOKEN_LONG:
+            base_type = is_unsigned ? BaseType::ULONG : BaseType::LONG;
+            break;
+        case TOKEN_DOUBLE:
+            if (is_unsigned)
+                error("Double cannot be unsigned");
+            base_type = BaseType::DOUBLE;
+            break;
+        case TOKEN_CHAR_TEXT:
+            base_type = BaseType::CHAR;
+            break;
+        default:
+            continue;
+        }
+    }
+
+    return Type(base_type, pointer_level);
 }
 
 std::unique_ptr<VarAssignNode> Parser::parse_var_assign()
@@ -503,49 +472,46 @@ std::unique_ptr<ASTNode> Parser::parse_factor()
 {
     if (match(TOKEN_NUMBER))
     {
+        std::string num_text = current_token.text;
         try
         {
-            if (curr_decl_type.has_base_type(BaseType::LONG))
-            {
-                long number = std::stol(current_token.text);
-                return std::make_unique<LongLiteral>(number);
-            }
-            else if (curr_decl_type.has_base_type(BaseType::INT))
-            {
-                int number = std::stoi(current_token.text);
-                return std::make_unique<IntegerLiteral>(number);
-            }
-            else if (curr_decl_type.has_base_type(BaseType::UINT))
-            {
-                unsigned int number = std::stoul(current_token.text);
-                return std::make_unique<UIntegerLiteral>(number);
-            }
-            else if (curr_decl_type.has_base_type(BaseType::ULONG))
-            {
-                unsigned long number = std::stoul(current_token.text);
-                return std::make_unique<ULongLiteral>(number);
-            }
-            else if (curr_decl_type.has_base_type(BaseType::DOUBLE))
-            {
-                double number = std::stod(current_token.text);
-                return std::make_unique<DoubleLiteral>(number);
-            }
-        }
-        catch (const std::out_of_range &)
-        {
-            // If the number is out of int range, treat it as a long
-            long number = std::stol(current_token.text);
-            return std::make_unique<LongLiteral>(number);
-        }
+            // Check for suffixes first
+            bool is_unsigned = (num_text.find('u') != std::string::npos || num_text.find('U') != std::string::npos);
+            bool is_long = (num_text.find('l') != std::string::npos || num_text.find('L') != std::string::npos);
 
-        error("Unknown number type");
+            // Remove suffixes for conversion
+            num_text.erase(std::remove_if(num_text.begin(), num_text.end(),
+                                          [](char c)
+                                          { return c == 'u' || c == 'U' || c == 'l' || c == 'L'; }),
+                           num_text.end());
+
+            if (is_unsigned && is_long)
+                return std::make_unique<ULongLiteral>(std::stoull(num_text));
+            else if (is_unsigned)
+                return std::make_unique<UIntegerLiteral>(std::stoul(num_text));
+            else if (is_long)
+                return std::make_unique<LongLiteral>(std::stoll(num_text));
+
+            // Try to fit in smallest type possible
+            try
+            {
+                return std::make_unique<IntegerLiteral>(std::stoi(num_text));
+            }
+            catch (const std::out_of_range &)
+            {
+                return std::make_unique<LongLiteral>(std::stoll(num_text));
+            }
+        }
+        catch (const std::exception &)
+        {
+            error("Number out of range or invalid format");
+        }
     }
     else if (match(TOKEN_FPN))
     {
         try
         {
-            double number = std::stod(current_token.text);
-            return std::make_unique<DoubleLiteral>(number);
+            return std::make_unique<DoubleLiteral>(std::stod(current_token.text));
         }
         catch (const std::exception &e)
         {
@@ -554,11 +520,13 @@ std::unique_ptr<ASTNode> Parser::parse_factor()
     }
     else if (match(TOKEN_CHAR))
     {
-        return std::make_unique<CharLiteral>(current_token.text[0], curr_decl_type);
+        return std::make_unique<CharLiteral>(current_token.text[0], Type(BaseType::CHAR));
     }
     else if (match(TOKEN_STRING))
     {
-        return std::make_unique<StringLiteral>(current_token.text, curr_decl_type);
+        Type string_type(BaseType::CHAR);
+        string_type.add_array_dimension(current_token.text.length());
+        return std::make_unique<StringLiteral>(current_token.text, string_type);
     }
     else if (match(un_op_tokens))
     {
@@ -581,19 +549,14 @@ std::unique_ptr<ASTNode> Parser::parse_factor()
 
         if (match(addressable_types))
         {
-            std::vector<TokenType> types;
-
-            while (match(addressable_types))
-            {
-                types.emplace_back(current_token.type);
-                advance();
-            }
-
-            Type type = determine_type(types);
+            Type type = parse_type();
 
             expect_and_advance(TOKEN_RPAREN);
 
             std::unique_ptr<ASTNode> factor = parse_factor();
+
+            if (!factor)
+                error("Expected expression after cast");
 
             return std::make_unique<CastNode>(std::move(factor), type);
         }
@@ -624,11 +587,11 @@ std::unique_ptr<ASTNode> Parser::parse_factor()
         error("Expected expression");
 }
 
-std::unique_ptr<ArrayLiteral> Parser::parse_array_initialiser()
+std::unique_ptr<ArrayLiteral> Parser::parse_array_initialiser(const Type &array_type)
 {
     expect_and_advance(TOKEN_LBRACE);
 
-    auto init_node = std::make_unique<ArrayLiteral>(curr_decl_type);
+    auto init_node = std::make_unique<ArrayLiteral>(array_type);
 
     if (!match(TOKEN_RBRACE))
     {
@@ -673,25 +636,30 @@ int Parser::get_precedence(TokenType op)
     return precedence_map.at(get_bin_op_type(op));
 }
 
+Type Parser::parse_type()
+{
+    std::vector<TokenType> types;
+    while (match(addressable_types))
+    {
+        types.emplace_back(current_token.type);
+        advance();
+    }
+    return determine_type(types);
+}
+
 std::unique_ptr<ASTNode> Parser::parse_var(Specifier specifier)
 {
     expect(TOKEN_IDENTIFIER);
     std::string var_name = current_token.text;
-    std::unique_ptr<VarNode> var = std::make_unique<VarNode>(var_name);
-
     advance();
 
-    if (match(TOKEN_LSBRACE))
-    {
-        advance(); // consume '['
-        std::unique_ptr<ASTNode> index = parse_expr();
-        if (auto num = dynamic_cast<IntegerLiteral *>(index.get()))
-            curr_decl_type.add_array_dimension(num->value);
-        else
-            error("Array size must be a constant integer");
-        expect_and_advance(TOKEN_RSBRACE);
-        return std::make_unique<ArrayAccessNode>(std::move(var), std::move(index));
-    }
+    if (!match(TOKEN_LSBRACE))
+        return std::make_unique<VarNode>(current_token.text);
 
-    return var;
+    auto var = std::make_unique<VarNode>(var_name);
+    advance();
+    auto index = parse_expr();
+    expect_and_advance(TOKEN_RSBRACE);
+
+    return std::make_unique<ArrayAccessNode>(std::move(var), std::move(index));
 }
