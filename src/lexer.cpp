@@ -242,9 +242,7 @@ Token Lexer::process_string()
 Token Lexer::get_next_token()
 {
     if (index >= source.length())
-    {
         return Token(TOKEN_EOF, "", line, index);
-    }
 
     char c = source[index];
 
@@ -252,13 +250,9 @@ Token Lexer::get_next_token()
         line++;
 
     if (c == '\'')
-    {
         return process_char();
-    }
     else if (c == '"')
-    {
         return process_string();
-    }
     else if (isdigit(c) || c == '.')
     {
         size_t init_index = index;

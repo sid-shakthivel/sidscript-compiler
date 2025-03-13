@@ -109,9 +109,7 @@ std::unique_ptr<FuncNode> Parser::parse_func_decl(TokenType specifier)
 
     expect(TOKEN_IDENTIFIER);
 
-    std::string func_name = current_token.text;
-
-    std::unique_ptr<FuncNode> func = std::make_unique<FuncNode>(func_name, get_specifier(specifier));
+    std::unique_ptr<FuncNode> func = std::make_unique<FuncNode>(current_token.text, get_specifier(specifier));
 
     advance();
 
@@ -171,7 +169,7 @@ std::vector<std::unique_ptr<ASTNode>> Parser::parse_block()
             /*
             This could be one of three things
                 - Assigning a variable ie a = 5, a += 5;
-                - Assigning an array ie arr[3] = 5;
+                - Assigning an array ie arr[3] = 5, arr[2]++
                 - An expression ie func(), i++
             */
 
@@ -412,7 +410,7 @@ Type Parser::determine_type(std::vector<TokenType> &types)
 
 std::unique_ptr<VarAssignNode> Parser::parse_var_assign()
 {
-    std::unique_ptr<ASTNode> target = parse_var();
+    std::unique_ptr<ASTNode> target = parse_var_or_array_access();
     TokenType assign_type = current_token.type;
 
     expect_and_advance(assign_tokens);
@@ -472,40 +470,7 @@ std::unique_ptr<ASTNode> Parser::parse_factor()
 {
     if (match(TOKEN_NUMBER))
     {
-        std::string num_text = current_token.text;
-        try
-        {
-            // Check for suffixes first
-            bool is_unsigned = (num_text.find('u') != std::string::npos || num_text.find('U') != std::string::npos);
-            bool is_long = (num_text.find('l') != std::string::npos || num_text.find('L') != std::string::npos);
-
-            // Remove suffixes for conversion
-            num_text.erase(std::remove_if(num_text.begin(), num_text.end(),
-                                          [](char c)
-                                          { return c == 'u' || c == 'U' || c == 'l' || c == 'L'; }),
-                           num_text.end());
-
-            if (is_unsigned && is_long)
-                return std::make_unique<ULongLiteral>(std::stoull(num_text));
-            else if (is_unsigned)
-                return std::make_unique<UIntegerLiteral>(std::stoul(num_text));
-            else if (is_long)
-                return std::make_unique<LongLiteral>(std::stoll(num_text));
-
-            // Try to fit in smallest type possible
-            try
-            {
-                return std::make_unique<IntegerLiteral>(std::stoi(num_text));
-            }
-            catch (const std::out_of_range &)
-            {
-                return std::make_unique<LongLiteral>(std::stoll(num_text));
-            }
-        }
-        catch (const std::exception &)
-        {
-            error("Number out of range or invalid format");
-        }
+        return parse_number_literal();
     }
     else if (match(TOKEN_FPN))
     {
@@ -530,35 +495,21 @@ std::unique_ptr<ASTNode> Parser::parse_factor()
     }
     else if (match(un_op_tokens))
     {
-        auto op = current_token.type;
-
-        advance();
-
-        std::unique_ptr<ASTNode> expr = parse_factor();
-
-        if (op == TOKEN_AMPERSAND)
-            return std::make_unique<AddrOfNode>(std::move(expr));
-        else if (op == TOKEN_STAR)
-            return std::make_unique<DerefNode>(std::move(expr));
-        else
-            return std::make_unique<UnaryNode>(get_unary_op_type(op), std::move(expr));
+        return parse_unary_operation();
     }
     else if (match(TOKEN_LPAREN))
     {
+        /*
+            This could be one of two things:
+            - Casting something ie (int)a, (double*)ptr;
+            - Just an expression wrapped in brackets ie (1 + 2) * 3;
+        */
         advance();
 
         if (match(addressable_types))
         {
-            Type type = parse_type();
-
-            expect_and_advance(TOKEN_RPAREN);
-
-            std::unique_ptr<ASTNode> factor = parse_factor();
-
-            if (!factor)
-                error("Expected expression after cast");
-
-            return std::make_unique<CastNode>(std::move(factor), type);
+            retreat();
+            return parse_cast();
         }
 
         auto expr = parse_expr();
@@ -568,7 +519,7 @@ std::unique_ptr<ASTNode> Parser::parse_factor()
     else if (match(TOKEN_IDENTIFIER))
     {
         std::string identifier = current_token.text;
-        std::unique_ptr<ASTNode> potential_var = parse_var();
+        std::unique_ptr<ASTNode> potential_var = parse_var_or_array_access();
 
         if (match(TOKEN_LPAREN))
         {
@@ -577,14 +528,67 @@ std::unique_ptr<ASTNode> Parser::parse_factor()
             expect(TOKEN_RPAREN);
             return func_call;
         }
-        else
-        {
-            retreat();
-            return potential_var;
-        }
+
+        retreat();
+        return potential_var;
     }
     else
         error("Expected expression");
+}
+
+std::unique_ptr<ASTNode> Parser::parse_number_literal()
+{
+    std::string num_text = current_token.text;
+    try
+    {
+        // Check for suffixes first
+        bool is_unsigned = (num_text.find('u') != std::string::npos || num_text.find('U') != std::string::npos);
+        bool is_long = (num_text.find('l') != std::string::npos || num_text.find('L') != std::string::npos);
+
+        // Remove suffixes for conversion
+        num_text.erase(std::remove_if(num_text.begin(), num_text.end(),
+                                      [](char c)
+                                      { return c == 'u' || c == 'U' || c == 'l' || c == 'L'; }),
+                       num_text.end());
+
+        if (is_unsigned && is_long)
+            return std::make_unique<ULongLiteral>(std::stoull(num_text));
+        else if (is_unsigned)
+            return std::make_unique<UIntegerLiteral>(std::stoul(num_text));
+        else if (is_long)
+            return std::make_unique<LongLiteral>(std::stoll(num_text));
+
+        // Attempt to fit in smallest type possible
+        try
+        {
+            return std::make_unique<IntegerLiteral>(std::stoi(num_text));
+        }
+        catch (const std::out_of_range &)
+        {
+            return std::make_unique<LongLiteral>(std::stoll(num_text));
+        }
+    }
+    catch (const std::exception &)
+    {
+        error("Number out of range or invalid format");
+    }
+
+    return nullptr; // Unreachable but silences compiler warnings
+}
+
+std::unique_ptr<ASTNode> Parser::parse_unary_operation()
+{
+    auto op = current_token.type;
+    advance();
+
+    auto expr = parse_factor();
+
+    if (op == TOKEN_AMPERSAND)
+        return std::make_unique<AddrOfNode>(std::move(expr));
+    else if (op == TOKEN_STAR)
+        return std::make_unique<DerefNode>(std::move(expr));
+    else
+        return std::make_unique<UnaryNode>(get_unary_op_type(op), std::move(expr));
 }
 
 std::unique_ptr<ArrayLiteral> Parser::parse_array_initialiser(const Type &array_type)
@@ -647,7 +651,7 @@ Type Parser::parse_type()
     return determine_type(types);
 }
 
-std::unique_ptr<ASTNode> Parser::parse_var(Specifier specifier)
+std::unique_ptr<ASTNode> Parser::parse_var_or_array_access(Specifier specifier)
 {
     expect(TOKEN_IDENTIFIER);
     std::string var_name = current_token.text;
@@ -662,4 +666,20 @@ std::unique_ptr<ASTNode> Parser::parse_var(Specifier specifier)
     expect_and_advance(TOKEN_RSBRACE);
 
     return std::make_unique<ArrayAccessNode>(std::move(var), std::move(index));
+}
+
+std::unique_ptr<ASTNode> Parser::parse_cast()
+{
+    expect_and_advance(TOKEN_LPAREN);
+
+    Type type = parse_type();
+
+    expect_and_advance(TOKEN_RPAREN);
+
+    std::unique_ptr<ASTNode> factor = parse_factor();
+
+    if (!factor)
+        error("Expected expression after cast");
+
+    return std::make_unique<CastNode>(std::move(factor), type);
 }
