@@ -80,6 +80,11 @@ bool Type::is_size_8() const
     return get_size() == 8;
 }
 
+int Type::get_ptr_depth() const
+{
+    return pointer_level;
+}
+
 std::string Type::to_string() const
 {
     std::string result;

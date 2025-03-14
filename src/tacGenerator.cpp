@@ -106,10 +106,8 @@ void TacGenerator::generate_tac(std::shared_ptr<ProgramNode> program)
 
 void TacGenerator::generate_tac_func(FuncNode *func)
 {
-    current_func = func->name;
+    gst->enter_func_scope(func->name);
     instructions.emplace_back(TACOp::FUNC_BEGIN, func->name, func->specifier == Specifier::STATIC ? "static" : "global");
-
-    current_st = gst->get_func_st(func->name);
 
     FuncSymbol *func_symbol = gst->get_func_symbol(func->name);
 
@@ -122,8 +120,7 @@ void TacGenerator::generate_tac_func(FuncNode *func)
 
     instructions.emplace_back(TACOp::FUNC_END);
 
-    current_st = nullptr;
-    current_func = "";
+    gst->leave_func_scope();
 }
 
 void TacGenerator::generate_tac_element(ASTNode *element)
@@ -152,7 +149,7 @@ void TacGenerator::generate_tac_element(ASTNode *element)
 
     if (element->node_type == NodeType::NODE_RETURN)
     {
-        FuncSymbol *func = gst->get_func_symbol(current_func);
+        FuncSymbol *func = gst->get_func_symbol(gst->get_current_func());
         RtnNode *rtn = (RtnNode *)element;
         std::string result = generate_tac_expr(rtn->value.get());
         instructions.emplace_back(TACOp::RETURN, result, "", "", func->return_type);
@@ -160,7 +157,7 @@ void TacGenerator::generate_tac_element(ASTNode *element)
     else if (element->node_type == NodeType::NODE_VAR_DECL)
     {
         VarDeclNode *var_decl = (VarDeclNode *)element;
-        Symbol *var_symbol = gst->get_symbol(current_func, var_decl->var->name);
+        Symbol *var_symbol = gst->get_symbol(var_decl->var->name);
 
         // Check if some sort of global/static
         if (var_symbol->linkage != Linkage::None || var_symbol->storage_duration == StorageDuration::Static)
@@ -239,7 +236,7 @@ void TacGenerator::generate_tac_element(ASTNode *element)
         if (var_assign->var->node_type == NodeType::NODE_VAR)
         {
             VarNode *var = (VarNode *)var_assign->var.get();
-            Symbol *var_symbol = gst->get_symbol(current_func, var->name);
+            Symbol *var_symbol = gst->get_symbol(var->name);
 
             std::string result = generate_tac_expr(var_assign->value.get(), var_symbol->type);
             instructions.emplace_back(TACOp::ASSIGN, var->name, "", result, var_symbol->type);
@@ -381,7 +378,7 @@ std::string TacGenerator::generate_tac_expr(ASTNode *expr, Type type)
         if (cast->target_type.has_base_type(BaseType::DOUBLE) && cast->expr.get()->node_type == NodeType::NODE_NUMBER)
         {
             std::string const_var = gen_new_const_label();
-            current_st->declare_const_var(const_var, Type(BaseType::DOUBLE));
+            gst->declare_const_var(const_var, Type(BaseType::DOUBLE));
 
             std::string result = generate_tac_expr(cast->expr.get(), cast->target_type);
 
@@ -391,7 +388,7 @@ std::string TacGenerator::generate_tac_expr(ASTNode *expr, Type type)
         }
 
         std::string temp_var = gen_new_temp_var();
-        current_st->declare_temp_var(temp_var, cast->target_type);
+        gst->declare_temp_var(temp_var, cast->target_type);
 
         std::string result = generate_tac_expr(cast->expr.get(), cast->target_type);
         instructions.emplace_back(TACOp::CONVERT_TYPE, result, cast->src_type.to_string(), temp_var, cast->target_type);
@@ -413,7 +410,7 @@ std::string TacGenerator::generate_tac_expr(ASTNode *expr, Type type)
         {
             // All double literals must be placed in a constant section
             std::string const_val = gen_new_const_label();
-            current_st->declare_const_var(const_val, BaseType::DOUBLE);
+            gst->declare_const_var(const_val, Type(BaseType::DOUBLE));
             literal8_vars.emplace_back(TACOp::ASSIGN, const_val, "", std::to_string(((DoubleLiteral *)num)->value), Type(BaseType::DOUBLE));
             return const_val;
         }
@@ -427,7 +424,7 @@ std::string TacGenerator::generate_tac_expr(ASTNode *expr, Type type)
         StringLiteral *str = (StringLiteral *)expr;
         std::string label = gen_new_const_label();
 
-        current_st->declare_str_var(label, str->value_type);
+        gst->declare_str_var(label, str->value_type);
 
         str_vars.emplace_back(TACOp::ASSIGN, label, "", str->value, str->value_type);
         return label;
@@ -439,11 +436,11 @@ std::string TacGenerator::generate_tac_expr(ASTNode *expr, Type type)
         std::string result = generate_tac_expr(unary->value.get());
 
         std::string temp_var = gen_new_temp_var();
-        current_st->declare_temp_var(temp_var, unary->type);
+        gst->declare_temp_var(temp_var, unary->type);
 
         if (unary->type.has_base_type(BaseType::DOUBLE))
         {
-            current_st->declare_const_var("_.Lsign_bit", Type(BaseType::DOUBLE));
+            gst->declare_const_var("_.Lsign_bit", Type(BaseType::DOUBLE));
             literal8_vars.emplace_back(TACOp::ASSIGN, "_.Lsign_bit", "", "9223372036854775808", Type(BaseType::DOUBLE));
             instructions.emplace_back(convert_UnaryOpType_to_TACOp(unary->op), result, "_.Lsign_bit", temp_var, unary->type);
 
@@ -461,7 +458,7 @@ std::string TacGenerator::generate_tac_expr(ASTNode *expr, Type type)
         std::string arg2 = generate_tac_expr(bin_node->right.get());
 
         std::string temp_var = gen_new_temp_var();
-        current_st->declare_temp_var(temp_var, bin_node->type);
+        gst->declare_temp_var(temp_var, bin_node->type);
         instructions.emplace_back(convert_BinOpType_to_TACOp(bin_node->op), arg1, arg2, temp_var, bin_node->type);
         return temp_var;
     }
@@ -484,7 +481,7 @@ std::string TacGenerator::generate_tac_expr(ASTNode *expr, Type type)
 
         std::string var = generate_tac_expr(deref->expr.get());
         std::string temp_var = gen_new_temp_var();
-        current_st->declare_temp_var(temp_var, deref->type);
+        gst->declare_temp_var(temp_var, deref->type);
         instructions.emplace_back(TACOp::DEREF, var, "", temp_var);
 
         return temp_var;
@@ -495,7 +492,7 @@ std::string TacGenerator::generate_tac_expr(ASTNode *expr, Type type)
 
         std::string var = generate_tac_expr(addr_of->expr.get());
         std::string temp_var = gen_new_temp_var();
-        current_st->declare_temp_var(temp_var, addr_of->type);
+        gst->declare_temp_var(temp_var, addr_of->type);
         instructions.emplace_back(TACOp::ADDR_OF, var, "", temp_var);
 
         return temp_var;
@@ -505,7 +502,7 @@ std::string TacGenerator::generate_tac_expr(ASTNode *expr, Type type)
         ArrayAccessNode *array_access = (ArrayAccessNode *)expr;
 
         std::string temp_var = gen_new_temp_var();
-        current_st->declare_temp_var(temp_var, array_access->array->type.get_base_type());
+        gst->declare_temp_var(temp_var, array_access->type.get_base_type()); // Check whether the .get_base_type() is needed
 
         std::string index = generate_tac_expr(array_access->index.get());
 
@@ -515,13 +512,12 @@ std::string TacGenerator::generate_tac_expr(ASTNode *expr, Type type)
     }
     else if (expr->node_type == NodeType::NODE_FUNC_CALL)
     {
-        std::cout << "i assume we get here\n";
         FuncCallNode *func = (FuncCallNode *)expr;
 
         if (func->name == "printf")
         {
             std::string fmt_label = gen_new_const_label();
-            current_st->declare_str_var(fmt_label, Type(BaseType::CHAR));
+            gst->declare_str_var(fmt_label, Type(BaseType::CHAR));
             StringLiteral *first_arg = (StringLiteral *)func->args[0].get();
             str_vars.emplace_back(TACOp::ASSIGN, fmt_label, "", first_arg->value, Type(BaseType::CHAR));
 
@@ -532,7 +528,7 @@ std::string TacGenerator::generate_tac_expr(ASTNode *expr, Type type)
                 if (arg->node_type == NodeType::NODE_VAR)
                 {
                     VarNode *var_node = dynamic_cast<VarNode *>(arg);
-                    Type type = gst->get_symbol(current_func, var_node->name)->type;
+                    Type type = gst->get_symbol(var_node->name)->type;
                     instructions.emplace_back(TACOp::MOV, registers[i], var_node->name, "", type);
                 }
                 else if (arg->node_type == NodeType::NODE_NUMBER)

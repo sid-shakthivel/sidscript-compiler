@@ -5,7 +5,6 @@
 SemanticAnalyser::SemanticAnalyser(std::shared_ptr<GlobalSymbolTable> gst) : gst(gst)
 {
     // Initialise analysers
-
     handlers[NodeType::NODE_FUNCTION] = [this](ASTNode *node)
     { analyse_func(node); };
     handlers[NodeType::NODE_VAR_DECL] = [this](ASTNode *node)
@@ -62,10 +61,6 @@ void SemanticAnalyser::analyse_func(ASTNode *node)
 {
     FuncNode *func_node = (FuncNode *)node;
 
-    // Check for duplicate function names
-    if (gst->functions.find(func_node->name) != gst->functions.end())
-        error("Duplicate function name: " + func_node->name);
-
     // Find and create new function symbol using params
     std::vector<Type> arg_types;
     for (auto &param : func_node->params)
@@ -73,21 +68,20 @@ void SemanticAnalyser::analyse_func(ASTNode *node)
 
     std::unique_ptr<FuncSymbol> func_symbol = std::make_unique<FuncSymbol>(func_node->name, func_node->params.size(), arg_types, func_node->return_type);
     std::shared_ptr<SymbolTable> symbol_table = std::make_unique<SymbolTable>();
-    gst->functions[func_node->name] = std::make_tuple(std::move(func_symbol), symbol_table);
 
-    current_func_name = func_node->name;
-
-    symbol_table->enter_scope();
+    gst->create_new_func(func_node->name, std::move(func_symbol), symbol_table);
+    gst->enter_func_scope(func_node->name);
 
     for (auto &param : func_node->params)
-        symbol_table->declare_var(dynamic_cast<VarDeclNode *>(param.get())->var->name);
+    {
+        VarDeclNode *param_decl = dynamic_cast<VarDeclNode *>(param.get());
+        gst->declare_var(param_decl->var.get());
+    }
 
     for (auto &element : func_node->elements)
         analyse_node(element.get());
 
-    symbol_table->exit_scope();
-
-    current_func_name = "";
+    gst->leave_func_scope();
 }
 
 void SemanticAnalyser::analyse_node(ASTNode *node)
@@ -99,20 +93,14 @@ void SemanticAnalyser::analyse_node(ASTNode *node)
         error("Unknown node type in semantic analysis");
 }
 
-void SemanticAnalyser::analyse_cast(ASTNode *node)
-{
-    CastNode *cast_node = (CastNode *)node;
-    cast_node->src_type = infer_type((ASTNode *)(cast_node->expr.get()));
-}
-
 void SemanticAnalyser::analyse_var_decl(ASTNode *node)
 {
     VarDeclNode *var_decl_node = (VarDeclNode *)node;
 
     // Global variables are only allowed to have constant values ie 5 rather then expressions
-    if (current_func_name == "")
+    if (gst->is_global_scope())
         if (var_decl_node->value != nullptr)
-            if (var_decl_node->value->node_type != NodeType::NODE_NUMBER)
+            if (var_decl_node->value->node_type == NodeType::NODE_BINARY || var_decl_node->value->node_type == NodeType::NODE_UNARY)
                 error("Global variable " + var_decl_node->var->name + " must have constant value");
 
     if (var_decl_node->value != nullptr)
@@ -149,14 +137,12 @@ void SemanticAnalyser::analyse_var_decl(ASTNode *node)
                     error("Type in array initialisation of " + var_decl_node->var->name + " doesn't match");
             }
         }
-        else if (!var_type.can_assign_from(value_type))
-            error("Cannot assign " +
-                  value_type.to_string() + " to " + var_type.to_string() +
-                  " in declaration of " + var_decl_node->var->name);
+
+        validate_type_assignment(var_type, value_type, var_decl_node->var->name);
     }
 
-    gst->declare_var(current_func_name, var_decl_node->var.get());
-    gst->get_symbol(current_func_name, var_decl_node->var->name)->set_type(var_decl_node->var->type);
+    gst->declare_var(var_decl_node->var.get());
+    gst->get_symbol(var_decl_node->var->name)->set_type(var_decl_node->var->type);
 }
 
 void SemanticAnalyser::analyse_var_assign(ASTNode *node)
@@ -166,22 +152,19 @@ void SemanticAnalyser::analyse_var_assign(ASTNode *node)
     if (var_assign_node->var->node_type == NodeType::NODE_VAR)
     {
         VarNode *var = (VarNode *)var_assign_node->var.get();
-        var->name = gst->check_var_defined(current_func_name, var->name);
+        var->name = gst->check_var_defined(var->name);
 
         analyse_node(var_assign_node->value.get());
-        Type var_type = gst->get_symbol(current_func_name, var->name)->type;
+        Type var_type = gst->get_symbol(var->name)->type;
         Type value_type = infer_type(var_assign_node->value.get());
 
-        if (!var_type.can_assign_from(value_type))
-            error("Cannot assign " +
-                  value_type.to_string() + " to " + var_type.to_string() +
-                  " in assignment to " + var->name);
+        validate_type_assignment(var_type, value_type, var->name);
     }
     else if (var_assign_node->var->node_type == NodeType::NODE_ARRAY_ACCESS)
     {
         ArrayAccessNode *array_access = dynamic_cast<ArrayAccessNode *>(var_assign_node->var.get());
 
-        Symbol *symbol = gst->get_symbol(current_func_name, array_access->array->name);
+        Symbol *symbol = gst->get_symbol(array_access->array->name);
 
         if (symbol == nullptr)
             error("Array '" + array_access->array->name + "' not defined");
@@ -194,7 +177,7 @@ void SemanticAnalyser::analyse_var_assign(ASTNode *node)
             if (var_assign_node->value->node_type == NodeType::NODE_STRING)
                 error("Cannot assign string literal to single char element in array '" + array_access->array->name + "'");
 
-        if (!(Type(symbol->type.get_base_type())).can_assign_from(value_type))
+        if (!(Type(symbol->type.get_base_type())).can_assign_from(value_type)) // Check whether the .get_base_type() is even needed here
             error("Cannot assign " + value_type.to_string() + " to array element of type " + Type(symbol->type.get_base_type()).to_string() + " in array '" + array_access->array->name + "'");
     }
 }
@@ -203,18 +186,15 @@ void SemanticAnalyser::analyse_rtn(ASTNode *node)
 {
     RtnNode *rtn_node = (RtnNode *)node;
 
-    if (rtn_node->value)
-    {
-        analyse_node(rtn_node->value.get());
+    if (rtn_node->value == nullptr)
+        error("Return statement in function '" + gst->get_current_func() + "' must have a value");
 
-        FuncSymbol *func = gst->get_func_symbol(current_func_name);
-        Type return_type = infer_type(rtn_node->value.get());
+    analyse_node(rtn_node->value.get());
 
-        if (!func->return_type.can_assign_from(return_type))
-            error("Cannot return " +
-                  return_type.to_string() + " from function returning " +
-                  func->return_type.to_string());
-    }
+    FuncSymbol *func = gst->get_func_symbol(gst->get_current_func());
+    Type return_type = infer_type(rtn_node->value.get());
+
+    validate_type_assignment(func->return_type, return_type, func->name);
 }
 
 void SemanticAnalyser::analyse_if_stmt(ASTNode *node)
@@ -225,17 +205,17 @@ void SemanticAnalyser::analyse_if_stmt(ASTNode *node)
 
     infer_type(if_node->condition.get());
 
-    gst->enter_scope(current_func_name);
+    gst->enter_scope();
     for (auto &stmt : if_node->then_elements)
         analyse_node(stmt.get());
-    gst->exit_scope(current_func_name);
+    gst->exit_scope();
 
     if (!if_node->else_elements.empty())
     {
-        gst->enter_scope(current_func_name);
+        gst->enter_scope();
         for (auto &stmt : if_node->else_elements)
             analyse_node(stmt.get());
-        gst->exit_scope(current_func_name);
+        gst->exit_scope();
     }
 }
 
@@ -248,12 +228,12 @@ void SemanticAnalyser::analyse_while_stmt(ASTNode *node)
     while_node->label = label;
 
     enter_loop_scope(label);
-    gst->enter_scope(current_func_name);
+    gst->enter_scope();
 
     for (auto &stmt : while_node->elements)
         analyse_node(stmt.get());
 
-    gst->exit_scope(current_func_name);
+    gst->exit_scope();
     exit_loop_scope();
 }
 
@@ -265,7 +245,7 @@ void SemanticAnalyser::analyse_for_stmt(ASTNode *node)
     for_node->label = label;
 
     enter_loop_scope(label);
-    gst->enter_scope(current_func_name);
+    gst->enter_scope();
 
     analyse_node(for_node->init.get());
     analyse_node(for_node->condition.get());
@@ -274,7 +254,7 @@ void SemanticAnalyser::analyse_for_stmt(ASTNode *node)
     for (auto &stmt : for_node->elements)
         analyse_node(stmt.get());
 
-    gst->exit_scope(current_func_name);
+    gst->exit_scope();
     exit_loop_scope();
 }
 
@@ -294,13 +274,80 @@ void SemanticAnalyser::analyse_unary(ASTNode *node)
 void SemanticAnalyser::analyse_var(ASTNode *node)
 {
     VarNode *var_node = (VarNode *)node;
-    var_node->name = gst->check_var_defined(current_func_name, var_node->name);
+    var_node->name = gst->check_var_defined(var_node->name);
 }
 
 std::string SemanticAnalyser::gen_new_loop_label()
 {
     return ".Lloop_" + std::to_string(loop_label_counter++);
 }
+
+void SemanticAnalyser::analyse_loop_control(ASTNode *node)
+{
+    if (node->node_type == NodeType::NODE_CONTINUE)
+        ((ContinueNode *)node)->label = loop_scopes.top();
+    else if (node->node_type == NodeType::NODE_BREAK)
+        ((BreakNode *)node)->label = loop_scopes.top();
+}
+
+void SemanticAnalyser::analyse_func_call(ASTNode *node)
+{
+    FuncCallNode *fc_node = (FuncCallNode *)node;
+    FuncSymbol *func = gst->get_func_symbol(fc_node->name);
+
+    if (fc_node->name == "printf")
+        return;
+
+    if (func == nullptr)
+        error("Function '" + fc_node->name + "' not defined");
+
+    if (func->arg_count != fc_node->args.size())
+        error("Function '" + fc_node->name + "' has " + std::to_string(func->arg_count) +
+              " arguments, but " + std::to_string(fc_node->args.size()) + " were provided");
+
+    for (int i = 0; i < fc_node->args.size(); i++)
+    {
+        auto arg = fc_node->args[i].get();
+
+        analyse_node(arg);
+
+        Type arg_type = infer_type(arg);
+        Type param_type = func->arg_types[i];
+
+        validate_type_assignment(param_type, arg_type, "in call to '" + fc_node->name + "'");
+    }
+}
+
+void SemanticAnalyser::analyse_addr_of(ASTNode *node)
+{
+    AddrOfNode *addr_of = (AddrOfNode *)node;
+    analyse_node(addr_of->expr.get());
+
+    if (addr_of->expr->node_type != NodeType::NODE_VAR)
+        error("Can only take address of variables");
+
+    Type expr_type = infer_type(addr_of->expr.get());
+    addr_of->type = Type(expr_type.get_base_type(), expr_type.get_ptr_depth() + 1);
+}
+
+void SemanticAnalyser::analyse_deref(ASTNode *node)
+{
+    DerefNode *deref = (DerefNode *)node;
+    analyse_node(deref->expr.get());
+    Type expr_type = infer_type(deref->expr.get());
+
+    if (!expr_type.is_pointer())
+        error("Cannot dereference non-pointer type");
+
+    deref->type = Type(expr_type.get_base_type(), expr_type.get_ptr_depth() - 1);
+}
+
+/*
+    These loop scope methods have one distinct purpose:
+    - When there are nested loops, it's difficult to determine which loop
+      loop controls (break/continue) should use hence the loop_scopes is a stack of all loops
+      so the most inner loop is used for loop controls
+*/
 
 void SemanticAnalyser::enter_loop_scope(std::string label)
 {
@@ -315,68 +362,23 @@ void SemanticAnalyser::exit_loop_scope()
     loop_scopes.pop();
 }
 
-void SemanticAnalyser::analyse_loop_control(ASTNode *node)
+void SemanticAnalyser::analyse_cast(ASTNode *node)
 {
-    if (node->node_type == NodeType::NODE_CONTINUE)
-        ((ContinueNode *)node)->label = loop_scopes.top();
-    else if (node->node_type == NodeType::NODE_BREAK)
-        ((BreakNode *)node)->label = loop_scopes.top();
+    CastNode *cast_node = (CastNode *)node;
+    Type src_type = infer_type((ASTNode *)(cast_node->expr.get()));
+
+    if (!src_type.can_convert_to(cast_node->target_type))
+        error("Cannot cast " + src_type.to_string() + " to " + cast_node->target_type.to_string());
+
+    cast_node->src_type = src_type;
 }
 
-void SemanticAnalyser::analyse_func_call(ASTNode *node)
+void SemanticAnalyser::validate_type_assignment(const Type &target_type, const Type &source_type,
+                                                const std::string &context)
 {
-    FuncCallNode *fc_node = (FuncCallNode *)node;
-
-    FuncSymbol *func = gst->get_func_symbol(fc_node->name);
-
-    if (fc_node->name == "printf")
-        return;
-
-    if (func == nullptr)
-        error("Function '" + fc_node->name + "' not defined");
-
-    if (func->arg_count != fc_node->args.size())
-        error("Function '" + fc_node->name + "' has " + std::to_string(func->arg_count) + " arguments, but " + std::to_string(fc_node->args.size()) + " were provided");
-
-    for (int i = 0; i < fc_node->args.size(); i++)
-        analyse_node(fc_node->args[i].get());
-
-    for (int i = 0; i < fc_node->args.size(); i++)
-    {
-        Type arg_type = infer_type(fc_node->args[i].get());
-        Type param_type = func->arg_types[i];
-
-        if (!param_type.can_assign_from(arg_type))
-            error("Cannot pass " +
-                  arg_type.to_string() + " as argument of type " +
-                  param_type.to_string() + " in call to '" + fc_node->name + "'");
-    }
-}
-
-void SemanticAnalyser::analyse_addr_of(ASTNode *node)
-{
-    AddrOfNode *addr_of_node = (AddrOfNode *)node;
-
-    analyse_node(addr_of_node->expr.get());
-
-    Type expr_type = infer_type(addr_of_node->expr.get());
-
-    if (addr_of_node->expr->node_type != NodeType::NODE_VAR)
-        error("Can only take address of variables");
-
-    addr_of_node->type = Type(BaseType::INT, 1); // For now, only supporting int*
-}
-
-void SemanticAnalyser::analyse_deref(ASTNode *node)
-{
-    DerefNode *deref_node = (DerefNode *)node;
-    analyse_node(deref_node->expr.get());
-    Type expr_type = infer_type(deref_node->expr.get());
-
-    if (!expr_type.is_pointer())
-        error("Cannot dereference non-pointer type");
-
-    deref_node->type = Type(BaseType::INT); // Only supporting integers currently
+    if (!target_type.can_assign_from(source_type))
+        error("Cannot assign " + source_type.to_string() +
+              " to " + target_type.to_string() + " in " + context);
 }
 
 void SemanticAnalyser::error(const std::string &message)
@@ -391,7 +393,7 @@ Type SemanticAnalyser::infer_type(ASTNode *node)
     case NodeType::NODE_NUMBER:
         return ((NumericLiteral *)node)->value_type;
     case NodeType::NODE_VAR:
-        return gst->get_symbol(current_func_name, ((VarNode *)node)->name)->type;
+        return gst->get_symbol(((VarNode *)node)->name)->type;
     case NodeType::NODE_FUNC_CALL:
     {
         FuncSymbol *func = gst->get_func_symbol(((FuncCallNode *)node)->name);
@@ -407,6 +409,7 @@ Type SemanticAnalyser::infer_type(ASTNode *node)
         Type left = infer_type(bin_node->left.get());
         Type right = infer_type(bin_node->right.get());
 
+        // Handle pointer artithmetic
         if (bin_node->op == BinOpType::ADD || bin_node->op == BinOpType::SUB)
         {
             if (left.is_pointer() && right.is_integral())
@@ -498,7 +501,7 @@ Type SemanticAnalyser::infer_type(ASTNode *node)
     case NodeType::NODE_ARRAY_ACCESS:
     {
         ArrayAccessNode *array_access_node = (ArrayAccessNode *)node;
-        Symbol *array_symbol = gst->get_symbol(current_func_name, array_access_node->array->name);
+        Symbol *array_symbol = gst->get_symbol(array_access_node->array->name);
 
         // Check if the index is a constant
         if (auto index_literal = dynamic_cast<IntegerLiteral *>(array_access_node->index.get()))

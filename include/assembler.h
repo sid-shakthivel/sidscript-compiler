@@ -27,7 +27,6 @@ public:
 
 private:
     std::shared_ptr<GlobalSymbolTable> gst;
-    std::string current_func = "";
     VarType current_var_type = VarType::TEXT;
     FILE *file;
 

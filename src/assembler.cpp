@@ -112,7 +112,7 @@ void Assembler::assemble(const std::vector<TACInstruction> &instructions)
 
 void Assembler::load_to_reg(const std::string &operand, const char *reg, Type type)
 {
-	Symbol *rhs = gst->get_symbol(current_func, operand);
+	Symbol *rhs = gst->get_symbol(operand);
 	std::string mov_text = type.is_size_8() ? "movq" : "movl";
 
 	std::string reg_name = reg;
@@ -131,7 +131,7 @@ void Assembler::load_to_reg(const std::string &operand, const char *reg, Type ty
 
 void Assembler::store_from_reg(const std::string &operand, const char *reg, Type type)
 {
-	Symbol *rhs = gst->get_symbol(current_func, operand);
+	Symbol *rhs = gst->get_symbol(operand);
 	std::string mov_text = type.is_size_8() ? "movq" : "movl";
 
 	std::string reg_name = reg;
@@ -156,7 +156,7 @@ void Assembler::apply_bin_op_to_reg(const std::string &operand, const char *reg,
 		return;
 	}
 
-	Symbol *rhs = gst->get_symbol(current_func, operand);
+	Symbol *rhs = gst->get_symbol(operand);
 	std::string op_text = type.is_size_8() ? op + "q" : op + "l";
 
 	std::string reg_name = reg;
@@ -172,7 +172,7 @@ void Assembler::compare_and_store_result(const std::string &operand_a, const std
 {
 	load_to_reg(operand_a, reg, type);
 
-	Symbol *potential_var_b = gst->get_symbol(current_func, operand_b);
+	Symbol *potential_var_b = gst->get_symbol(operand_b);
 	std::string cmp_text = type.is_size_8() ? "cmpq" : "cmpl";
 
 	std::string reg_name = reg;
@@ -198,33 +198,34 @@ void Assembler::compare_and_store_result(const std::string &operand_a, const std
 
 void Assembler::handle_func_begin(TACInstruction &instruction)
 {
-	current_func = instruction.arg1;
+	gst->enter_func_scope(instruction.arg1);
 	if (instruction.arg2 == "global")
 		fprintf(file, ".global _%s\n", instruction.arg1.c_str());
 	fprintf(file, ".extern _printf\n");
 	fprintf(file, "_%s: # %s\n", instruction.arg1.c_str(), TacGenerator::gen_tac_str(instruction).c_str());
 	fprintf(file, "\tpushq\t%%rbp\n");
 	fprintf(file, "\tmovq\t%%rsp, %%rbp\n");
-	int stack_space = gst->get_func_st(current_func)->get_stack_size();
+	int stack_space = gst->get_func_st(gst->get_current_func())->get_stack_size();
 	fprintf(file, "\tsubq\t$%d, %%rsp\n\n", stack_space);
 }
 
 void Assembler::handle_func_end(TACInstruction &instruction)
 {
+	std::string current_func = gst->get_current_func();
 	fprintf(file, "\n.L%s_end: # %s", current_func.c_str(), TacGenerator::gen_tac_str(instruction).c_str());
 	int stack_space = gst->get_func_st(current_func)->get_stack_size();
 	fprintf(file, "\taddq\t$%d, %%rsp\n", stack_space);
 	fprintf(file, "\tpopq\t%%rbp\n");
 	fprintf(file, "\tretq\n\n");
-	current_func = "";
+	gst->leave_func_scope();
 }
 
 void Assembler::handle_assign(TACInstruction &instruction)
 {
 	if (current_var_type == VarType::TEXT)
 	{
-		Symbol *lhs = gst->get_symbol(current_func, instruction.arg1);
-		Symbol *rhs = gst->get_symbol(current_func, instruction.result);
+		Symbol *lhs = gst->get_symbol(instruction.arg1);
+		Symbol *rhs = gst->get_symbol(instruction.result);
 		std::string mov_text = instruction.type.is_size_8() ? "movq" : "movl";
 		mov_text = instruction.type.get_size() == 1 ? "movb" : mov_text;
 		std::string reg = instruction.type.is_size_8() ? "%r10" : "%r10d";
@@ -312,7 +313,7 @@ void Assembler::handle_assign(TACInstruction &instruction)
 	}
 	else if (current_var_type == VarType::DATA)
 	{
-		Symbol *potential_var = gst->get_symbol(current_func, instruction.result);
+		Symbol *potential_var = gst->get_symbol(instruction.result);
 
 		if (potential_var == nullptr)
 		{
@@ -353,7 +354,7 @@ void Assembler::handle_return(TACInstruction &instruction)
 	std::string reg = instruction.type.is_size_8() ? "%rax" : "%eax";
 	fprintf(file, "\t# %s\n", TacGenerator::gen_tac_str(instruction).c_str());
 	load_to_reg(instruction.arg1, reg.c_str(), instruction.type);
-	fprintf(file, "\tjmp\t.L%s_end\n", current_func.c_str());
+	fprintf(file, "\tjmp\t.L%s_end\n", gst->get_current_func().c_str());
 }
 
 void Assembler::handle_bin_op(TACInstruction &instruction, const std::string &op)
@@ -418,7 +419,7 @@ void Assembler::handle_cmp_op(TACInstruction &instruction, const std::string &op
 void Assembler::handle_if(TACInstruction &instruction)
 {
 	fprintf(file, "\t# %s\n", TacGenerator::gen_tac_str(instruction).c_str());
-	Symbol *potential_var = gst->get_symbol(current_func, instruction.arg1);
+	Symbol *potential_var = gst->get_symbol(instruction.arg1);
 	std::string cmp_text = instruction.type.is_size_8() ? "cmpq" : "cmpl";
 
 	if (potential_var == nullptr)
@@ -452,8 +453,8 @@ void Assembler::handle_call(TACInstruction &instruction)
 void Assembler::handle_mov(TACInstruction &instruction)
 {
 	fprintf(file, "\t# %s\n", TacGenerator::gen_tac_str(instruction).c_str());
-	Symbol *potential_var = gst->get_symbol(current_func, instruction.arg1);
-	Symbol *potential_var_2 = gst->get_symbol(current_func, instruction.arg2);
+	Symbol *potential_var = gst->get_symbol(instruction.arg1);
+	Symbol *potential_var_2 = gst->get_symbol(instruction.arg2);
 	std::string mov_text = instruction.type.is_size_8() ? "movq" : "movl";
 
 	if (potential_var == nullptr && potential_var_2 == nullptr)
@@ -587,8 +588,8 @@ void Assembler::handle_section(TACInstruction &instruction)
 
 void Assembler::handle_convert_type(TACInstruction &instruction)
 {
-	Symbol *src = gst->get_symbol(current_func, instruction.arg1);
-	Symbol *dst = gst->get_symbol(current_func, instruction.result);
+	Symbol *src = gst->get_symbol(instruction.arg1);
+	Symbol *dst = gst->get_symbol(instruction.result);
 
 	printf("%s %s\n", instruction.arg1.c_str(), instruction.arg2.c_str());
 
@@ -665,8 +666,8 @@ void Assembler::handle_convert_type(TACInstruction &instruction)
 
 void Assembler::handle_deref(TACInstruction &instruction)
 {
-	Symbol *src = gst->get_symbol(current_func, instruction.arg1);
-	Symbol *dst = gst->get_symbol(current_func, instruction.result);
+	Symbol *src = gst->get_symbol(instruction.arg1);
+	Symbol *dst = gst->get_symbol(instruction.result);
 
 	fprintf(file, "\t# %s\n", TacGenerator::gen_tac_str(instruction).c_str());
 
@@ -686,8 +687,8 @@ void Assembler::handle_deref(TACInstruction &instruction)
 
 void Assembler::handle_addr_of(TACInstruction &instruction)
 {
-	Symbol *src = gst->get_symbol(current_func, instruction.arg1);
-	Symbol *dst = gst->get_symbol(current_func, instruction.result);
+	Symbol *src = gst->get_symbol(instruction.arg1);
+	Symbol *dst = gst->get_symbol(instruction.result);
 
 	fprintf(file, "\t# %s\n", TacGenerator::gen_tac_str(instruction).c_str());
 

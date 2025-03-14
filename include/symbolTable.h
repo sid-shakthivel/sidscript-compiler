@@ -30,17 +30,17 @@ struct Symbol
 {
     std::string name;
     int stack_offset;
-    bool is_temporary;
+    bool is_temporary = false;
     Linkage linkage = Linkage::None;
     StorageDuration storage_duration = StorageDuration::Automatic;
     std::string unique_name;
     Type type = Type(BaseType::VOID);
     bool is_literal8 = false;
 
-    Symbol(std::string n, int o, bool it);
+    Symbol(std::string n, int o, Type t);
     void set_linkage(Linkage l);
     void set_storage_duration(StorageDuration sd);
-    void set_type(Type t);
+    void set_is_temp(bool it);
     bool has_static_sd();
 };
 
@@ -61,7 +61,7 @@ public:
     void enter_scope();
     void exit_scope();
 
-    std::tuple<bool, std::string> declare_var(const std::string &name, bool is_static = false, Type type = Type(BaseType::INT));
+    std::tuple<bool, std::string> declare_var(const std::string &name, Type type, bool is_static = false);
     void declare_temp_var(const std::string &name, Type type);
     void declare_const_var(const std::string &name, Type type);
     void declare_str_var(const std::string &name, Type type);
@@ -76,6 +76,8 @@ public:
 private:
     std::stack<std::unordered_map<std::string, std::shared_ptr<Symbol>>> scopes;
     std::unordered_map<std::string, std::shared_ptr<Symbol>> var_symbols;
+
+    static constexpr int DEFAULT_ALIGNMENT = 16;
 
     int align_to(int size, int alignment);
     void adjust_stack(Type &type);

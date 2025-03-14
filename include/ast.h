@@ -92,6 +92,7 @@ public:
     bool is_struct() const;
     BaseType get_base_type() const;
     bool has_base_type(BaseType other) const;
+    int get_ptr_depth() const;
 
     bool is_signed() const;
 

@@ -18,7 +18,6 @@ private:
     std::unordered_map<NodeType, std::function<void(ASTNode *)>> handlers;
 
     std::shared_ptr<GlobalSymbolTable> gst;
-    std::string current_func_name = "";
 
     unsigned int loop_label_counter = 0;
     std::string gen_new_loop_label();
@@ -28,7 +27,6 @@ private:
     void exit_loop_scope();
 
     void analyse_node(ASTNode *node);
-
     void analyse_func(ASTNode *func);
     void analyse_var_decl(ASTNode *var_decl);
     void analyse_var_assign(ASTNode *node);
@@ -46,6 +44,9 @@ private:
     void analyse_deref(ASTNode *node);
 
     Type infer_type(ASTNode *node);
+
+    void validate_type_assignment(const Type &target_type, const Type &source_type,
+                                  const std::string &context);
 
     void error(const std::string &message);
 };

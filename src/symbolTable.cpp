@@ -2,24 +2,20 @@
 
 #include <stdexcept>
 #include <iostream>
+#include <iomanip>
+#include <ios>
 
-Symbol::Symbol(std::string n, int o, bool it) : name(n), stack_offset(o), is_temporary(it)
-{
-    // std::cout << "Symbol: " << name << " " << stack_offset << std::endl;
-}
+Symbol::Symbol(std::string n, int o, Type t) : name(n), stack_offset(o), type(t) {}
 
 void Symbol::set_linkage(Linkage l) { linkage = l; }
 void Symbol::set_storage_duration(StorageDuration sd) { storage_duration = sd; }
-void Symbol::set_type(Type t) { type = t; }
+void Symbol::set_is_temp(bool it) { is_temporary = it; }
 
 bool Symbol::has_static_sd() { return storage_duration == StorageDuration::Static; }
 
-FuncSymbol::FuncSymbol(std::string n, int ac, std::vector<Type> &at, Type rt) : Symbol(n, 0, false), arg_count(ac), arg_types(at), return_type(rt) {}
+FuncSymbol::FuncSymbol(std::string n, int ac, std::vector<Type> &at, Type rt) : Symbol(n, 0, rt), arg_count(ac), arg_types(at), return_type(rt) {}
 
-SymbolTable::SymbolTable()
-{
-    stack_size = 0;
-}
+SymbolTable::SymbolTable() {}
 
 void SymbolTable::enter_scope()
 {
@@ -34,7 +30,7 @@ void SymbolTable::exit_scope()
     scopes.pop();
 }
 
-std::tuple<bool, std::string> SymbolTable::declare_var(const std::string &name, bool is_static, Type type)
+std::tuple<bool, std::string> SymbolTable::declare_var(const std::string &name, Type type, bool is_static)
 {
     if (scopes.empty())
         throw std::runtime_error("Semantic Error: No scope available");
@@ -53,17 +49,12 @@ std::tuple<bool, std::string> SymbolTable::declare_var(const std::string &name, 
 
     adjust_stack(type);
 
-    std::shared_ptr<Symbol> symbol = std::make_shared<Symbol>(name, stack_size * -1, false);
+    std::shared_ptr<Symbol> symbol = std::make_shared<Symbol>(name, stack_size * -1, type);
     symbol->set_storage_duration(is_static ? StorageDuration::Static : StorageDuration::Automatic);
-
-    bool has_name_changed = false;
 
     auto it = var_symbols.find(name);
     if (it != var_symbols.end())
-    {
         symbol->unique_name = name + std::to_string(var_count);
-        has_name_changed = true;
-    }
     else
         symbol->unique_name = name;
 
@@ -71,97 +62,91 @@ std::tuple<bool, std::string> SymbolTable::declare_var(const std::string &name, 
     var_symbols[symbol->unique_name] = symbol;
     var_count += 1;
 
-    return std::make_tuple(has_name_changed, symbol->unique_name);
+    return std::make_tuple(symbol->unique_name == symbol->name, symbol->unique_name);
 }
 
 std::tuple<bool, std::string> SymbolTable::check_var_defined(const std::string &name)
 {
-    auto &stack_container = scopes.__get_container(); // Non-standard but widely supported in STL
+    auto &stack_container = scopes.__get_container();
     for (auto it = stack_container.rbegin(); it != stack_container.rend(); ++it)
         if (it->count(name))
         {
             auto it2 = it->find(name);
             if (it2 != it->end())
-                return std::make_tuple(true, it2->second->unique_name);
+                return {true, it2->second->unique_name};
         }
 
-    return std::make_tuple(false, "");
-}
-
-int SymbolTable::get_stack_size()
-{
-    return align_to(stack_size, 16);
+    return {false, ""};
 }
 
 Symbol *SymbolTable::get_symbol(const std::string &name)
 {
-    if (var_symbols.find(name) != var_symbols.end())
-        return var_symbols[name].get();
-
-    return nullptr;
+    auto it = var_symbols.find(name);
+    return it != var_symbols.end() ? it->second.get() : nullptr;
 }
 
 void SymbolTable::declare_temp_var(const std::string &name, Type type)
 {
     adjust_stack(type);
-    std::shared_ptr<Symbol> new_temp_var = std::make_shared<Symbol>(name, stack_size * -1, true);
-    new_temp_var->type = type;
+    std::shared_ptr<Symbol> new_temp_var = std::make_shared<Symbol>(name, stack_size * -1, type);
+    new_temp_var->set_is_temp(true);
     var_symbols[name] = new_temp_var;
     var_count += 1;
 }
 
 void SymbolTable::declare_const_var(const std::string &name, Type type)
 {
-    std::shared_ptr<Symbol> new_const_var = std::make_shared<Symbol>(name, 0, false);
+    std::shared_ptr<Symbol> new_const_var = std::make_shared<Symbol>(name, 0, type);
     new_const_var->is_literal8 = true;
-    new_const_var->type = type;
     var_symbols[name] = new_const_var;
 }
 
 void SymbolTable::declare_str_var(const std::string &name, Type type)
 {
-    std::shared_ptr<Symbol> new_str_var = std::make_shared<Symbol>(name, 0, false);
-    new_str_var->type = type;
-    var_symbols[name] = new_str_var;
+    var_symbols[name] = std::make_shared<Symbol>(name, 0, type);
 }
 
 void SymbolTable::print()
 {
-    std::cout << "\n=== Symbol Table Debug ===\n";
-    std::cout << "Symbol table size: " << var_symbols.size() << std::endl;
-    std::cout << "Symbols:" << std::endl;
+    std::cout << "\n=== Symbol Table Debug ===\n"
+              << "Symbol table size: " << var_symbols.size() << "\nSymbols:\n";
+
     try
     {
-        for (const auto &pair : var_symbols)
+        for (const auto &[name, symbol] : var_symbols)
         {
-            if (!pair.second)
+            if (!symbol)
             {
-                std::cout << "  WARNING: Null pointer found for key: " << pair.first << std::endl;
+                std::cout << "  WARNING: Null pointer found for key: " << name << '\n';
                 continue;
             }
-            std::cout << "  " << pair.first
-                      << " (name: " << pair.second->name
-                      << ", offset: " << pair.second->stack_offset
-                      << ", temp: " << pair.second->is_temporary
-                      << ", addr: " << pair.second.get() << ")"
-                      << ", size: " << pair.second.get()->type.get_size()
-                      << std::endl;
+
+            std::cout << "  " << std::left << std::setw(20) << name
+                      << " | name: " << std::setw(15) << symbol->name
+                      << " | offset: " << std::setw(5) << symbol->stack_offset
+                      << " | temp: " << std::setw(5) << (symbol->is_temporary ? "yes" : "no")
+                      << " | size: " << symbol->type.get_size() << '\n';
         }
     }
     catch (const std::exception &e)
     {
-        std::cout << "Exception while printing symbols: " << e.what() << std::endl;
+        std::cout << "Exception while printing symbols: " << e.what() << '\n';
     }
     std::cout << "========================\n";
 }
 
-int SymbolTable::align_to(int size, int alignment)
+int SymbolTable::get_stack_size()
 {
-    return (size + alignment - 1) & ~(alignment - 1);
+    return align_to(stack_size, DEFAULT_ALIGNMENT);
 }
 
 void SymbolTable::adjust_stack(Type &type)
 {
     stack_size = align_to(stack_size, type.get_size());
     stack_size += type.get_size();
+}
+
+int SymbolTable::align_to(int size, int alignment)
+{
+    return (size + alignment - 1) & ~(alignment - 1);
 }

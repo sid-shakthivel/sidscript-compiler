@@ -84,8 +84,7 @@ public:
 
 private:
     std::shared_ptr<GlobalSymbolTable> gst;
-    SymbolTable *current_st = nullptr;
-    std::string current_func = "";
+    // std::string current_func = "";
 
     std::vector<TACInstruction> instructions;
     std::vector<TACInstruction> bss_vars;
