@@ -66,6 +66,8 @@ enum TokenType
     TOKEN_CHAR,
     TOKEN_STRING,
     TOKEN_CHAR_TEXT,
+    TOKEN_STRUCT,
+    TOKEN_DOT,
 };
 
 extern std::unordered_map<std::string, TokenType> string_to_token;

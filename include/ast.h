@@ -57,7 +57,8 @@ enum class NodeType
     NODE_ADDR_OF,
     NODE_ARRAY_ACCESS,
     NODE_CHAR,
-    NODE_STRING
+    NODE_STRING,
+    NODE_STRUCT_DECL,
 };
 
 enum class BaseType
@@ -76,14 +77,14 @@ class Type
 {
 private:
     BaseType base_type;
-    int pointer_level = 0;
+    int ptr_level = 0;
     std::vector<int> array_sizes;
     std::optional<std::string> struct_name;
 
 public:
     Type(BaseType base);
     Type(BaseType base, int ptr_level);
-    Type(std::string struct_name);
+    Type(std::string struct_name, int ptr_level);
 
     Type &add_array_dimension(int size);
 
@@ -335,6 +336,16 @@ public:
     std::unique_ptr<ASTNode> value;
 
     VarDeclNode(std::unique_ptr<VarNode> v, std::unique_ptr<ASTNode> val);
+    void print(int tabs) override;
+};
+
+class StructDeclNode : public ASTNode
+{
+public:
+    std::string name;
+    std::vector<std::unique_ptr<ASTNode>> members;
+
+    StructDeclNode(const std::string &n, std::vector<std::unique_ptr<ASTNode>> m);
     void print(int tabs) override;
 };
 

@@ -6,9 +6,9 @@
 
 Type::Type(BaseType base) : base_type(base) {}
 
-Type::Type(BaseType base, int ptr_level) : base_type(base), pointer_level(ptr_level) {}
+Type::Type(BaseType base, int ptr_level) : base_type(base), ptr_level(ptr_level) {}
 
-Type::Type(std::string struct_name) : base_type(BaseType::STRUCT), struct_name(struct_name) {}
+Type::Type(std::string struct_name, int ptr_level) : base_type(BaseType::STRUCT), struct_name(struct_name), ptr_level(ptr_level) {}
 
 Type &Type::add_array_dimension(int size)
 {
@@ -16,7 +16,7 @@ Type &Type::add_array_dimension(int size)
     return *this;
 }
 
-bool Type::is_pointer() const { return pointer_level > 0; }
+bool Type::is_pointer() const { return ptr_level > 0; }
 bool Type::is_array() const { return array_sizes.size() > 0; }
 bool Type::is_struct() const { return base_type == BaseType::STRUCT; }
 
@@ -82,7 +82,7 @@ bool Type::is_size_8() const
 
 int Type::get_ptr_depth() const
 {
-    return pointer_level;
+    return ptr_level;
 }
 
 std::string Type::to_string() const
@@ -118,7 +118,7 @@ std::string Type::to_string() const
         break;
     }
 
-    for (int i = 0; i < pointer_level; i++)
+    for (int i = 0; i < ptr_level; i++)
         result += "*";
 
     for (int size : array_sizes)
@@ -148,7 +148,7 @@ bool Type::operator==(const Type &other) const
     if (base_type != other.base_type)
         return false;
 
-    if (pointer_level != other.pointer_level)
+    if (ptr_level != other.ptr_level)
         return false;
 
     if (array_sizes != other.array_sizes)
@@ -554,17 +554,15 @@ void BinaryNode::print(int tabs)
     right->print(tabs + 1);
 }
 
-VarNode::VarNode(const std::string &n) : ASTNode(NodeType::NODE_VAR), name(n)
-{
-}
+VarNode::VarNode(const std::string &n) : ASTNode(NodeType::NODE_VAR), name(n) {}
 
-VarNode::VarNode(const std::string &n, Type t, Specifier s) : ASTNode(NodeType::NODE_VAR), name(n), type(t), specifier(s)
-{
-}
+VarNode::VarNode(const std::string &n, Type t, Specifier s) : ASTNode(NodeType::NODE_VAR), name(n), type(t), specifier(s) {}
 
 void VarNode::print(int tabs)
 {
     std::cout << std::string(tabs, ' ') << "Var: " << name << std::endl;
+
+    std::cout << std::string(tabs + 1, ' ') << "Type: " << type.to_string() << std::endl;
 
     if (specifier == Specifier::STATIC)
         std::cout << std::string(tabs + 1, ' ') << "Specifier: STATIC" << std::endl;
@@ -589,6 +587,15 @@ void VarDeclNode::print(int tabs)
     var->print(tabs + 1);
     if (value != nullptr)
         value->print(tabs + 1);
+}
+
+StructDeclNode::StructDeclNode(const std::string &n, std::vector<std::unique_ptr<ASTNode>> m) : ASTNode(NodeType::NODE_STRUCT_DECL), name(n), members(std::move(m)) {}
+
+void StructDeclNode::print(int tabs)
+{
+    std::cout << std::string(tabs, ' ') << "StructDecl: " << name << std::endl;
+    for (auto &member : members)
+        member->print(tabs + 1);
 }
 
 IfNode::IfNode(std::unique_ptr<BinaryNode> c, std::vector<std::unique_ptr<ASTNode>> t, std::vector<std::unique_ptr<ASTNode>> e) : ASTNode(NodeType::NODE_IF), condition(std::move(c)), then_elements(std::move(t)), else_elements(std::move(e)) {}

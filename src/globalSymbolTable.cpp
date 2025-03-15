@@ -90,7 +90,7 @@ void GlobalSymbolTable::handle_global_var_decl(VarNode *node)
 		}
 
 		// Create a new global symbol
-		std::unique_ptr<Symbol> symbol = std::make_unique<Symbol>(node->name, 0, false);
+		std::unique_ptr<Symbol> symbol = std::make_unique<Symbol>(node->name, 0, node->type);
 		symbol->set_storage_duration(StorageDuration::Static);
 		symbol->set_linkage(node->specifier == Specifier::STATIC ? Linkage::Internal : Linkage::External);
 

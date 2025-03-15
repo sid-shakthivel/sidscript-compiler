@@ -62,6 +62,8 @@ std::unordered_map<std::string, TokenType> string_to_token = {
     {"[", TOKEN_LSBRACE},
     {"]", TOKEN_RSBRACE},
     {"char", TOKEN_CHAR_TEXT},
+    {"struct", TOKEN_STRUCT},
+    {".", TOKEN_DOT},
 };
 
 std::string token_to_string(TokenType token_type)
@@ -256,6 +258,14 @@ Token Lexer::get_next_token()
     else if (isdigit(c) || c == '.')
     {
         size_t init_index = index;
+
+        if (c == '.' && !isdigit(source[index + 1]))
+        {
+            index += 1;
+            state_stack.push({init_index, line});
+            return Token(TOKEN_DOT, ".", line, init_index);
+        }
+
         std::string num = process_number();
         if (num.find('.') != std::string::npos ||
             num.find('e') != std::string::npos ||
@@ -319,7 +329,8 @@ void Lexer::print_all_tokens()
     Token next_token = get_next_token();
     while (next_token.type != TOKEN_EOF)
     {
-        std::cout << next_token.text << " " << next_token.index << " " << source[next_token.index] << std::endl;
+        // std::cout << next_token.text << " " << next_token.index << " " << source[next_token.index] << std::endl;
+        std::cout << next_token.text << std::endl;
         next_token = get_next_token();
     }
 }

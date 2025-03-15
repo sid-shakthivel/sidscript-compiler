@@ -1,9 +1,11 @@
-fn main() -> int {
-int a = 5;
-if (a == 3)
+struct Test {
+    int a;
+    double b;
+    char c[3];
+};
+
+fn main() -> int
 {
-a = 5;
-}
-test = 2;
-return 2;  
+    struct Test example;
+    return 5;
 }

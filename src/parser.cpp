@@ -84,6 +84,8 @@ std::shared_ptr<ProgramNode> Parser::parse()
     {
         if (match(TOKEN_FN))
             program->decls.emplace_back(parse_func_decl());
+        else if (match(TOKEN_STRUCT))
+            program->decls.emplace_back(parse_struct_decl());
         else if (match(addressable_types))
             program->decls.emplace_back(parse_var_decl());
         else if (match(TOKEN_STATIC) || match(TOKEN_EXTERN))
@@ -101,6 +103,30 @@ std::shared_ptr<ProgramNode> Parser::parse()
     }
 
     return program;
+}
+
+std::unique_ptr<ASTNode> Parser::parse_struct_decl()
+{
+    expect_and_advance(TOKEN_STRUCT);
+
+    std::string struct_name = current_token.text;
+    expect_and_advance(TOKEN_IDENTIFIER);
+
+    advance();
+
+    std::vector<std::unique_ptr<ASTNode>> members;
+
+    while (!match(TOKEN_RBRACE))
+    {
+        members.emplace_back(parse_var_decl());
+        advance();
+    }
+
+    expect_and_advance(TOKEN_RBRACE);
+
+    expect(TOKEN_SEMICOLON);
+
+    return std::make_unique<StructDeclNode>(struct_name, std::move(members));
 }
 
 std::unique_ptr<FuncNode> Parser::parse_func_decl(TokenType specifier)
@@ -162,8 +188,6 @@ std::vector<std::unique_ptr<ASTNode>> Parser::parse_block()
     {
         if (match(TOKEN_RTN))
             elements.emplace_back(parse_rtn());
-        else if (match(addressable_types))
-            elements.emplace_back(parse_var_decl());
         else if (match(TOKEN_IDENTIFIER))
         {
             /*
@@ -171,7 +195,22 @@ std::vector<std::unique_ptr<ASTNode>> Parser::parse_block()
                 - Assigning a variable ie a = 5, a += 5;
                 - Assigning an array ie arr[3] = 5, arr[2]++
                 - An expression ie func(), i++
+                - Declaring a struct variable ie Foo foo;
             */
+
+            // advance();
+
+            // if (match(TOKEN_IDENTIFIER))
+            // {
+            //     std::cout << "here are identifier is " << current_token.text << std::endl;
+            //     retreat();
+            //     std::cout << "after retreat are identifier is " << current_token.text << std::endl;
+            //     elements.emplace_back(parse_var_decl());
+            //     advance();
+            //     continue;
+            // }
+
+            // retreat();
 
             int retreat_num = 0;
             bool is_assignment = false;
@@ -199,6 +238,8 @@ std::vector<std::unique_ptr<ASTNode>> Parser::parse_block()
                 expect(TOKEN_SEMICOLON);
             }
         }
+        else if (match(addressable_types))
+            elements.emplace_back(parse_var_decl());
         else if (match(TOKEN_IF))
             elements.emplace_back(parse_if_stmt());
         else if (match(TOKEN_WHILE))
@@ -338,6 +379,7 @@ std::unique_ptr<VarDeclNode> Parser::parse_var_decl(TokenType specifier)
 
     while (match(TOKEN_LSBRACE))
     {
+        advance();
         std::unique_ptr<ASTNode> size_expr = parse_expr();
         if (auto num = dynamic_cast<IntegerLiteral *>(size_expr.get()))
             var_type.add_array_dimension(num->value);
@@ -368,18 +410,42 @@ std::unique_ptr<VarDeclNode> Parser::parse_var_decl(TokenType specifier)
     return std::make_unique<VarDeclNode>(std::move(var), nullptr);
 }
 
+Type Parser::parse_type()
+{
+    std::vector<TokenType> types;
+    int i = 0;
+
+    while (match(addressable_types))
+    {
+        if (i > 0)
+            if (current_token.type == TOKEN_IDENTIFIER)
+            {
+                retreat();
+                break;
+            }
+        types.emplace_back(current_token.type);
+        advance();
+        i++;
+    }
+
+    return determine_type(types);
+}
+
 Type Parser::determine_type(std::vector<TokenType> &types)
 {
     BaseType base_type = BaseType::INT;
     bool is_unsigned = false;
-    int pointer_level = 0;
+    bool is_struct = false;
+    int ptr_level = 0;
 
     for (const auto &type : types)
     {
         if (type == TOKEN_UNSIGNED)
             is_unsigned = true;
         else if (type == TOKEN_STAR)
-            pointer_level++;
+            ptr_level++;
+        else if (type == TOKEN_STRUCT)
+            is_struct = true;
     }
 
     for (const auto &type : types)
@@ -400,12 +466,15 @@ Type Parser::determine_type(std::vector<TokenType> &types)
         case TOKEN_CHAR_TEXT:
             base_type = BaseType::CHAR;
             break;
+        case TOKEN_IDENTIFIER:
+            std::cout << "here ig\n";
+            return Type(current_token.text, ptr_level);
         default:
             continue;
         }
     }
 
-    return Type(base_type, pointer_level);
+    return Type(base_type, ptr_level);
 }
 
 std::unique_ptr<VarAssignNode> Parser::parse_var_assign()
@@ -638,17 +707,6 @@ void Parser::parse_args_list(std::unique_ptr<FuncCallNode> &func_call)
 int Parser::get_precedence(TokenType op)
 {
     return precedence_map.at(get_bin_op_type(op));
-}
-
-Type Parser::parse_type()
-{
-    std::vector<TokenType> types;
-    while (match(addressable_types))
-    {
-        types.emplace_back(current_token.type);
-        advance();
-    }
-    return determine_type(types);
 }
 
 std::unique_ptr<ASTNode> Parser::parse_var_or_array_access(Specifier specifier)

@@ -5,9 +5,11 @@
 
 <element> ::= <stmt> | <decl>
 
-<decl> ::= <var_decl> | <var_assign> | <func_decl>
+<decl> ::= <var_decl> | <var_assign> | <func_decl> | <struct_decl>
 <var_decl> ::= <specifier>? { <type_specifier> }+ <identifier> [ "=" <expr> ] ";"
 <func_decl> ::= <specifier>? "fn" <identifier> "(" <param-list> ")" "->" (<type_specifier> | "void") <block>
+<struct_decl ::= "struct" <identifier> [ "{" { <member-declaration> }+ "}" ] ";"
+<member_decl> ::= { <type-specifier> }+ <declarator> ";"
 
 <var_assign> ::= <identifer> "=" <expr> ";"
 
@@ -32,13 +34,13 @@
 | "(" <expr> ")"
 | <identifier> "(" [ <argument-list> ] ")"
 
-<type*specifier> ::= { "*" } "int" | "long" | "unsigned" | "signed" | "double" | "char" [ "[" <expr> "]" ]\_
+<type_specifier> ::= { "\*" } "int" | "long" | "unsigned" | "signed" | "double" | "char" [ "[" <expr> "]" ] | "struct" <identifier>
 <specifier> ::= "static" | "extern"
 
 <binopr> ::= ::= "-" | "+" | "\*" | "/" | "%" | "&&" | "||"
 | "==" | "!=" | "<" | "<=" | ">" | ">="
 <unopr> ::= "-" | "~" | "++" | "--" | "&" | "\*"
-<postopr> ::= "++" | "--"
+<postopr> ::= "++" | "--" | "." <identifier> | "->" <identifier>
 
 <literal> ::= <int> | <long> | <uint> | <ulong> | <double> | <char> | <string>
 

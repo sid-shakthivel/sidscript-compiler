@@ -142,7 +142,7 @@ void SemanticAnalyser::analyse_var_decl(ASTNode *node)
     }
 
     gst->declare_var(var_decl_node->var.get());
-    gst->get_symbol(var_decl_node->var->name)->set_type(var_decl_node->var->type);
+    // gst->get_symbol(var_decl_node->var->name)->set_type(var_decl_node->var->type);
 }
 
 void SemanticAnalyser::analyse_var_assign(ASTNode *node)
