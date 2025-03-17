@@ -190,27 +190,13 @@ std::vector<std::unique_ptr<ASTNode>> Parser::parse_block()
             elements.emplace_back(parse_rtn());
         else if (match(TOKEN_IDENTIFIER))
         {
+            std::cout << "hey now " << current_token.text << std::endl;
             /*
             This could be one of three things
                 - Assigning a variable ie a = 5, a += 5;
                 - Assigning an array ie arr[3] = 5, arr[2]++
                 - An expression ie func(), i++
-                - Declaring a struct variable ie Foo foo;
             */
-
-            // advance();
-
-            // if (match(TOKEN_IDENTIFIER))
-            // {
-            //     std::cout << "here are identifier is " << current_token.text << std::endl;
-            //     retreat();
-            //     std::cout << "after retreat are identifier is " << current_token.text << std::endl;
-            //     elements.emplace_back(parse_var_decl());
-            //     advance();
-            //     continue;
-            // }
-
-            // retreat();
 
             int retreat_num = 0;
             bool is_assignment = false;
@@ -226,14 +212,13 @@ std::vector<std::unique_ptr<ASTNode>> Parser::parse_block()
                 }
             }
 
+            retreat(retreat_num);
+
             if (is_assignment)
-            {
-                retreat(retreat_num);
                 elements.emplace_back(parse_var_assign());
-            }
             else
             {
-                retreat(retreat_num);
+                std::cout << "are we here now?\n";
                 elements.emplace_back(parse_expr());
                 expect(TOKEN_SEMICOLON);
             }
@@ -400,6 +385,8 @@ std::unique_ptr<VarDeclNode> Parser::parse_var_decl(TokenType specifier)
 
         if (match(TOKEN_LBRACE) && var_type.is_array())
             init_expr = parse_array_initialiser(var_type);
+        else if (match(TOKEN_LBRACE) && var_type.is_struct())
+            init_expr = parse_array_initialiser(var_type);
         else
             init_expr = parse_expr();
 
@@ -413,19 +400,11 @@ std::unique_ptr<VarDeclNode> Parser::parse_var_decl(TokenType specifier)
 Type Parser::parse_type()
 {
     std::vector<TokenType> types;
-    int i = 0;
 
     while (match(addressable_types))
     {
-        if (i > 0)
-            if (current_token.type == TOKEN_IDENTIFIER)
-            {
-                retreat();
-                break;
-            }
         types.emplace_back(current_token.type);
         advance();
-        i++;
     }
 
     return determine_type(types);
@@ -446,6 +425,13 @@ Type Parser::determine_type(std::vector<TokenType> &types)
             ptr_level++;
         else if (type == TOKEN_STRUCT)
             is_struct = true;
+    }
+
+    if (is_struct)
+    {
+        std::string struct_name = current_token.text;
+        advance();
+        return Type(struct_name, ptr_level);
     }
 
     for (const auto &type : types)
@@ -510,6 +496,16 @@ std::unique_ptr<ASTNode> Parser::parse_expr(int min_presedence)
     std::unique_ptr<ASTNode> left = parse_factor();
 
     advance();
+
+    if (match(TOKEN_DOT))
+    {
+        std::cout << "dot stuff\n";
+    }
+
+    if (match(TOKEN_ARROW))
+    {
+        std::cout << "token arrow stuff";
+    }
 
     if (match(TOKEN_INCREMENT) || match(TOKEN_DECREMENT))
     {
@@ -587,6 +583,7 @@ std::unique_ptr<ASTNode> Parser::parse_factor()
     }
     else if (match(TOKEN_IDENTIFIER))
     {
+        std::cout << "coachella\n";
         std::string identifier = current_token.text;
         std::unique_ptr<ASTNode> potential_var = parse_var_or_array_access();
 
@@ -600,6 +597,12 @@ std::unique_ptr<ASTNode> Parser::parse_factor()
 
         retreat();
         return potential_var;
+    }
+    else if (match(TOKEN_LBRACE))
+    {
+        auto rtn = parse_array_initialiser();
+        retreat();
+        return rtn;
     }
     else
         error("Expected expression");
@@ -713,17 +716,29 @@ std::unique_ptr<ASTNode> Parser::parse_var_or_array_access(Specifier specifier)
 {
     expect(TOKEN_IDENTIFIER);
     std::string var_name = current_token.text;
+    std::unique_ptr<VarNode> var = std::make_unique<VarNode>(var_name);
     advance();
 
-    if (!match(TOKEN_LSBRACE))
-        return std::make_unique<VarNode>(current_token.text);
+    if (match(TOKEN_LSBRACE))
+    {
+        advance();
+        auto index = parse_expr();
+        expect_and_advance(TOKEN_RSBRACE);
 
-    auto var = std::make_unique<VarNode>(var_name);
-    advance();
-    auto index = parse_expr();
-    expect_and_advance(TOKEN_RSBRACE);
-
-    return std::make_unique<ArrayAccessNode>(std::move(var), std::move(index));
+        return std::make_unique<ArrayAccessNode>(std::move(var), std::move(index));
+    }
+    else if (match(TOKEN_DOT) || match(TOKEN_ARROW))
+    {
+        TokenType op = current_token.type;
+        advance();
+        expect(TOKEN_IDENTIFIER);
+        std::unique_ptr<PostfixNode> postfix = std::make_unique<PostfixNode>(op, std::move(var));
+        postfix->field = current_token.text;
+        advance();
+        return postfix;
+    }
+    else
+        return var;
 }
 
 std::unique_ptr<ASTNode> Parser::parse_cast()

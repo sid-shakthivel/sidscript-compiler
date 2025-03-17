@@ -301,6 +301,8 @@ public:
     std::unique_ptr<ASTNode> value;
     Type type = Type(BaseType::VOID);
 
+    std::string field;
+
     PostfixNode(TokenType o, std::unique_ptr<ASTNode> v);
     void print(int tabs) override;
 };
