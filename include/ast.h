@@ -36,7 +36,7 @@ enum class BinOpType
 enum class NodeType
 {
     NODE_NUMBER,
-    NODE_ARRAY_INIT,
+    NODE_COMPOUND_INIT,
     NODE_RETURN,
     NODE_FUNCTION,
     NODE_PROGRAM,
@@ -48,8 +48,6 @@ enum class NodeType
     NODE_IF,
     NODE_WHILE,
     NODE_FOR,
-    NODE_BREAK,
-    NODE_CONTINUE,
     NODE_FUNC_CALL,
     NODE_CAST,
     NODE_POSTFIX,
@@ -59,6 +57,7 @@ enum class NodeType
     NODE_CHAR,
     NODE_STRING,
     NODE_STRUCT_DECL,
+    NODE_LOOP_CONTROL
 };
 
 enum class BaseType
@@ -73,6 +72,61 @@ enum class BaseType
     CHAR
 };
 
+inline std::string node_type_to_string(NodeType type)
+{
+    switch (type)
+    {
+    case NodeType::NODE_NUMBER:
+        return "NUMBER";
+    case NodeType::NODE_COMPOUND_INIT:
+        return "ARRAY_INIT";
+    case NodeType::NODE_RETURN:
+        return "RETURN";
+    case NodeType::NODE_FUNCTION:
+        return "FUNCTION";
+    case NodeType::NODE_PROGRAM:
+        return "PROGRAM";
+    case NodeType::NODE_UNARY:
+        return "UNARY";
+    case NodeType::NODE_BINARY:
+        return "BINARY";
+    case NodeType::NODE_VAR:
+        return "VAR";
+    case NodeType::NODE_VAR_ASSIGN:
+        return "VAR_ASSIGN";
+    case NodeType::NODE_VAR_DECL:
+        return "VAR_DECL";
+    case NodeType::NODE_IF:
+        return "IF";
+    case NodeType::NODE_WHILE:
+        return "WHILE";
+    case NodeType::NODE_FOR:
+        return "FOR";
+    case NodeType::NODE_FUNC_CALL:
+        return "FUNC_CALL";
+    case NodeType::NODE_CAST:
+        return "CAST";
+    case NodeType::NODE_POSTFIX:
+        return "POSTFIX";
+    case NodeType::NODE_DEREF:
+        return "DEREF";
+    case NodeType::NODE_ADDR_OF:
+        return "ADDR_OF";
+    case NodeType::NODE_ARRAY_ACCESS:
+        return "ARRAY_ACCESS";
+    case NodeType::NODE_CHAR:
+        return "CHAR";
+    case NodeType::NODE_STRING:
+        return "STRING";
+    case NodeType::NODE_STRUCT_DECL:
+        return "STRUCT_DECL";
+    case NodeType::NODE_LOOP_CONTROL:
+        return "LOOP_CONTROL";
+    default:
+        return "UNKNOWN";
+    }
+}
+
 class Type
 {
 private:
@@ -82,6 +136,7 @@ private:
     std::optional<std::string> struct_name;
 
 public:
+    Type() : base_type(BaseType::VOID), ptr_level(0) {}
     Type(BaseType base);
     Type(BaseType base, int ptr_level);
     Type(std::string struct_name, int ptr_level);
@@ -103,6 +158,8 @@ public:
     size_t get_size() const;
     size_t get_array_size() const;
     bool is_size_8() const;
+
+    std::string get_struct_name() const;
 
     // Type compatibility checks
     bool can_assign_from(const Type &other) const;
@@ -198,15 +255,15 @@ public:
     void print(int tabs) override;
 };
 
-class ArrayLiteral : public ASTNode
+class CompoundLiteral : public ASTNode
 {
 public:
     std::vector<std::unique_ptr<ASTNode>> values;
-    Type arr_type = Type(BaseType::VOID);
+    Type type = Type(BaseType::VOID);
 
     void add_element(std::unique_ptr<ASTNode> element);
 
-    ArrayLiteral(Type t);
+    CompoundLiteral(Type t);
     void print(int tabs) override;
 };
 
@@ -398,21 +455,13 @@ public:
     void print(int tabs) override;
 };
 
-class BreakNode : public ASTNode
+class LoopControl : public ASTNode
 {
 public:
+    TokenType type;
     std::string label;
 
-    BreakNode(std::string l);
-    void print(int tabs) override;
-};
-
-class ContinueNode : public ASTNode
-{
-public:
-    std::string label;
-
-    ContinueNode(std::string l);
+    LoopControl(TokenType t, std::string l);
     void print(int tabs) override;
 };
 

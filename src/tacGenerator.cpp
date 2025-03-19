@@ -212,7 +212,7 @@ void TacGenerator::generate_tac_element(ASTNode *element)
         }
         if (var_decl->var->type.is_array())
         {
-            ArrayLiteral *array_init = dynamic_cast<ArrayLiteral *>(var_decl->value.get());
+            CompoundLiteral *array_init = dynamic_cast<CompoundLiteral *>(var_decl->value.get());
             int array_size = var_decl->var->type.get_array_size();
 
             for (size_t i = 0; i < array_init->values.size(); i++)
@@ -336,13 +336,13 @@ void TacGenerator::generate_tac_element(ASTNode *element)
 
         instructions.emplace_back(TACOp::LABEL, end);
     }
-    else if (element->node_type == NodeType::NODE_BREAK)
+    else if (element->node_type == NodeType::NODE_LOOP_CONTROL)
     {
-        instructions.emplace_back(TACOp::GOTO, "", "", ((BreakNode *)element)->label + "_end");
-    }
-    else if (element->node_type == NodeType::NODE_CONTINUE)
-    {
-        instructions.emplace_back(TACOp::GOTO, "", "", ((ContinueNode *)element)->label + "_post");
+        LoopControl *loop_control = (LoopControl *)element;
+        if (loop_control->type == TOKEN_BREAK)
+            instructions.emplace_back(TACOp::GOTO, "", "", loop_control->label + "_end");
+        else if (loop_control->type == TOKEN_CONTINUE)
+            instructions.emplace_back(TACOp::GOTO, "", "", loop_control->label + "_post");
     }
     else if (element->node_type == NodeType::NODE_UNARY)
     {

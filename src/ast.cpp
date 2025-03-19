@@ -85,6 +85,13 @@ int Type::get_ptr_depth() const
     return ptr_level;
 }
 
+std::string Type::get_struct_name() const
+{
+    if (!struct_name.has_value())
+        throw std::runtime_error("TypeError: Attempting to get struct name from type " + to_string());
+    return struct_name.value();
+}
+
 std::string Type::to_string() const
 {
     std::string result;
@@ -373,16 +380,16 @@ void DoubleLiteral::print(int tabs)
     std::cout << std::string(tabs, ' ') << "(Double) Literal: " + std::to_string(value) << std::endl;
 }
 
-ArrayLiteral::ArrayLiteral(Type t) : ASTNode(NodeType::NODE_ARRAY_INIT), arr_type(t) {}
+CompoundLiteral::CompoundLiteral(Type t) : ASTNode(NodeType::NODE_COMPOUND_INIT), type(t) {}
 
-void ArrayLiteral::add_element(std::unique_ptr<ASTNode> e)
+void CompoundLiteral::add_element(std::unique_ptr<ASTNode> e)
 {
     values.push_back(std::move(e));
 }
 
-void ArrayLiteral::print(int tabs)
+void CompoundLiteral::print(int tabs)
 {
-    std::cout << std::string(tabs, ' ') << "ArrayInit:" << std::endl;
+    std::cout << std::string(tabs, ' ') << "CompoundInit:" << std::endl;
     for (const auto &elem : values)
         elem->print(tabs + 1);
 }
@@ -638,18 +645,12 @@ void ForNode::print(int tabs)
         element->print(tabs + 2);
 }
 
-ContinueNode::ContinueNode(std::string l) : ASTNode(NodeType::NODE_CONTINUE), label(l) {}
+LoopControl::LoopControl(TokenType t, std::string l) : ASTNode(NodeType::NODE_LOOP_CONTROL), type(t) {}
 
-void ContinueNode::print(int tabs)
+void LoopControl::print(int tabs)
 {
-    std::cout << std::string(tabs, ' ') << "Continue " << label << std::endl;
-}
-
-BreakNode::BreakNode(std::string l) : ASTNode(NodeType::NODE_BREAK), label(l) {}
-
-void BreakNode::print(int tabs)
-{
-    std::cout << std::string(tabs, ' ') << "Break " << label << std::endl;
+    std::string typeText = type == TOKEN_BREAK ? "Break: " : "Continue:";
+    std::cout << std::string(tabs, ' ') << typeText << label << std::endl;
 }
 
 DerefNode::DerefNode(std::unique_ptr<ASTNode> v) : ASTNode(NodeType::NODE_DEREF), expr(std::move(v)) {}

@@ -19,9 +19,7 @@ SemanticAnalyser::SemanticAnalyser(std::shared_ptr<GlobalSymbolTable> gst) : gst
     { analyse_while_stmt(node); };
     handlers[NodeType::NODE_FOR] = [this](ASTNode *node)
     { analyse_for_stmt(node); };
-    handlers[NodeType::NODE_CONTINUE] = [this](ASTNode *node)
-    { analyse_loop_control(node); };
-    handlers[NodeType::NODE_BREAK] = [this](ASTNode *node)
+    handlers[NodeType::NODE_LOOP_CONTROL] = [this](ASTNode *node)
     { analyse_loop_control(node); };
     handlers[NodeType::NODE_FUNC_CALL] = [this](ASTNode *node)
     { analyse_func_call(node); };
@@ -44,17 +42,16 @@ SemanticAnalyser::SemanticAnalyser(std::shared_ptr<GlobalSymbolTable> gst) : gst
         PostfixNode *postfix = dynamic_cast<PostfixNode *>(node);
         analyse_node(postfix->value.get());
     };
+    handlers[NodeType::NODE_STRUCT_DECL] = [this](ASTNode *node)
+    { analyse_struct_decl(node); };
+    handlers[NodeType::NODE_COMPOUND_INIT] = [this](ASTNode *node)
+    { analyse_compound_literal_init(node); };
 }
 
 void SemanticAnalyser::analyse(std::shared_ptr<ProgramNode> program)
 {
     for (auto &decl : program->decls)
-    {
-        if (decl->node_type == NodeType::NODE_FUNCTION)
-            analyse_func(decl.get());
-        else if (decl->node_type == NodeType::NODE_VAR_DECL)
-            analyse_var_decl(decl.get());
-    }
+        analyse_node(decl.get());
 }
 
 void SemanticAnalyser::analyse_func(ASTNode *node)
@@ -89,8 +86,8 @@ void SemanticAnalyser::analyse_node(ASTNode *node)
     auto handler = handlers.find(node->node_type);
     if (handler != handlers.end())
         handler->second(node);
-    else
-        error("Unknown node type in semantic analysis");
+    // else
+    // error("Unknown node of type " + node_type_to_string(node->node_type) + " encountered");
 }
 
 void SemanticAnalyser::analyse_var_decl(ASTNode *node)
@@ -123,26 +120,78 @@ void SemanticAnalyser::analyse_var_decl(ASTNode *node)
         }
         else if (var_type.is_array())
         {
-            if (var_decl_node->value->node_type != NodeType::NODE_ARRAY_INIT)
+            if (var_decl_node->value->node_type != NodeType::NODE_COMPOUND_INIT)
                 error("Array initialisation of " + var_decl_node->var->name + " requires array literal");
-
-            ArrayLiteral *array_init = dynamic_cast<ArrayLiteral *>(var_decl_node->value.get());
-
-            if (array_init->values.size() > var_type.get_size())
-                error("Too many elements in array initialisation of " + var_decl_node->var->name);
-
-            for (auto &element : array_init->values)
-            {
-                if (!infer_type(element.get()).has_base_type(var_type.get_base_type()))
-                    error("Type in array initialisation of " + var_decl_node->var->name + " doesn't match");
-            }
+        }
+        else if (var_type.is_struct())
+        {
+            if (var_decl_node->value->node_type != NodeType::NODE_COMPOUND_INIT)
+                error("Struct initialisation of " + var_decl_node->var->name + " requires struct literal");
         }
 
         validate_type_assignment(var_type, value_type, var_decl_node->var->name);
     }
 
     gst->declare_var(var_decl_node->var.get());
-    // gst->get_symbol(var_decl_node->var->name)->set_type(var_decl_node->var->type);
+}
+
+void SemanticAnalyser::analyse_compound_literal_init(ASTNode *node)
+{
+    CompoundLiteral *compound_literal = (CompoundLiteral *)node;
+
+    if (compound_literal->type.is_array())
+    {
+        /*
+            This is used when declaring an array
+            - int arr[3] = {1, 2, 3};
+        */
+        if (compound_literal->values.size() > compound_literal->type.get_size())
+            error("Too many elements in array initialisation");
+
+        for (auto &element : compound_literal->values)
+        {
+            analyse_node(element.get());
+
+            if (!infer_type(element.get()).has_base_type(compound_literal->type.get_base_type()))
+                error("Type in array initialisation of some variable doesn't match");
+        }
+    }
+    else if (compound_literal->type.is_struct())
+    {
+        std::string struct_name = compound_literal->type.get_struct_name();
+
+        if (struct_table.find(struct_name) == struct_table.end())
+            error("Struct '" + struct_name + "' not defined");
+
+        std::map<std::string, Type> struct_fields = struct_table[struct_name];
+
+        if (struct_fields.size() != compound_literal->values.size())
+            error("Struct '" + struct_name + "' has " + std::to_string(struct_fields.size()) +
+                  " fields, but " + std::to_string(compound_literal->values.size()) + " were provided");
+
+        int i = 0;
+        for (const auto &[field_name, field_type] : struct_fields)
+        {
+            analyse_node(compound_literal->values[i].get());
+
+            Type value_type = infer_type(compound_literal->values[i].get());
+            validate_type_assignment(field_type, value_type,
+                                     "in initialization of struct field '" + field_name + "'");
+            i++;
+        }
+    }
+    else
+    {
+        /*
+            This will likely be used when declaring a array within a struct
+        */
+        for (auto &element : compound_literal->values)
+            analyse_node(element.get());
+
+        Type arr_type = infer_type(compound_literal->values[0].get());
+        arr_type.add_array_dimension(compound_literal->values.size());
+        compound_literal->type = arr_type;
+    }
 }
 
 void SemanticAnalyser::analyse_var_assign(ASTNode *node)
@@ -189,7 +238,8 @@ void SemanticAnalyser::analyse_rtn(ASTNode *node)
     if (rtn_node->value == nullptr)
         error("Return statement in function '" + gst->get_current_func() + "' must have a value");
 
-    analyse_node(rtn_node->value.get());
+    // needs to be updated
+    // analyse_node(rtn_node->value.get());
 
     FuncSymbol *func = gst->get_func_symbol(gst->get_current_func());
     Type return_type = infer_type(rtn_node->value.get());
@@ -284,10 +334,8 @@ std::string SemanticAnalyser::gen_new_loop_label()
 
 void SemanticAnalyser::analyse_loop_control(ASTNode *node)
 {
-    if (node->node_type == NodeType::NODE_CONTINUE)
-        ((ContinueNode *)node)->label = loop_scopes.top();
-    else if (node->node_type == NodeType::NODE_BREAK)
-        ((BreakNode *)node)->label = loop_scopes.top();
+    LoopControl *loop_control = (LoopControl *)node;
+    loop_control->label = loop_scopes.top();
 }
 
 void SemanticAnalyser::analyse_func_call(ASTNode *node)
@@ -371,6 +419,32 @@ void SemanticAnalyser::analyse_cast(ASTNode *node)
         error("Cannot cast " + src_type.to_string() + " to " + cast_node->target_type.to_string());
 
     cast_node->src_type = src_type;
+}
+
+void SemanticAnalyser::analyse_struct_decl(ASTNode *node)
+{
+    StructDeclNode *struct_decl_node = (StructDeclNode *)node;
+
+    if (struct_table.find(struct_decl_node->name) != struct_table.end())
+        error("Struct '" + struct_decl_node->name + "' already defined");
+
+    std::map<std::string, Type> members;
+
+    for (const auto &member : struct_decl_node->members)
+    {
+        VarDeclNode *member_decl = dynamic_cast<VarDeclNode *>(member.get());
+        Type member_type = member_decl->var->type;
+
+        if (members.find(member_decl->var->name) != members.end())
+            error("Duplicate member '" + member_decl->var->name + "' in struct '" + struct_decl_node->name + "'");
+
+        if (member_type.is_struct() && !member_type.is_pointer() && struct_decl_node->name == member_type.get_struct_name())
+            error("Struct member '" + member_decl->var->name + "' cannot be a struct of itself");
+
+        members[member_decl->var->name] = member_decl->var->type;
+    }
+
+    struct_table[struct_decl_node->name] = std::move(members);
 }
 
 void SemanticAnalyser::validate_type_assignment(const Type &target_type, const Type &source_type,
@@ -494,9 +568,9 @@ Type SemanticAnalyser::infer_type(ASTNode *node)
     {
         return ((AddrOfNode *)node)->type;
     }
-    case NodeType::NODE_ARRAY_INIT:
+    case NodeType::NODE_COMPOUND_INIT:
     {
-        return ((ArrayLiteral *)node)->arr_type;
+        return ((CompoundLiteral *)node)->type;
     }
     case NodeType::NODE_ARRAY_ACCESS:
     {

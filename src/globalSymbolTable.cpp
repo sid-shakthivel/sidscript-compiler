@@ -20,6 +20,8 @@ void GlobalSymbolTable::enter_func_scope(const std::string &func_name)
 	if (it == functions.end())
 		throw std::runtime_error("Semantic Error: Function '" + func_name + "' is not declared");
 	current_func = func_name;
+
+	enter_scope();
 }
 
 void GlobalSymbolTable::leave_func_scope() { current_func = ""; }

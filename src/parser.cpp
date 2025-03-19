@@ -346,12 +346,7 @@ std::unique_ptr<ASTNode> Parser::parse_loop_control()
 
     expect(TOKEN_SEMICOLON);
 
-    if (token_type == TOKEN_CONTINUE)
-        return std::make_unique<ContinueNode>("");
-    else if (token_type == TOKEN_BREAK)
-        return std::make_unique<BreakNode>("");
-    else
-        error("Expected continue or break statement");
+    return std::make_unique<LoopControl>(token_type, "");
 }
 
 std::unique_ptr<VarDeclNode> Parser::parse_var_decl(TokenType specifier)
@@ -384,9 +379,9 @@ std::unique_ptr<VarDeclNode> Parser::parse_var_decl(TokenType specifier)
         std::unique_ptr<ASTNode> init_expr;
 
         if (match(TOKEN_LBRACE) && var_type.is_array())
-            init_expr = parse_array_initialiser(var_type);
+            init_expr = parse_compound_literal(var_type);
         else if (match(TOKEN_LBRACE) && var_type.is_struct())
-            init_expr = parse_array_initialiser(var_type);
+            init_expr = parse_compound_literal(var_type);
         else
             init_expr = parse_expr();
 
@@ -465,7 +460,7 @@ Type Parser::determine_type(std::vector<TokenType> &types)
 
 std::unique_ptr<VarAssignNode> Parser::parse_var_assign()
 {
-    std::unique_ptr<ASTNode> target = parse_var_or_array_access();
+    std::unique_ptr<ASTNode> target = parse_lvalue();
     TokenType assign_type = current_token.type;
 
     expect_and_advance(assign_tokens);
@@ -496,16 +491,6 @@ std::unique_ptr<ASTNode> Parser::parse_expr(int min_presedence)
     std::unique_ptr<ASTNode> left = parse_factor();
 
     advance();
-
-    if (match(TOKEN_DOT))
-    {
-        std::cout << "dot stuff\n";
-    }
-
-    if (match(TOKEN_ARROW))
-    {
-        std::cout << "token arrow stuff";
-    }
 
     if (match(TOKEN_INCREMENT) || match(TOKEN_DECREMENT))
     {
@@ -585,7 +570,7 @@ std::unique_ptr<ASTNode> Parser::parse_factor()
     {
         std::cout << "coachella\n";
         std::string identifier = current_token.text;
-        std::unique_ptr<ASTNode> potential_var = parse_var_or_array_access();
+        std::unique_ptr<ASTNode> potential_var = parse_lvalue();
 
         if (match(TOKEN_LPAREN))
         {
@@ -600,7 +585,7 @@ std::unique_ptr<ASTNode> Parser::parse_factor()
     }
     else if (match(TOKEN_LBRACE))
     {
-        auto rtn = parse_array_initialiser();
+        auto rtn = parse_compound_literal();
         retreat();
         return rtn;
     }
@@ -663,11 +648,11 @@ std::unique_ptr<ASTNode> Parser::parse_unary_operation()
         return std::make_unique<UnaryNode>(get_unary_op_type(op), std::move(expr));
 }
 
-std::unique_ptr<ArrayLiteral> Parser::parse_array_initialiser(const Type &array_type)
+std::unique_ptr<CompoundLiteral> Parser::parse_compound_literal(const Type &array_type)
 {
     expect_and_advance(TOKEN_LBRACE);
 
-    auto init_node = std::make_unique<ArrayLiteral>(array_type);
+    auto init_node = std::make_unique<CompoundLiteral>(array_type);
 
     if (!match(TOKEN_RBRACE))
     {
@@ -712,7 +697,7 @@ int Parser::get_precedence(TokenType op)
     return precedence_map.at(get_bin_op_type(op));
 }
 
-std::unique_ptr<ASTNode> Parser::parse_var_or_array_access(Specifier specifier)
+std::unique_ptr<ASTNode> Parser::parse_lvalue(Specifier specifier)
 {
     expect(TOKEN_IDENTIFIER);
     std::string var_name = current_token.text;

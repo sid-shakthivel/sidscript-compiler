@@ -2,6 +2,7 @@
 
 #include <memory>
 #include <functional>
+#include <map>
 
 #include "globalSymbolTable.h"
 #include "symbolTable.h"
@@ -16,8 +17,8 @@ public:
 
 private:
     std::unordered_map<NodeType, std::function<void(ASTNode *)>> handlers;
-
     std::shared_ptr<GlobalSymbolTable> gst;
+    std::map<std::string, std::map<std::string, Type>> struct_table;
 
     unsigned int loop_label_counter = 0;
     std::string gen_new_loop_label();
@@ -42,6 +43,8 @@ private:
     void analyse_cast(ASTNode *node);
     void analyse_addr_of(ASTNode *node);
     void analyse_deref(ASTNode *node);
+    void analyse_struct_decl(ASTNode *node);
+    void analyse_compound_literal_init(ASTNode *node);
 
     Type infer_type(ASTNode *node);
 

@@ -47,11 +47,11 @@ private:
     std::unique_ptr<ASTNode> parse_for_init();
     std::unique_ptr<ASTNode> parse_loop_control();
     void parse_args_list(std::unique_ptr<FuncCallNode> &func_call);
-    std::unique_ptr<ArrayLiteral> parse_array_initialiser(const Type &array_type = Type(BaseType::STRUCT));
+    std::unique_ptr<CompoundLiteral> parse_compound_literal(const Type &array_type = Type(BaseType::VOID));
     std::unique_ptr<ASTNode> parse_cast();
     std::unique_ptr<ASTNode> parse_unary_operation();
     std::unique_ptr<ASTNode> parse_number_literal();
-    std::unique_ptr<ASTNode> parse_var_or_array_access(Specifier specifier = Specifier::NONE);
+    std::unique_ptr<ASTNode> parse_lvalue(Specifier specifier = Specifier::NONE);
     std::unique_ptr<ASTNode> parse_struct_decl();
 
     int get_precedence(TokenType op);
