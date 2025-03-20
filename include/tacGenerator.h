@@ -8,6 +8,8 @@
 #include "symbolTable.h"
 #include "ast.h"
 
+class SemanticAnalyser;
+
 enum class TACOp
 {
     ADD,
@@ -50,6 +52,9 @@ enum class TACOp
     ADDR_OF,
     STORE_ARRAY,
     PRINTF,
+    STRUCT_INIT,
+    MEMBER_ACCESS,
+    MEMBER_ASSIGN,
 };
 
 TACOp convert_UnaryOpType_to_TACOp(UnaryOpType op);
@@ -74,7 +79,7 @@ struct TACInstruction
 class TacGenerator
 {
 public:
-    TacGenerator(std::shared_ptr<GlobalSymbolTable> gst);
+    TacGenerator(std::shared_ptr<GlobalSymbolTable> gst, std::shared_ptr<SemanticAnalyser> sem_analyser);
 
     void generate_tac(std::shared_ptr<ProgramNode> program);
     void print_all_tac();
@@ -84,7 +89,7 @@ public:
 
 private:
     std::shared_ptr<GlobalSymbolTable> gst;
-    // std::string current_func = "";
+    std::shared_ptr<SemanticAnalyser> sem_analyser;
 
     std::vector<TACInstruction> instructions;
     std::vector<TACInstruction> bss_vars;

@@ -124,6 +124,13 @@ void SemanticAnalyser::analyse_var_decl(ASTNode *node)
         {
             if (var_decl_node->value->node_type != NodeType::NODE_COMPOUND_INIT)
                 error("Struct initialisation of " + var_decl_node->var->name + " requires struct literal");
+
+            std::string struct_name = var_decl_node->var->type.get_struct_name();
+
+            std::map<std::string, Type> struct_fields = struct_table[struct_name];
+
+            for (const auto &[field_name, field_type] : struct_fields)
+                var_decl_node->var->type.add_field(field_name, field_type);
         }
 
         validate_type_assignment(var_type, value_type, var_decl_node->var->name);

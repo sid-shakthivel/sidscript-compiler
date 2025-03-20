@@ -7,6 +7,7 @@
 #include "globalSymbolTable.h"
 #include "symbolTable.h"
 #include "ast.h"
+#include "semanticAnalyser.h"
 
 class SemanticAnalyser
 {
@@ -14,6 +15,8 @@ public:
     SemanticAnalyser(std::shared_ptr<GlobalSymbolTable> gst);
 
     void analyse(std::shared_ptr<ProgramNode> program);
+
+    Type infer_type(ASTNode *node);
 
 private:
     std::unordered_map<NodeType, std::function<void(ASTNode *)>> handlers;
@@ -46,8 +49,6 @@ private:
     void analyse_struct_decl(ASTNode *node);
     void analyse_compound_literal_init(ASTNode *node);
     void analyse_postfix(ASTNode *node);
-
-    Type infer_type(ASTNode *node);
 
     void validate_type_assignment(const Type &target_type, const Type &source_type,
                                   const std::string &context);

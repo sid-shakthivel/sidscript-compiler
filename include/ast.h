@@ -5,6 +5,7 @@
 #include <unordered_map>
 #include <memory>
 #include <iostream>
+#include <map>
 
 #include "lexer.h"
 
@@ -134,6 +135,7 @@ private:
     int ptr_level = 0;
     std::vector<int> array_sizes;
     std::optional<std::string> struct_name;
+    std::map<std::string, std::pair<Type, int>> struct_fields;
 
 public:
     Type() : base_type(BaseType::VOID), ptr_level(0) {}
@@ -170,6 +172,9 @@ public:
     bool operator!=(const Type &other) const;
 
     bool is_integral() const;
+
+    void add_field(const std::string &name, const Type &type);
+    int get_field_offset(const std::string &field_name) const;
 };
 
 enum class Specifier

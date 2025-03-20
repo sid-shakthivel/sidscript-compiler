@@ -237,6 +237,39 @@ bool Type::is_integral() const
            has_base_type(BaseType::CHAR);
 }
 
+void Type::add_field(const std::string &name, const Type &type)
+{
+    int current_offset = struct_fields.empty() ? 0 : struct_fields.rbegin()->second.second + struct_fields.rbegin()->second.first.get_size();
+
+    // Align the field based on its size
+    size_t alignment = type.get_size();
+    if (alignment > 8)
+        alignment = 8; // max alignment is 8 bytes
+    if (alignment == 0)
+        alignment = 1; // minimum alignment is 1 byte
+
+    // Adjust current_offset for alignment
+    current_offset = (current_offset + alignment - 1) & ~(alignment - 1);
+
+    struct_fields[name] = std::make_pair(type, current_offset);
+}
+
+int Type::get_field_offset(const std::string &field_name) const
+{
+    if (!is_struct())
+    {
+        throw std::runtime_error("Attempting to get field offset from non-struct type");
+    }
+
+    auto it = struct_fields.find(field_name);
+    if (it == struct_fields.end())
+    {
+        throw std::runtime_error("Field '" + field_name + "' not found in struct");
+    }
+
+    return it->second.second;
+}
+
 UnaryOpType get_unary_op_type(const TokenType &t)
 {
     switch (t)

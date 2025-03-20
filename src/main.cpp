@@ -36,23 +36,23 @@ int main()
 
     std::shared_ptr<ProgramNode> program = parser.parse();
 
-    program->print(0);
+    // program->print(0);
 
     std::shared_ptr<GlobalSymbolTable> gst = std::make_shared<GlobalSymbolTable>();
 
-    SemanticAnalyser semanticAnalyser(gst);
-    semanticAnalyser.analyse(program);
+    std::shared_ptr<SemanticAnalyser> sem_analyser = std::make_shared<SemanticAnalyser>(gst);
+    sem_analyser->analyse(program);
 
-    // TacGenerator tacGenerator(gst);
-    // tacGenerator.generate_tac(program);
-    // tacGenerator.print_all_tac();
+    TacGenerator tacGenerator(gst, sem_analyser);
+    tacGenerator.generate_tac(program);
+    tacGenerator.print_all_tac();
 
     // gst->print();
 
-    // auto &instructions = tacGenerator.get_instructions();
+    auto &instructions = tacGenerator.get_instructions();
 
-    // Assembler assembler(gst, "test.s");
-    // assembler.assemble(instructions);
+    Assembler assembler(gst, "test.s");
+    assembler.assemble(instructions);
 
     return 0;
 }

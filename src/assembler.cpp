@@ -92,6 +92,12 @@ void Assembler::initialize_handlers()
 	{ handle_deref(instr); };
 	handlers[TACOp::PRINTF] = [this](TACInstruction instr)
 	{ handle_printf(instr); };
+	handlers[TACOp::STRUCT_INIT] = [this](TACInstruction instr)
+	{ handle_struct_init(instr); };
+	handlers[TACOp::MEMBER_ASSIGN] = [this](TACInstruction instr)
+	{ handle_member_assign(instr); };
+	handlers[TACOp::MEMBER_ACCESS] = [this](TACInstruction instr)
+	{ handle_member_access(instr); };
 }
 
 void Assembler::assemble(const std::vector<TACInstruction> &instructions)
@@ -722,4 +728,103 @@ void Assembler::handle_printf(TACInstruction &instruction)
 	// fprintf(file, "\tmovb\t$%s, %%al\n", instruction.arg2.c_str());
 
 	fprintf(file, "\tcall\t_printf\n\n");
+}
+
+void Assembler::handle_struct_init(TACInstruction &instruction)
+{
+	fprintf(file, "\t# %s\n", TacGenerator::gen_tac_str(instruction).c_str());
+	// No assembly needed - struct space is already allocated on stack
+}
+
+void Assembler::handle_member_assign(TACInstruction &instruction)
+{
+	fprintf(file, "\t# %s\n", TacGenerator::gen_tac_str(instruction).c_str());
+
+	Symbol *struct_sym = gst->get_symbol(instruction.arg1);
+	Symbol *value_sym = gst->get_symbol(instruction.result);
+
+	int field_offset;
+	if (instruction.arg2.find_first_not_of("0123456789") == std::string::npos)
+	{
+		// Array element access within a field
+		int base_offset = struct_sym->type.get_field_offset(instruction.arg3); // Get base field offset
+		int elem_offset = std::stoi(instruction.arg2) * instruction.type.get_size();
+		field_offset = base_offset + elem_offset;
+	}
+	else
+	{
+		// Named field offset
+		field_offset = struct_sym->type.get_field_offset(instruction.arg2);
+	}
+
+	std::string mov_text = instruction.type.is_size_8() ? "movq" : "movl";
+	mov_text = instruction.type.get_size() == 1 ? "movb" : mov_text;
+
+	// Load value into temporary register and then store to struct field
+	if (value_sym != nullptr)
+	{
+		if (value_sym->is_literal8)
+		{
+			fprintf(file, "\tmovsd\t_%s(%%rip), %%xmm0\n", value_sym->name.c_str());
+			fprintf(file, "\tmovsd\t%%xmm0, %d(%%rbp)\n", struct_sym->stack_offset + field_offset);
+		}
+		else if (value_sym->type.is_array())
+		{
+			// Handle array field assignment
+			int array_size = value_sym->type.get_array_size();
+			for (int i = 0; i < array_size; i++)
+			{
+				fprintf(file, "\t%s\t%d(%%rbp), %%r10%s\n",
+						mov_text.c_str(),
+						value_sym->stack_offset + i * instruction.type.get_size(),
+						instruction.type.is_size_8() ? "" : "d");
+				fprintf(file, "\t%s\t%%r10%s, %d(%%rbp)\n",
+						mov_text.c_str(),
+						instruction.type.is_size_8() ? "" : "d",
+						struct_sym->stack_offset + field_offset + i * instruction.type.get_size());
+			}
+		}
+		else
+		{
+			fprintf(file, "\t%s\t%d(%%rbp), %%r10%s\n",
+					mov_text.c_str(),
+					value_sym->stack_offset,
+					instruction.type.is_size_8() ? "" : "d");
+			fprintf(file, "\t%s\t%%r10%s, %d(%%rbp)\n",
+					mov_text.c_str(),
+					instruction.type.is_size_8() ? "" : "d",
+					struct_sym->stack_offset + field_offset);
+		}
+	}
+	else
+	{
+		// Immediate value
+		fprintf(file, "\t%s\t$%s, %d(%%rbp)\n",
+				mov_text.c_str(),
+				instruction.result.c_str(),
+				struct_sym->stack_offset + field_offset);
+	}
+	fprintf(file, "\n");
+}
+
+void Assembler::handle_member_access(TACInstruction &instruction)
+{
+	fprintf(file, "\t# %s\n", TacGenerator::gen_tac_str(instruction).c_str());
+
+	Symbol *struct_sym = gst->get_symbol(instruction.arg1);
+	Symbol *result_sym = gst->get_symbol(instruction.result);
+
+	int field_offset = struct_sym->type.get_field_offset(instruction.arg2);
+
+	std::string mov_text = instruction.type.is_size_8() ? "movq" : "movl";
+
+	fprintf(file, "\t%s\t%d(%%rbp), %%r10%s\n",
+			mov_text.c_str(),
+			struct_sym->stack_offset + field_offset,
+			instruction.type.is_size_8() ? "" : "d");
+	fprintf(file, "\t%s\t%%r10%s, %d(%%rbp)\n",
+			mov_text.c_str(),
+			instruction.type.is_size_8() ? "" : "d",
+			result_sym->stack_offset);
+	fprintf(file, "\n");
 }
