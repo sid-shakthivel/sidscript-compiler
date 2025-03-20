@@ -252,7 +252,7 @@ void SemanticAnalyser::analyse_rtn(ASTNode *node)
         error("Return statement in function '" + gst->get_current_func() + "' must have a value");
 
     // needs to be updated
-    // analyse_node(rtn_node->value.get());
+    analyse_node(rtn_node->value.get());
 
     FuncSymbol *func = gst->get_func_symbol(gst->get_current_func());
     Type return_type = infer_type(rtn_node->value.get());
@@ -466,6 +466,8 @@ void SemanticAnalyser::analyse_postfix(ASTNode *node)
 
     if (postfix_node->op == TOKEN_DOT || postfix_node->op == TOKEN_ARROW)
     {
+        std::cout << "hey are we not here?\n";
+
         /*
             This is used when accessing a struct member
             - struct s s1;
@@ -612,6 +614,12 @@ Type SemanticAnalyser::infer_type(ASTNode *node)
     }
     case NodeType::NODE_POSTFIX:
     {
+        // PostfixNode *postfix_node = (PostfixNode *)node;
+        // Type type = infer_type(postfix_node->value.get());
+        // postfix_node->type = type;
+
+        // ((PostfixNode *)node)->type.print();
+
         return ((PostfixNode *)node)->type;
     }
     case NodeType::NODE_DEREF:

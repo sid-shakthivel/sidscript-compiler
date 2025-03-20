@@ -5,7 +5,7 @@ struct Test {
 
 fn main() -> int
 {
-    struct Test example2 = {1, 2.0};   
-    example2.a = 9;
-    return 8;
+    struct Test example = {1, 2.0};   
+    example.a = 9;
+    return example.a;
 }

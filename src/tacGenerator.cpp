@@ -174,7 +174,7 @@ void TacGenerator::generate_tac_element(ASTNode *element)
                     std::string result = generate_tac_expr(value.get());
                     instructions.emplace_back(TACOp::MEMBER_ASSIGN,
                                               var_decl->var->name,
-                                              std::to_string(field_index),
+                                              var_decl->var->type.get_field_name(field_index),
                                               result,
                                               sem_analyser->infer_type(value.get()));
                     field_index++;
@@ -524,6 +524,10 @@ std::string TacGenerator::generate_tac_expr(ASTNode *expr, Type type)
                 instructions.emplace_back(TACOp::DEREF, base, "", deref);
                 base = deref;
             }
+
+            postfix->type.print();
+
+            gst->declare_temp_var(temp, postfix->type);
 
             instructions.emplace_back(TACOp::MEMBER_ACCESS,
                                       base,

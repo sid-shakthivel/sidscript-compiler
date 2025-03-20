@@ -743,11 +743,12 @@ void Assembler::handle_member_assign(TACInstruction &instruction)
 	Symbol *struct_sym = gst->get_symbol(instruction.arg1);
 	Symbol *value_sym = gst->get_symbol(instruction.result);
 
+	// Calculate field offset from struct base
 	int field_offset;
 	if (instruction.arg2.find_first_not_of("0123456789") == std::string::npos)
 	{
 		// Array element access within a field
-		int base_offset = struct_sym->type.get_field_offset(instruction.arg3); // Get base field offset
+		int base_offset = struct_sym->type.get_field_offset(instruction.arg3);
 		int elem_offset = std::stoi(instruction.arg2) * instruction.type.get_size();
 		field_offset = base_offset + elem_offset;
 	}
@@ -756,6 +757,9 @@ void Assembler::handle_member_assign(TACInstruction &instruction)
 		// Named field offset
 		field_offset = struct_sym->type.get_field_offset(instruction.arg2);
 	}
+
+	// Calculate actual stack offset
+	int stack_offset = struct_sym->stack_offset - field_offset;
 
 	std::string mov_text = instruction.type.is_size_8() ? "movq" : "movl";
 	mov_text = instruction.type.get_size() == 1 ? "movb" : mov_text;
@@ -766,7 +770,7 @@ void Assembler::handle_member_assign(TACInstruction &instruction)
 		if (value_sym->is_literal8)
 		{
 			fprintf(file, "\tmovsd\t_%s(%%rip), %%xmm0\n", value_sym->name.c_str());
-			fprintf(file, "\tmovsd\t%%xmm0, %d(%%rbp)\n", struct_sym->stack_offset + field_offset);
+			fprintf(file, "\tmovsd\t%%xmm0, %d(%%rbp)\n", stack_offset);
 		}
 		else if (value_sym->type.is_array())
 		{
@@ -781,7 +785,7 @@ void Assembler::handle_member_assign(TACInstruction &instruction)
 				fprintf(file, "\t%s\t%%r10%s, %d(%%rbp)\n",
 						mov_text.c_str(),
 						instruction.type.is_size_8() ? "" : "d",
-						struct_sym->stack_offset + field_offset + i * instruction.type.get_size());
+						stack_offset + i * instruction.type.get_size());
 			}
 		}
 		else
@@ -793,7 +797,7 @@ void Assembler::handle_member_assign(TACInstruction &instruction)
 			fprintf(file, "\t%s\t%%r10%s, %d(%%rbp)\n",
 					mov_text.c_str(),
 					instruction.type.is_size_8() ? "" : "d",
-					struct_sym->stack_offset + field_offset);
+					stack_offset);
 		}
 	}
 	else
@@ -802,7 +806,7 @@ void Assembler::handle_member_assign(TACInstruction &instruction)
 		fprintf(file, "\t%s\t$%s, %d(%%rbp)\n",
 				mov_text.c_str(),
 				instruction.result.c_str(),
-				struct_sym->stack_offset + field_offset);
+				stack_offset);
 	}
 	fprintf(file, "\n");
 }
@@ -817,14 +821,19 @@ void Assembler::handle_member_access(TACInstruction &instruction)
 	int field_offset = struct_sym->type.get_field_offset(instruction.arg2);
 
 	std::string mov_text = instruction.type.is_size_8() ? "movq" : "movl";
+	mov_text = instruction.type.get_size() == 1 ? "movb" : mov_text;
 
+	// Load from struct field
 	fprintf(file, "\t%s\t%d(%%rbp), %%r10%s\n",
 			mov_text.c_str(),
-			struct_sym->stack_offset + field_offset,
+			struct_sym->stack_offset - field_offset,
 			instruction.type.is_size_8() ? "" : "d");
+
+	// Store to destination
 	fprintf(file, "\t%s\t%%r10%s, %d(%%rbp)\n",
 			mov_text.c_str(),
 			instruction.type.is_size_8() ? "" : "d",
 			result_sym->stack_offset);
+
 	fprintf(file, "\n");
 }

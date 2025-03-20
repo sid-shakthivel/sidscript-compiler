@@ -175,6 +175,7 @@ public:
 
     void add_field(const std::string &name, const Type &type);
     int get_field_offset(const std::string &field_name) const;
+    std::string get_field_name(int index) const;
 };
 
 enum class Specifier

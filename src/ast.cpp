@@ -59,6 +59,12 @@ size_t Type::get_size() const
         return total_size;
     }
 
+    if (is_struct())
+    {
+        for (const auto &field : struct_fields)
+            base_size += field.second.first.get_size();
+    }
+
     return base_size;
 }
 
@@ -268,6 +274,15 @@ int Type::get_field_offset(const std::string &field_name) const
     }
 
     return it->second.second;
+}
+
+std::string Type::get_field_name(int index) const
+{
+    if (!is_struct() || index < 0 || index >= struct_fields.size())
+        throw std::runtime_error("Invalid field index");
+    auto it = struct_fields.begin();
+    std::advance(it, index);
+    return it->first;
 }
 
 UnaryOpType get_unary_op_type(const TokenType &t)
