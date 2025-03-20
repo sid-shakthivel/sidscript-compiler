@@ -38,10 +38,7 @@ SemanticAnalyser::SemanticAnalyser(std::shared_ptr<GlobalSymbolTable> gst) : gst
     handlers[NodeType::NODE_DEREF] = [this](ASTNode *node)
     { analyse_deref(node); };
     handlers[NodeType::NODE_POSTFIX] = [this](ASTNode *node)
-    {
-        PostfixNode *postfix = dynamic_cast<PostfixNode *>(node);
-        analyse_node(postfix->value.get());
-    };
+    { analyse_postfix(node); };
     handlers[NodeType::NODE_STRUCT_DECL] = [this](ASTNode *node)
     { analyse_struct_decl(node); };
     handlers[NodeType::NODE_COMPOUND_INIT] = [this](ASTNode *node)
@@ -228,6 +225,15 @@ void SemanticAnalyser::analyse_var_assign(ASTNode *node)
 
         if (!(Type(symbol->type.get_base_type())).can_assign_from(value_type)) // Check whether the .get_base_type() is even needed here
             error("Cannot assign " + value_type.to_string() + " to array element of type " + Type(symbol->type.get_base_type()).to_string() + " in array '" + array_access->array->name + "'");
+    }
+    else if (var_assign_node->var->node_type == NodeType::NODE_POSTFIX)
+    {
+        analyse_node(var_assign_node->var.get());
+
+        Type left = infer_type(var_assign_node->var.get());
+        Type right = infer_type(var_assign_node->value.get());
+
+        validate_type_assignment(left, right, "in assignment");
     }
 }
 
@@ -447,6 +453,45 @@ void SemanticAnalyser::analyse_struct_decl(ASTNode *node)
     struct_table[struct_decl_node->name] = std::move(members);
 }
 
+void SemanticAnalyser::analyse_postfix(ASTNode *node)
+{
+    PostfixNode *postfix_node = (PostfixNode *)node;
+
+    if (postfix_node->op == TOKEN_DOT || postfix_node->op == TOKEN_ARROW)
+    {
+        /*
+            This is used when accessing a struct member
+            - struct s s1;
+            - struct *s s2;
+            - s1.x = 5;
+            - s2->x = 10;
+        */
+
+        Type expr_type = infer_type(postfix_node->value.get());
+
+        if (postfix_node->op == TOKEN_DOT && (!expr_type.is_struct() || expr_type.is_pointer()))
+            error("Cannot access member of non-struct type");
+
+        if (postfix_node->op == TOKEN_ARROW && (!expr_type.is_struct() || !expr_type.is_pointer()))
+            error("Cannot access member of non-pointer type");
+
+        std::string struct_name = expr_type.get_struct_name();
+
+        if (struct_table.find(struct_name) == struct_table.end())
+            error("Struct '" + struct_name + "' not defined");
+
+        if (struct_table[struct_name].find(postfix_node->field) == struct_table[struct_name].end())
+            error("Struct '" + struct_name + "' has no member '" + postfix_node->field + "'");
+
+        postfix_node->type = struct_table[struct_name][postfix_node->field];
+
+        return;
+    }
+
+    analyse_node(postfix_node->value.get());
+    postfix_node->type = infer_type(postfix_node->value.get());
+}
+
 void SemanticAnalyser::validate_type_assignment(const Type &target_type, const Type &source_type,
                                                 const std::string &context)
 {
@@ -467,7 +512,14 @@ Type SemanticAnalyser::infer_type(ASTNode *node)
     case NodeType::NODE_NUMBER:
         return ((NumericLiteral *)node)->value_type;
     case NodeType::NODE_VAR:
-        return gst->get_symbol(((VarNode *)node)->name)->type;
+    {
+        auto rtn = gst->get_symbol(((VarNode *)node)->name);
+
+        if (rtn == nullptr)
+            error("Variable '" + ((VarNode *)node)->name + "' not defined");
+
+        return rtn->type;
+    }
     case NodeType::NODE_FUNC_CALL:
     {
         FuncSymbol *func = gst->get_func_symbol(((FuncCallNode *)node)->name);
@@ -553,12 +605,7 @@ Type SemanticAnalyser::infer_type(ASTNode *node)
     }
     case NodeType::NODE_POSTFIX:
     {
-        PostfixNode *post_node = dynamic_cast<PostfixNode *>(node);
-
-        Type type = infer_type(post_node->value.get());
-
-        post_node->type = type;
-        return type;
+        return ((PostfixNode *)node)->type;
     }
     case NodeType::NODE_DEREF:
     {

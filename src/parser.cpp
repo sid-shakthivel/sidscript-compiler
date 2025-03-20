@@ -190,7 +190,6 @@ std::vector<std::unique_ptr<ASTNode>> Parser::parse_block()
             elements.emplace_back(parse_rtn());
         else if (match(TOKEN_IDENTIFIER))
         {
-            std::cout << "hey now " << current_token.text << std::endl;
             /*
             This could be one of three things
                 - Assigning a variable ie a = 5, a += 5;
@@ -568,7 +567,6 @@ std::unique_ptr<ASTNode> Parser::parse_factor()
     }
     else if (match(TOKEN_IDENTIFIER))
     {
-        std::cout << "coachella\n";
         std::string identifier = current_token.text;
         std::unique_ptr<ASTNode> potential_var = parse_lvalue();
 

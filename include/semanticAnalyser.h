@@ -45,6 +45,7 @@ private:
     void analyse_deref(ASTNode *node);
     void analyse_struct_decl(ASTNode *node);
     void analyse_compound_literal_init(ASTNode *node);
+    void analyse_postfix(ASTNode *node);
 
     Type infer_type(ASTNode *node);
 
