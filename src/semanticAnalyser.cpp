@@ -338,6 +338,7 @@ void SemanticAnalyser::analyse_var(ASTNode *node)
 {
     VarNode *var_node = (VarNode *)node;
     var_node->name = gst->check_var_defined(var_node->name);
+    var_node->type = gst->get_symbol(var_node->name)->type;
 }
 
 std::string SemanticAnalyser::gen_new_loop_label()
@@ -520,6 +521,8 @@ Type SemanticAnalyser::infer_type(ASTNode *node)
     {
     case NodeType::NODE_NUMBER:
         return ((NumericLiteral *)node)->value_type;
+    case NodeType::NODE_BOOL:
+        return ((BoolLiteral *)node)->value_type;
     case NodeType::NODE_VAR:
     {
         auto rtn = gst->get_symbol(((VarNode *)node)->name);

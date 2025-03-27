@@ -266,7 +266,6 @@ std::unique_ptr<IfNode> Parser::parse_if_stmt()
     expect_and_advance(TOKEN_LPAREN);
 
     std::unique_ptr<ASTNode> expr = parse_expr();
-    std::unique_ptr<BinaryNode> binary_expr = std::unique_ptr<BinaryNode>(dynamic_cast<BinaryNode *>(expr.release()));
 
     expect_and_advance(TOKEN_RPAREN);
 
@@ -284,7 +283,7 @@ std::unique_ptr<IfNode> Parser::parse_if_stmt()
     else
         retreat();
 
-    return std::make_unique<IfNode>(std::move(binary_expr), std::move(then_elements), std::move(else_elements));
+    return std::make_unique<IfNode>(std::move(expr), std::move(then_elements), std::move(else_elements));
 }
 
 std::unique_ptr<WhileNode> Parser::parse_while_stmt()
@@ -377,9 +376,7 @@ std::unique_ptr<VarDeclNode> Parser::parse_var_decl(TokenType specifier)
         advance();
         std::unique_ptr<ASTNode> init_expr;
 
-        if (match(TOKEN_LBRACE) && var_type.is_array())
-            init_expr = parse_compound_literal(var_type);
-        else if (match(TOKEN_LBRACE) && var_type.is_struct())
+        if ((match(TOKEN_LBRACE) && var_type.is_array()) || (match(TOKEN_LBRACE) && var_type.is_struct()))
             init_expr = parse_compound_literal(var_type);
         else
             init_expr = parse_expr();
@@ -449,6 +446,9 @@ Type Parser::determine_type(std::vector<TokenType> &types)
         case TOKEN_IDENTIFIER:
             std::cout << "here ig\n";
             return Type(current_token.text, ptr_level);
+        case TOKEN_BOOL:
+            base_type = BaseType::BOOL;
+            break;
         default:
             continue;
         }
@@ -531,6 +531,10 @@ std::unique_ptr<ASTNode> Parser::parse_factor()
         {
             error("Number out of range");
         }
+    }
+    else if (match(TOKEN_TRUE) || match(TOKEN_FALSE))
+    {
+        return std::make_unique<BoolLiteral>(current_token.type == TOKEN_TRUE);
     }
     else if (match(TOKEN_CHAR))
     {

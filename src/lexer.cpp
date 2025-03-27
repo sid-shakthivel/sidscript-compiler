@@ -38,8 +38,6 @@ std::unordered_map<std::string, TokenType> string_to_token = {
     {"||", TOKEN_OR},
     {"++", TOKEN_INCREMENT},
     {"--", TOKEN_DECREMENT},
-    {"true", TOKEN_BOOL},
-    {"false", TOKEN_BOOL},
     {"return", TOKEN_RTN},
     {"?", TOKEN_QUESTION_MARK},
     {":", TOKEN_COLON},
@@ -64,6 +62,9 @@ std::unordered_map<std::string, TokenType> string_to_token = {
     {"char", TOKEN_CHAR_TEXT},
     {"struct", TOKEN_STRUCT},
     {".", TOKEN_DOT},
+    {"true", TOKEN_TRUE},
+    {"false", TOKEN_FALSE},
+    {"bool", TOKEN_BOOL},
 };
 
 std::string token_to_string(TokenType token_type)

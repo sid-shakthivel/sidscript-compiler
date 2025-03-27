@@ -180,6 +180,7 @@ void Assembler::compare_and_store_result(const std::string &operand_a, const std
 
 	Symbol *potential_var_b = gst->get_symbol(operand_b);
 	std::string cmp_text = type.is_size_8() ? "cmpq" : "cmpl";
+	cmp_text = type.get_size() == 1 ? "cmpb" : cmp_text;
 
 	std::string reg_name = reg;
 	reg_name += !type.is_size_8() && strcmp(reg, "%eax") != 0 ? "d" : "";
@@ -427,6 +428,9 @@ void Assembler::handle_if(TACInstruction &instruction)
 	fprintf(file, "\t# %s\n", TacGenerator::gen_tac_str(instruction).c_str());
 	Symbol *potential_var = gst->get_symbol(instruction.arg1);
 	std::string cmp_text = instruction.type.is_size_8() ? "cmpq" : "cmpl";
+	cmp_text = instruction.type.get_size() == 1 ? "cmpb" : cmp_text;
+
+	instruction.type.print();
 
 	if (potential_var == nullptr)
 		fprintf(file, "\t%s\t$0, %s\n", cmp_text.c_str(), instruction.arg1.c_str());

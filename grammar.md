@@ -34,7 +34,7 @@
 | "(" <expr> ")"
 | <identifier> "(" [ <argument-list> ] ")"
 
-<type_specifier> ::= { "\*" } "int" | "long" | "unsigned" | "signed" | "double" | "char" [ "[" <expr> "]" ] | "struct" <identifier>
+<type_specifier> ::= { "\*" } "int" | "long" | "unsigned" | "signed" | "double" | "char" [ "[" <expr> "]" ] | "struct" <identifier> | "bool"
 <specifier> ::= "static" | "extern"
 
 <binopr> ::= ::= "-" | "+" | "\*" | "/" | "%" | "&&" | "||"
@@ -42,7 +42,7 @@
 <unopr> ::= "-" | "~" | "++" | "--" | "&" | "\*"
 <postopr> ::= "++" | "--" | "." <identifier> | "->" <identifier>
 
-<literal> ::= <int> | <long> | <uint> | <ulong> | <double> | <char> | <string>
+<literal> ::= <int> | <long> | <uint> | <ulong> | <double> | <char> | <string> | <bool>
 
 <identifier> ::= ? An identifier token ?
 <int> ::= ? A int (4 bytes) token ?
@@ -51,6 +51,7 @@
 <ulong> ::= ? An unsigned long (8 bytes) token ?
 <double> ::= ? A floating-point constant token ?
 <char> ::= "'" ? any single character ? "'"
+<bool> ::= "true" | "false"
 <string> ::= '"' ? any sequence of characters ? '"'
 
 A declaration introduces/defines entities (variables, functions, types)

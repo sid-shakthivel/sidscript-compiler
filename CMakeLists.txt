@@ -7,6 +7,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED True)
 
 set(SOURCES
     ../src/lexer.cpp
+    ../src/type.cpp
     ../src/ast.cpp
     ../src/parser.cpp
     ../src/symbolTable.cpp

@@ -307,20 +307,62 @@ void TacGenerator::generate_tac_element(ASTNode *element)
         std::string label_failure = gen_new_label();
 
         TACInstruction if_instruction(TACOp::IF, condition_res, "", label_success);
-        if_instruction.op2 = convert_BinOpType_to_TACOp(if_stmt->condition->op);
 
-        instructions.emplace_back(if_instruction);
+        if (if_stmt->condition->node_type == NodeType::NODE_BINARY)
+        {
+            // For conditions like: if (a == 5)
+            BinaryNode *bin_condition = dynamic_cast<BinaryNode *>(if_stmt->condition.get());
+            TACInstruction if_instruction(TACOp::IF, condition_res, "", label_success);
+            if_instruction.op2 = convert_BinOpType_to_TACOp(bin_condition->op);
+            instructions.emplace_back(if_instruction);
+        }
+        else if (if_stmt->condition->node_type == NodeType::NODE_BOOL)
+        {
+            // For conditions like: if (true)
+            BoolLiteral *bool_condition = dynamic_cast<BoolLiteral *>(if_stmt->condition.get());
+            if (bool_condition->value)
+            {
+                // If true, just fall through to the then block
+                instructions.emplace_back(TACOp::GOTO, "", "", label_success);
+            }
+            else
+            {
+                // If false, skip to the end
+                instructions.emplace_back(TACOp::GOTO, "", "", label_failure);
+            }
+        }
+        else if (if_stmt->condition->node_type == NodeType::NODE_UNARY)
+        {
+            // For conditions like: if (!a) - not supported yet
+            UnaryNode *unary_condition = dynamic_cast<UnaryNode *>(if_stmt->condition.get());
+        }
+        else
+        {
+            // For conditions like: if (a)
+            instructions.emplace_back(TACOp::IF, condition_res, "", label_success, Type(BaseType::BOOL));
+            if_instruction.op2 = convert_BinOpType_to_TACOp(BinOpType::EQUAL);
+        }
+
+        // Skip then block if condition is false
         instructions.emplace_back(TACOp::GOTO, "", "", label_failure);
 
+        // Then block
         instructions.emplace_back(TACOp::LABEL, label_success);
-
         for (auto &element : if_stmt->then_elements)
             generate_tac_element(element.get());
 
         instructions.emplace_back(TACOp::LABEL, label_failure);
 
-        for (auto &element : if_stmt->else_elements)
-            generate_tac_element(element.get());
+        if (!if_stmt->else_elements.empty())
+        {
+            std::string label_else_end = gen_new_label("else_end");
+            instructions.emplace_back(TACOp::GOTO, "", "", label_else_end);
+
+            for (auto &element : if_stmt->else_elements)
+                generate_tac_element(element.get());
+
+            instructions.emplace_back(TACOp::LABEL, label_else_end);
+        }
     }
     else if (element->node_type == NodeType::NODE_WHILE)
     {
@@ -417,6 +459,12 @@ std::string TacGenerator::generate_tac_expr(ASTNode *expr, Type type)
     if (expr->node_type == NodeType::NODE_VAR)
     {
         return ((VarNode *)expr)->name;
+    }
+    else if (expr->node_type == NodeType::NODE_BOOL)
+    {
+        BoolLiteral *bool_node = (BoolLiteral *)expr;
+        std::string result = bool_node->value ? "1" : "0";
+        return result;
     }
     else if (expr->node_type == NodeType::NODE_CAST)
     {
