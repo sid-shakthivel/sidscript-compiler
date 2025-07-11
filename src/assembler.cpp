@@ -360,7 +360,8 @@ void Assembler::handle_return(TACInstruction &instruction)
 {
 	std::string reg = instruction.type.is_size_8() ? "%rax" : "%eax";
 	fprintf(file, "\t# %s\n", TacGenerator::gen_tac_str(instruction).c_str());
-	load_to_reg(instruction.arg1, reg.c_str(), instruction.type);
+	if (instruction.arg1 != "")
+		load_to_reg(instruction.arg1, reg.c_str(), instruction.type);
 	fprintf(file, "\tjmp\t.L%s_end\n", gst->get_current_func().c_str());
 }
 

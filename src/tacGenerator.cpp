@@ -152,7 +152,11 @@ void TacGenerator::generate_tac_element(ASTNode *element)
     {
         FuncSymbol *func = gst->get_func_symbol(gst->get_current_func());
         RtnNode *rtn = (RtnNode *)element;
-        std::string result = generate_tac_expr(rtn->value.get());
+        std::string result = "";
+
+        if (rtn->value != nullptr)
+            result = generate_tac_expr(rtn->value.get());
+
         instructions.emplace_back(TACOp::RETURN, result, "", "", func->return_type);
     }
     else if (element->node_type == NodeType::NODE_VAR_DECL)

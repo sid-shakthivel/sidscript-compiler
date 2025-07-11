@@ -15,6 +15,7 @@ Type &Type::add_array_dimension(int size)
 bool Type::is_pointer() const { return ptr_level > 0; }
 bool Type::is_array() const { return array_sizes.size() > 0; }
 bool Type::is_struct() const { return base_type == BaseType::STRUCT; }
+bool Type::is_void() const { return base_type == BaseType::VOID; }
 
 BaseType Type::get_base_type() const { return base_type; }
 

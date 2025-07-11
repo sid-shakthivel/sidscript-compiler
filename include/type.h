@@ -39,6 +39,7 @@ public:
     bool is_pointer() const;
     bool is_array() const;
     bool is_struct() const;
+    bool is_void() const;
     BaseType get_base_type() const;
     bool has_base_type(BaseType other) const;
     int get_ptr_depth() const;

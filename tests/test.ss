@@ -1,9 +1,11 @@
+fn test() -> void 
+{
+    printf("this works");
+    return;
+}
+
 fn main() -> int
 {
-    bool a = true;
-    if (a)
-    {
-        return 8;
-    }
-    return 9;
+    test();
+    return 1;
 }

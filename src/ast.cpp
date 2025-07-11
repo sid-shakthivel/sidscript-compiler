@@ -195,7 +195,10 @@ RtnNode::RtnNode(std::unique_ptr<ASTNode> v) : ASTNode(NodeType::NODE_RETURN), v
 void RtnNode::print(int tabs)
 {
     std::cout << std::string(tabs, ' ') << "Rtn: " << std::endl;
-    value->print(tabs + 1);
+    if (value != nullptr)
+        value->print(tabs + 1);
+    else
+        std::cout << std::string(tabs + 1, ' ') << "No Value" << std::endl;
 }
 
 FuncNode::FuncNode(const std::string &n, Specifier s) : ASTNode(NodeType::NODE_FUNCTION), name(n), specifier(s) {}

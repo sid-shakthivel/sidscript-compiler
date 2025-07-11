@@ -217,7 +217,6 @@ std::vector<std::unique_ptr<ASTNode>> Parser::parse_block()
                 elements.emplace_back(parse_var_assign());
             else
             {
-                std::cout << "are we here now?\n";
                 elements.emplace_back(parse_expr());
                 expect(TOKEN_SEMICOLON);
             }
@@ -252,6 +251,9 @@ std::vector<std::unique_ptr<ASTNode>> Parser::parse_block()
 std::unique_ptr<RtnNode> Parser::parse_rtn()
 {
     advance();
+
+    if (match(TOKEN_SEMICOLON))
+        return std::make_unique<RtnNode>(nullptr);
 
     std::unique_ptr<ASTNode> expr = parse_expr();
 
@@ -448,6 +450,9 @@ Type Parser::determine_type(std::vector<TokenType> &types)
             return Type(current_token.text, ptr_level);
         case TOKEN_BOOL:
             base_type = BaseType::BOOL;
+            break;
+        case TOKEN_VOID:
+            base_type = BaseType::VOID;
             break;
         default:
             continue;

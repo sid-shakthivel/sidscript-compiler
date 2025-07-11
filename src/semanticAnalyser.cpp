@@ -248,14 +248,19 @@ void SemanticAnalyser::analyse_rtn(ASTNode *node)
 {
     RtnNode *rtn_node = (RtnNode *)node;
 
-    if (rtn_node->value == nullptr)
+    FuncSymbol *func = gst->get_func_symbol(gst->get_current_func());
+
+    if (rtn_node->value == nullptr && !func->return_type.is_void())
         error("Return statement in function '" + gst->get_current_func() + "' must have a value");
 
-    // needs to be updated
-    analyse_node(rtn_node->value.get());
+    Type return_type = Type(BaseType::VOID);
 
-    FuncSymbol *func = gst->get_func_symbol(gst->get_current_func());
-    Type return_type = infer_type(rtn_node->value.get());
+    // needs to be updated
+    if (rtn_node->value != nullptr && !func->return_type.is_void())
+    {
+        analyse_node(rtn_node->value.get());
+        return_type = infer_type(rtn_node->value.get());
+    }
 
     validate_type_assignment(func->return_type, return_type, func->name);
 }
@@ -467,8 +472,6 @@ void SemanticAnalyser::analyse_postfix(ASTNode *node)
 
     if (postfix_node->op == TOKEN_DOT || postfix_node->op == TOKEN_ARROW)
     {
-        std::cout << "hey are we not here?\n";
-
         /*
             This is used when accessing a struct member
             - struct s s1;
