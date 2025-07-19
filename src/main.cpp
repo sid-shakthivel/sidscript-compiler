@@ -38,8 +38,6 @@ int main()
 
     std::shared_ptr<GlobalSymbolTable> gst = std::make_shared<GlobalSymbolTable>();
 
-    // program->print(0);
-
     std::shared_ptr<SemanticAnalyser> sem_analyser = std::make_shared<SemanticAnalyser>(gst);
     sem_analyser->analyse(program);
 

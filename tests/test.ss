@@ -1,11 +1,11 @@
-fn test() -> void 
-{
-    printf("this works");
-    return;
-}
-
 fn main() -> int
 {
-    test();
+    bool a = false;
+
+    if (!a)
+    {
+        return 9;
+    }
+
     return 1;
 }

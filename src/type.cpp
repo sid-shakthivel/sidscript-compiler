@@ -19,6 +19,7 @@ bool Type::is_void() const { return base_type == BaseType::VOID; }
 
 BaseType Type::get_base_type() const { return base_type; }
 
+// Return size in bytes
 size_t Type::get_size() const
 {
     size_t base_size;

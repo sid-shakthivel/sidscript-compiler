@@ -16,6 +16,8 @@ UnaryOpType get_unary_op_type(const TokenType &t)
         return UnaryOpType::INCREMENT;
     case TOKEN_DECREMENT:
         return UnaryOpType::DECREMENT;
+    case TOKEN_EXCLAMATION:
+        return UnaryOpType::NOT;
     default:
         throw std::runtime_error("Parser Error: Invalid unary operator which is " + std::to_string(t));
     }
@@ -263,6 +265,8 @@ void UnaryNode::print(int tabs)
             return "DECREMENT";
         case UnaryOpType::INCREMENT:
             return "INCREMENT";
+        case UnaryOpType::NOT:
+            return "NOT";
         }
         return "";
     };
@@ -397,7 +401,7 @@ void IfNode::print(int tabs)
         statement->print(tabs + 2);
 }
 
-WhileNode::WhileNode(std::unique_ptr<BinaryNode> c, std::vector<std::unique_ptr<ASTNode>> e) : ASTNode(NodeType::NODE_WHILE), condition(std::move(c)), elements(std::move(e)) {}
+WhileNode::WhileNode(std::unique_ptr<ASTNode> c, std::vector<std::unique_ptr<ASTNode>> e) : ASTNode(NodeType::NODE_WHILE), condition(std::move(c)), elements(std::move(e)) {}
 
 void WhileNode::print(int tabs)
 {

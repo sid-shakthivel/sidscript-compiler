@@ -295,13 +295,12 @@ std::unique_ptr<WhileNode> Parser::parse_while_stmt()
     expect_and_advance(TOKEN_LPAREN);
 
     std::unique_ptr<ASTNode> expr = parse_expr();
-    std::unique_ptr<BinaryNode> bin_expr = std::unique_ptr<BinaryNode>(dynamic_cast<BinaryNode *>(expr.release()));
 
     expect_and_advance(TOKEN_RPAREN);
 
     std::vector<std::unique_ptr<ASTNode>> elements = parse_block();
 
-    return std::make_unique<WhileNode>(std::move(bin_expr), std::move(elements));
+    return std::make_unique<WhileNode>(std::move(expr), std::move(elements));
 }
 
 std::unique_ptr<ForNode> Parser::parse_for_stmt()
@@ -446,7 +445,7 @@ Type Parser::determine_type(std::vector<TokenType> &types)
             base_type = BaseType::CHAR;
             break;
         case TOKEN_IDENTIFIER:
-            std::cout << "here ig\n";
+            // std::cout << "here ig\n";
             return Type(current_token.text, ptr_level);
         case TOKEN_BOOL:
             base_type = BaseType::BOOL;
@@ -492,6 +491,7 @@ std::unique_ptr<VarAssignNode> Parser::parse_var_assign()
 
 std::unique_ptr<ASTNode> Parser::parse_expr(int min_presedence)
 {
+    // std::cout << "parsing expr on line " << current_token.line << std::endl;
     std::unique_ptr<ASTNode> left = parse_factor();
 
     advance();
@@ -553,6 +553,7 @@ std::unique_ptr<ASTNode> Parser::parse_factor()
     }
     else if (match(un_op_tokens))
     {
+        // std::cout << "is it here then\n";
         return parse_unary_operation();
     }
     else if (match(TOKEN_LPAREN))

@@ -48,6 +48,8 @@ TACOp convert_UnaryOpType_to_TACOp(UnaryOpType op)
         return TACOp::DECREMENT;
     case UnaryOpType::INCREMENT:
         return TACOp::INCREMENT;
+    case UnaryOpType::NOT:
+        return TACOp::NOT;
     }
 }
 
@@ -122,6 +124,11 @@ void TacGenerator::generate_tac_func(FuncNode *func)
     instructions.emplace_back(TACOp::FUNC_END);
 
     gst->leave_func_scope();
+}
+
+void TacGenerator::error(const std::string &message)
+{
+    throw std::runtime_error("Tac Generator Error: " + message);
 }
 
 void TacGenerator::generate_tac_element(ASTNode *element)
@@ -339,6 +346,12 @@ void TacGenerator::generate_tac_element(ASTNode *element)
         {
             // For conditions like: if (!a) - not supported yet
             UnaryNode *unary_condition = dynamic_cast<UnaryNode *>(if_stmt->condition.get());
+
+            if (unary_condition->op != UnaryOpType::NOT)
+                error("Unsuported condition in if statement");
+
+            instructions.emplace_back(TACOp::IF, condition_res, "", label_success, Type(BaseType::BOOL));
+            if_instruction.op2 = convert_BinOpType_to_TACOp(BinOpType::NOT_EQUAL);
         }
         else
         {
@@ -378,12 +391,12 @@ void TacGenerator::generate_tac_element(ASTNode *element)
 
         instructions.emplace_back(TACOp::LABEL, start);
 
-        while_stmt->condition->op = switch_condition(while_stmt->condition.get());
-        std::string condition_res = generate_tac_expr(while_stmt->condition.get());
+        // while_stmt->condition->op = switch_condition(while_stmt->condition.get());
+        // std::string condition_res = generate_tac_expr(while_stmt->condition.get());
 
-        TACInstruction if_instruction(TACOp::IF, condition_res, "", end);
-        if_instruction.op2 = convert_BinOpType_to_TACOp(while_stmt->condition->op);
-        instructions.emplace_back(if_instruction);
+        // TACInstruction if_instruction(TACOp::IF, condition_res, "", end);
+        // if_instruction.op2 = convert_BinOpType_to_TACOp(while_stmt->condition->op);
+        // instructions.emplace_back(if_instruction);
 
         instructions.emplace_back(TACOp::NOP);
 
@@ -784,6 +797,8 @@ std::string TacGenerator::gen_tac_str(TACInstruction &instr)
             return "NEGATE";
         case TACOp::COMPLEMENT:
             return "COMPLEMENT";
+        case TACOp::NOT:
+            return "NOT";
         case TACOp::NOP:
             return "NOP";
         case TACOp::PUSH:

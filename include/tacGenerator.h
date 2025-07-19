@@ -36,6 +36,7 @@ enum class TACOp
     DEALLOC_STACK,
     NEGATE,
     COMPLEMENT,
+    NOT,
     NOP,
     INCREMENT,
     DECREMENT,
@@ -109,6 +110,8 @@ private:
 
     void generate_tac_func(FuncNode *func);
     void generate_tac_element(ASTNode *element);
+
+    void error(const std::string &message);
 
     std::string generate_tac_expr(ASTNode *expr, Type type = Type(BaseType::VOID));
 };

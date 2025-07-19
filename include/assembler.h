@@ -61,6 +61,12 @@ private:
     void handle_struct_init(TACInstruction &instruction);
     void handle_member_assign(TACInstruction &instruction);
     void handle_member_access(TACInstruction &instruction);
+    void handle_not(TACInstruction &instruction);
+
+    std::string get_mov_instruction(Type type);
+    std::string get_cmp_instruction(Type type);
+    std::string get_reg_name(const char *base_reg, Type type);
+    std::string format_memory_ref(Symbol *sym);
 
     std::string double_to_hex(double value);
 };

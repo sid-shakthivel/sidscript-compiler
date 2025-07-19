@@ -98,6 +98,8 @@ void Assembler::initialize_handlers()
 	{ handle_member_assign(instr); };
 	handlers[TACOp::MEMBER_ACCESS] = [this](TACInstruction instr)
 	{ handle_member_access(instr); };
+	handlers[TACOp::NOT] = [this](TACInstruction instr)
+	{ handle_not(instr); };
 }
 
 void Assembler::assemble(const std::vector<TACInstruction> &instructions)
@@ -119,10 +121,9 @@ void Assembler::assemble(const std::vector<TACInstruction> &instructions)
 void Assembler::load_to_reg(const std::string &operand, const char *reg, Type type)
 {
 	Symbol *rhs = gst->get_symbol(operand);
-	std::string mov_text = type.is_size_8() ? "movq" : "movl";
+	std::string mov_text = get_mov_instruction(type);
 
-	std::string reg_name = reg;
-	reg_name += !type.is_size_8() && strcmp(reg, "%eax") != 0 ? "d" : "";
+	std::string reg_name = get_reg_name(reg, type);
 
 	if (rhs == nullptr)
 		fprintf(file, "\t%s\t$%s, %s\n", mov_text.c_str(), operand.c_str(), reg_name.c_str());
@@ -138,10 +139,9 @@ void Assembler::load_to_reg(const std::string &operand, const char *reg, Type ty
 void Assembler::store_from_reg(const std::string &operand, const char *reg, Type type)
 {
 	Symbol *rhs = gst->get_symbol(operand);
-	std::string mov_text = type.is_size_8() ? "movq" : "movl";
+	std::string mov_text = get_mov_instruction(type);
 
-	std::string reg_name = reg;
-	reg_name += !type.is_size_8() && strcmp(reg, "%eax") != 0 ? "d" : "";
+	std::string reg_name = get_reg_name(reg, type);
 
 	if (rhs != nullptr)
 	{
@@ -165,8 +165,7 @@ void Assembler::apply_bin_op_to_reg(const std::string &operand, const char *reg,
 	Symbol *rhs = gst->get_symbol(operand);
 	std::string op_text = type.is_size_8() ? op + "q" : op + "l";
 
-	std::string reg_name = reg;
-	reg_name += !type.is_size_8() && strcmp(reg, "%eax") != 0 ? "d" : "";
+	std::string reg_name = get_reg_name(reg, type);
 
 	if (rhs == nullptr)
 		fprintf(file, "\t%s\t$%s, %s\n", op_text.c_str(), operand.c_str(), reg_name.c_str());
@@ -179,11 +178,9 @@ void Assembler::compare_and_store_result(const std::string &operand_a, const std
 	load_to_reg(operand_a, reg, type);
 
 	Symbol *potential_var_b = gst->get_symbol(operand_b);
-	std::string cmp_text = type.is_size_8() ? "cmpq" : "cmpl";
-	cmp_text = type.get_size() == 1 ? "cmpb" : cmp_text;
+	std::string cmp_text = get_cmp_instruction(type);
 
-	std::string reg_name = reg;
-	reg_name += !type.is_size_8() && strcmp(reg, "%eax") != 0 ? "d" : "";
+	std::string reg_name = get_reg_name(reg, type);
 
 	if (potential_var_b == nullptr)
 		fprintf(file, "\t%s\t$%s, %s\n", cmp_text.c_str(), operand_b.c_str(), reg_name.c_str());
@@ -233,8 +230,7 @@ void Assembler::handle_assign(TACInstruction &instruction)
 	{
 		Symbol *lhs = gst->get_symbol(instruction.arg1);
 		Symbol *rhs = gst->get_symbol(instruction.result);
-		std::string mov_text = instruction.type.is_size_8() ? "movq" : "movl";
-		mov_text = instruction.type.get_size() == 1 ? "movb" : mov_text;
+		std::string mov_text = get_mov_instruction(instruction.type);
 		std::string reg = instruction.type.is_size_8() ? "%r10" : "%r10d";
 
 		fprintf(file, "\t# %s\n", TacGenerator::gen_tac_str(instruction).c_str());
@@ -428,10 +424,7 @@ void Assembler::handle_if(TACInstruction &instruction)
 {
 	fprintf(file, "\t# %s\n", TacGenerator::gen_tac_str(instruction).c_str());
 	Symbol *potential_var = gst->get_symbol(instruction.arg1);
-	std::string cmp_text = instruction.type.is_size_8() ? "cmpq" : "cmpl";
-	cmp_text = instruction.type.get_size() == 1 ? "cmpb" : cmp_text;
-
-	instruction.type.print();
+	std::string cmp_text = get_cmp_instruction(instruction.type);
 
 	if (potential_var == nullptr)
 		fprintf(file, "\t%s\t$0, %s\n", cmp_text.c_str(), instruction.arg1.c_str());
@@ -466,7 +459,7 @@ void Assembler::handle_mov(TACInstruction &instruction)
 	fprintf(file, "\t# %s\n", TacGenerator::gen_tac_str(instruction).c_str());
 	Symbol *potential_var = gst->get_symbol(instruction.arg1);
 	Symbol *potential_var_2 = gst->get_symbol(instruction.arg2);
-	std::string mov_text = instruction.type.is_size_8() ? "movq" : "movl";
+	std::string mov_text = get_mov_instruction(instruction.type);
 
 	if (potential_var == nullptr && potential_var_2 == nullptr)
 		fprintf(file, "\t%s\t%s, %s\n", mov_text.c_str(), instruction.arg2.c_str(), instruction.arg1.c_str());
@@ -550,6 +543,25 @@ void Assembler::handle_unary_op(TACInstruction &instruction, const std::string &
 	load_to_reg(instruction.arg1, "%r10", instruction.type);
 	fprintf(file, "\t%s\t%%r10%s\n", op_text.c_str(), instruction.type.has_base_type(BaseType::INT) ? "d" : "");
 	store_from_reg(instruction.result, "%r10", instruction.type);
+}
+
+void Assembler::handle_not(TACInstruction &instruction)
+{
+	fprintf(file, "\t# %s\n", TacGenerator::gen_tac_str(instruction).c_str());
+
+	load_to_reg(instruction.arg1, "%r10", instruction.type);
+
+	// std::cout << "it has size: " << instruction.type.get_size();
+
+	std::string cmp_text = get_cmp_instruction(instruction.type);
+
+	fprintf(file, "\t%s\t$0, %%r10b\n", cmp_text.c_str());
+
+	fprintf(file, "\tsete\t%%r10b\n");
+	fprintf(file, "\tmovzbl\t%%r10b, %%r10d\n");
+	store_from_reg(instruction.result, "%r10", instruction.type);
+
+	fprintf(file, "\n");
 }
 
 void Assembler::handle_section(TACInstruction &instruction)
@@ -766,8 +778,7 @@ void Assembler::handle_member_assign(TACInstruction &instruction)
 	// Calculate actual stack offset
 	int stack_offset = struct_sym->stack_offset - field_offset;
 
-	std::string mov_text = instruction.type.is_size_8() ? "movq" : "movl";
-	mov_text = instruction.type.get_size() == 1 ? "movb" : mov_text;
+	std::string mov_text = get_mov_instruction(instruction.type);
 
 	// Load value into temporary register and then store to struct field
 	if (value_sym != nullptr)
@@ -825,8 +836,7 @@ void Assembler::handle_member_access(TACInstruction &instruction)
 
 	int field_offset = struct_sym->type.get_field_offset(instruction.arg2);
 
-	std::string mov_text = instruction.type.is_size_8() ? "movq" : "movl";
-	mov_text = instruction.type.get_size() == 1 ? "movb" : mov_text;
+	std::string mov_text = get_mov_instruction(instruction.type);
 
 	// Load from struct field
 	fprintf(file, "\t%s\t%d(%%rbp), %%r10%s\n",
@@ -841,4 +851,50 @@ void Assembler::handle_member_access(TACInstruction &instruction)
 			result_sym->stack_offset);
 
 	fprintf(file, "\n");
+}
+
+std::string Assembler::get_mov_instruction(Type type)
+{
+	switch (type.get_size())
+	{
+	case 1:
+		return "movb";
+	case 4:
+		return "movl";
+	case 8:
+		return "movq";
+	default:
+		return "";
+	}
+}
+
+std::string Assembler::get_cmp_instruction(Type type)
+{
+	switch (type.get_size())
+	{
+	case 1:
+		return "cmpb";
+	case 4:
+		return "cmpl";
+	case 8:
+		return "cmpq";
+	default:
+		return "";
+	}
+}
+
+std::string Assembler::get_reg_name(const char *base_reg, Type type)
+{
+	std::string reg_name = base_reg;
+	;
+	if (strcmp(base_reg, "%eax") == 0 && type.get_size() == 4)
+		return reg_name;
+
+	switch (type.get_size())
+	{
+	case 1:
+		return reg_name + "b";
+	case 4:
+		return reg_name + "d";
+	}
 }

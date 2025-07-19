@@ -16,6 +16,7 @@ enum class UnaryOpType
     COMPLEMENT,
     DECREMENT,
     INCREMENT,
+    NOT,
 };
 
 enum class BinOpType
@@ -390,12 +391,12 @@ public:
 class WhileNode : public ASTNode
 {
 public:
-    std::unique_ptr<BinaryNode> condition;
+    std::unique_ptr<ASTNode> condition;
     std::vector<std::unique_ptr<ASTNode>> elements;
 
     std::string label = "";
 
-    WhileNode(std::unique_ptr<BinaryNode> c, std::vector<std::unique_ptr<ASTNode>> e);
+    WhileNode(std::unique_ptr<ASTNode> c, std::vector<std::unique_ptr<ASTNode>> e);
     void print(int tabs) override;
 };
 
