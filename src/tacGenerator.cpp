@@ -323,7 +323,7 @@ void TacGenerator::generate_tac_element(ASTNode *element)
         {
             // For conditions like: if (a == 5)
             BinaryNode *bin_condition = dynamic_cast<BinaryNode *>(if_stmt->condition.get());
-            TACInstruction if_instruction(TACOp::IF, condition_res, "", label_success);
+            TACInstruction if_instruction(TACOp::IF, condition_res, "", label_success, bin_condition->type);
             if_instruction.op2 = convert_BinOpType_to_TACOp(bin_condition->op);
             instructions.emplace_back(if_instruction);
         }
@@ -391,14 +391,62 @@ void TacGenerator::generate_tac_element(ASTNode *element)
 
         instructions.emplace_back(TACOp::LABEL, start);
 
-        // while_stmt->condition->op = switch_condition(while_stmt->condition.get());
-        // std::string condition_res = generate_tac_expr(while_stmt->condition.get());
+        std::string condition_res = generate_tac_expr(while_stmt->condition.get());
 
-        // TACInstruction if_instruction(TACOp::IF, condition_res, "", end);
-        // if_instruction.op2 = convert_BinOpType_to_TACOp(while_stmt->condition->op);
-        // instructions.emplace_back(if_instruction);
+        if (while_stmt->condition->node_type == NodeType::NODE_BINARY)
+        {
+            // For conditions like: while (a == 5)
+            BinaryNode *bin_condition = dynamic_cast<BinaryNode *>(while_stmt->condition.get());
+            bin_condition->op = switch_condition(bin_condition);
+            condition_res = generate_tac_expr(while_stmt->condition.get());
+            TACInstruction if_instruction(TACOp::IF, condition_res, "", end, bin_condition->type);
+            if_instruction.op2 = convert_BinOpType_to_TACOp(bin_condition->op);
+            instructions.emplace_back(if_instruction);
+        }
+        else if (while_stmt->condition->node_type == NodeType::NODE_BOOL)
+        {
+            // For conditions like: while (true)
+            BoolLiteral *bool_condition = dynamic_cast<BoolLiteral *>(while_stmt->condition.get());
+            if (!bool_condition->value)
+            {
+                // If false, skip the loop entirely
+                instructions.emplace_back(TACOp::GOTO, "", "", end);
+            }
+            // If true, just fall through to the loop body
+        }
+        else if (while_stmt->condition->node_type == NodeType::NODE_UNARY)
+        {
+            // For conditions like: while (!a)
+            UnaryNode *unary_condition = dynamic_cast<UnaryNode *>(while_stmt->condition.get());
 
-        instructions.emplace_back(TACOp::NOP);
+            if (unary_condition->op != UnaryOpType::NOT)
+                error("Unsupported condition in while statement");
+
+            std::string temp_var = gen_new_temp_var();
+            gst->declare_temp_var(temp_var, unary_condition->type);
+
+            instructions.emplace_back(TACOp::NOT_EQUAL, condition_res, "1", temp_var, unary_condition->type);
+
+            TACInstruction if_instruction(TACOp::IF, temp_var, "", end, unary_condition->type);
+            instructions.emplace_back(if_instruction);
+        }
+        else if (while_stmt->condition->node_type == NodeType::NODE_VAR)
+        {
+            // For conditions like: while (a)
+            VarNode *var_condition = dynamic_cast<VarNode *>(while_stmt->condition.get());
+
+            std::string temp_var = gen_new_temp_var();
+            gst->declare_temp_var(temp_var, var_condition->type);
+
+            instructions.emplace_back(TACOp::EQUAL, condition_res, "0", temp_var, var_condition->type);
+
+            TACInstruction if_instruction(TACOp::IF, temp_var, "", end, var_condition->type);
+            instructions.emplace_back(if_instruction);
+        }
+        else
+        {
+            error("Unknown while condition");
+        }
 
         for (auto &element : while_stmt->elements)
             generate_tac_element(element.get());
@@ -407,7 +455,6 @@ void TacGenerator::generate_tac_element(ASTNode *element)
         instructions.emplace_back(TACOp::GOTO, "", "", start);
 
         instructions.emplace_back(TACOp::NOP);
-
         instructions.emplace_back(TACOp::LABEL, end);
     }
     else if (element->node_type == NodeType::NODE_FOR)

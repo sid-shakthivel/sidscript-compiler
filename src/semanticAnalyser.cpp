@@ -270,7 +270,6 @@ void SemanticAnalyser::analyse_if_stmt(ASTNode *node)
     IfNode *if_node = (IfNode *)node;
 
     analyse_node(if_node->condition.get());
-
     infer_type(if_node->condition.get());
 
     gst->enter_scope();
@@ -331,12 +330,16 @@ void SemanticAnalyser::analyse_binary(ASTNode *node)
     BinaryNode *bin_node = (BinaryNode *)node;
     analyse_node(bin_node->left.get());
     analyse_node(bin_node->right.get());
+
+    bin_node->type = infer_type(bin_node);
 }
 
 void SemanticAnalyser::analyse_unary(ASTNode *node)
 {
+    std::cout << "we analysing unary\n";
     UnaryNode *unary_node = (UnaryNode *)node;
     analyse_node(unary_node->value.get());
+    unary_node->type = infer_type(unary_node->value.get());
 }
 
 void SemanticAnalyser::analyse_var(ASTNode *node)

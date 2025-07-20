@@ -1,11 +1,11 @@
 fn main() -> int
 {
-    bool a = false;
+    int i = 0;
 
-    if (!a)
+    while (i < 5)
     {
-        return 9;
+        i++;
     }
 
-    return 1;
+    return i;
 }

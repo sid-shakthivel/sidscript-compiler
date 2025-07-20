@@ -193,7 +193,9 @@ void Assembler::compare_and_store_result(const std::string &operand_a, const std
 	reg_b += "b";
 
 	fprintf(file, "\t%s\t%s\n", op.c_str(), reg_b.c_str());
-	fprintf(file, "\tmovzbl\t%s, %s\n", reg_b.c_str(), reg_name.c_str());
+
+	if (reg_b != reg_name)
+		fprintf(file, "\tmovzbl\t%s, %s\n", reg_b.c_str(), reg_name.c_str());
 
 	store_from_reg(result, reg, type);
 
@@ -385,6 +387,7 @@ void Assembler::handle_bin_op(TACInstruction &instruction, const std::string &op
 void Assembler::handle_cmp_op(TACInstruction &instruction, const std::string &op)
 {
 	std::string actual_op = op;
+
 	if (!instruction.type.is_signed())
 	{
 		if (op == "setl")
@@ -423,6 +426,7 @@ void Assembler::handle_cmp_op(TACInstruction &instruction, const std::string &op
 void Assembler::handle_if(TACInstruction &instruction)
 {
 	fprintf(file, "\t# %s\n", TacGenerator::gen_tac_str(instruction).c_str());
+
 	Symbol *potential_var = gst->get_symbol(instruction.arg1);
 	std::string cmp_text = get_cmp_instruction(instruction.type);
 
@@ -864,6 +868,8 @@ std::string Assembler::get_mov_instruction(Type type)
 	case 8:
 		return "movq";
 	default:
+		std::cout << "ok an error occurs here (mov) " << type.get_size() << std::endl;
+		type.print();
 		return "";
 	}
 }
@@ -879,6 +885,8 @@ std::string Assembler::get_cmp_instruction(Type type)
 	case 8:
 		return "cmpq";
 	default:
+		std::cout << "ok an error occurs here (cmp) " << type.get_size() << std::endl;
+		type.print();
 		return "";
 	}
 }
