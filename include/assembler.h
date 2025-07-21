@@ -66,7 +66,8 @@ private:
     std::string get_mov_instruction(Type type);
     std::string get_cmp_instruction(Type type);
     std::string get_reg_name(const char *base_reg, Type type);
-    std::string format_memory_ref(Symbol *sym);
+    std::string format_memory_ref(Symbol *sym, int offset = 0);
 
+    void comment_instruction(TACInstruction &instr);
     std::string double_to_hex(double value);
 };
