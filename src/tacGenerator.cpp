@@ -207,7 +207,7 @@ void TacGenerator::generate_tac_element(ASTNode *element)
             else
             {
                 // Place in Data
-                std::string result = generate_tac_expr(var_decl->value.get());
+                std::string result = generate_tac_expr(var_decl->value.get(), var_decl->var->type);
                 TACInstruction instruction(TACOp::ASSIGN, var_decl->var->name, "", result, var_symbol->type);
                 instruction.arg3 = var_symbol->linkage == Linkage::External ? "global" : "";
                 data_vars.emplace_back(instruction);
@@ -217,12 +217,13 @@ void TacGenerator::generate_tac_element(ASTNode *element)
         }
 
         // Only need to assign anything if initialised to a value otherwise ignore
-
         if (var_decl->value == nullptr)
             return;
 
         if (var_decl->var->type.is_array() && var_decl->var->type.has_base_type(BaseType::CHAR))
         {
+            std::cout << "shouldn't be here?\n";
+
             // Handle string literal initialization
             StringLiteral *str = dynamic_cast<StringLiteral *>(var_decl->value.get());
             size_t str_size = str->value.length();
@@ -290,7 +291,7 @@ void TacGenerator::generate_tac_element(ASTNode *element)
             PostfixNode *postfix = dynamic_cast<PostfixNode *>(var_assign->var.get());
             if (postfix->op == TokenType::TOKEN_DOT || postfix->op == TokenType::TOKEN_ARROW)
             {
-                std::string base = generate_tac_expr(postfix->value.get());
+                std::string base = generate_tac_expr(postfix->value.get(), postfix->type);
                 std::string result = generate_tac_expr(var_assign->value.get());
 
                 if (postfix->op == TokenType::TOKEN_ARROW)
@@ -760,7 +761,11 @@ std::string TacGenerator::generate_tac_expr(ASTNode *expr, Type type)
     }
     else if (expr->node_type == NodeType::NODE_COMPOUND_INIT)
     {
+        std::cout << "I bet you money it's right here somewhere?\n";
         CompoundLiteral *array_init = dynamic_cast<CompoundLiteral *>(expr);
+
+        type = array_init->type;
+
         std::string temp_var = gen_new_temp_var();
         gst->declare_temp_var(temp_var, type);
 
@@ -781,7 +786,7 @@ std::string TacGenerator::generate_tac_expr(ASTNode *expr, Type type)
         return temp_var;
     }
 
-    throw std::runtime_error("Tac Generation: Invalid expression of type " + node_type_to_string(expr->node_type));
+    error("Tac Generation: Invalid expression of type " + node_type_to_string(expr->node_type) + " encountered");
 }
 
 void TacGenerator::print_all_tac()

@@ -95,39 +95,80 @@ void Assembler::assemble(const std::vector<TACInstruction> &instructions)
 	}
 }
 
-void Assembler::load_to_reg(const std::string &operand, const char *reg, Type type)
+void Assembler::load_to_reg(const std::string &operand, const char *reg, Type type, std::string arg2)
 {
 	Symbol *sym = gst->get_symbol(operand);
 	std::string mov = get_mov_instruction(type);
 	std::string reg_name = get_reg_name(reg, type);
 
 	if (!sym)
-		fprintf(file, "\t%s\t$%s, %s\n", mov.c_str(), operand.c_str(), reg_name.c_str());
-	else
 	{
-		fprintf(file, "\t%s\t%s, %s\n",
-				mov.c_str(),
-				format_memory_ref(sym).c_str(),
-				reg_name.c_str());
+		fprintf(file, "\t%s\t$%s, %s\n", mov.c_str(), operand.c_str(), reg_name.c_str());
+		return;
 	}
+
+	// Case: src is a char pointer (e.g., char *str = "Hello")
+	if (sym->type.is_pointer() && sym->type.has_base_type(BaseType::CHAR))
+	{
+		fprintf(file, "\tleaq\t%s(%%rip), %s\n", arg2.c_str(), reg_name.c_str());
+		return;
+	}
+
+	if (sym->type.is_array())
+	{
+		if (arg2.empty())
+		{
+			/*
+				Case: array-to-pointer decay (get adress of array start)
+				(e.g, int* p = array;)
+			*/
+			fprintf(file, "\tleaq\t%d(%%rbp), %s\n", sym->stack_offset, reg_name.c_str());
+		}
+		else
+		{
+			/*
+				Case: accessing a specific array element
+				(e.g., int x = array[2];)
+			*/
+			int stack_offset = sym->stack_offset + std::stod(arg2) * type.get_size();
+			fprintf(file, "\t%s\t%d(%%rbp), %s\n", mov.c_str(), stack_offset, reg_name.c_str());
+		}
+
+		return;
+	}
+
+	fprintf(file, "\t%s\t%s, %s\n",
+			mov.c_str(),
+			format_memory_ref(sym).c_str(),
+			reg_name.c_str());
 }
 
-void Assembler::store_from_reg(const std::string &operand, const char *reg, Type type)
+/*
+	The following function is used to store a value from a register to various different memory locations
+	(e.g., a variable, an array element, etc.)
+*/
+void Assembler::store_from_reg(const std::string &operand, const char *reg, Type type, std::string arg2)
 {
 	Symbol *sym = gst->get_symbol(operand);
 	std::string mov = get_mov_instruction(type);
-
 	std::string reg_name = get_reg_name(reg, type);
 
 	if (!sym)
-		fprintf(file, "\t%s\t%s, $%s\n", mov.c_str(), reg_name.c_str(), operand.c_str());
-	else
+		error("Invalid symbol?: " + operand);
+
+	// Case: dst is an array (e.g., arr[i] = ...)
+	if (sym->type.is_array())
 	{
-		fprintf(file, "\t%s\t%s, %s\n",
-				mov.c_str(),
-				reg_name.c_str(),
-				format_memory_ref(sym).c_str());
+		int stack_offset = sym->stack_offset + std::stod(arg2) * type.get_size();
+		fprintf(file, "\t%s\t%s, %d(%%rbp)\n", mov.c_str(), reg_name.c_str(), stack_offset);
+		return;
 	}
+
+	// Case: dst is a variable (of any sort)
+	fprintf(file, "\t%s\t%s, %s\n",
+			mov.c_str(),
+			reg_name.c_str(),
+			format_memory_ref(sym).c_str());
 }
 
 void Assembler::apply_bin_op_to_reg(const std::string &operand, const char *reg, const std::string &op, Type type)
@@ -204,130 +245,84 @@ void Assembler::handle_func_end(TACInstruction &instruction)
 
 void Assembler::handle_assign(TACInstruction &instruction)
 {
-	if (current_var_type == VarType::TEXT)
+	switch (current_var_type)
 	{
-		Symbol *lhs = gst->get_symbol(instruction.arg1);
-		Symbol *rhs = gst->get_symbol(instruction.result);
-		std::string mov_text = get_mov_instruction(instruction.type);
-		std::string reg = instruction.type.is_size_8() ? "%r10" : "%r10d";
-
-		comment_instruction(instruction);
-
-		if (lhs->type.is_array())
-		{
-			int stack_offset = lhs->stack_offset + std::stod(instruction.arg2) * instruction.type.get_size();
-			fprintf(file, "\t%s\t$%s, %d(%%rbp)\n", mov_text.c_str(), instruction.result.c_str(), stack_offset);
-			fprintf(file, "\n");
-			return;
-		}
-
-		if (rhs)
-		{
-			if (rhs->type.is_pointer() && rhs->type.has_base_type(BaseType::CHAR))
-			{
-				fprintf(file, "\tleaq\t%s(%%rip), %s\n", instruction.arg2.c_str(), reg.c_str());
-				fprintf(file, "\tmovq\t%s, %d(%%rbp)\n", reg.c_str(), lhs->stack_offset);
-				return;
-			}
-
-			if (lhs->has_static_sd() && rhs->has_static_sd())
-			{
-				fprintf(file, "\t%s\t_%s(%%rip), %s\n", mov_text.c_str(), instruction.result.c_str(), reg.c_str());
-				fprintf(file, "\t%s\t%s, _%s(%%rip)\n", mov_text.c_str(), reg.c_str(), instruction.arg1.c_str());
-			}
-			else if (lhs->has_static_sd())
-			{
-				fprintf(file, "\t%s\t%d(%%rbp), %s\n", mov_text.c_str(), rhs->stack_offset, reg.c_str());
-				fprintf(file, "\t%s\t%s, _%s(%%rip)\n", mov_text.c_str(), reg.c_str(), instruction.arg1.c_str());
-			}
-			else if (rhs->has_static_sd())
-			{
-				fprintf(file, "\t%s\t_%s(%%rip), %s\n", mov_text.c_str(), instruction.result.c_str(), reg.c_str());
-				fprintf(file, "\t%s\t%s, %d(%%rbp)\n", mov_text.c_str(), reg.c_str(), lhs->stack_offset);
-			}
-			else if (rhs->is_literal8)
-			{
-				fprintf(file, "\t%s\t_%s(%%rip), %%xmm0\n", mov_text.c_str(), rhs->name.c_str());
-				fprintf(file, "\t%s\t%%xmm0, %d(%%rbp)\n", mov_text.c_str(), lhs->stack_offset);
-			}
-			else if (rhs->type.is_array())
-			{
-				if (instruction.arg2.empty())
-				{
-					// Array-to-pointer decay: get address of array start
-					fprintf(file, "\tleaq\t%d(%%rbp), %s\n", rhs->stack_offset, reg.c_str());
-					fprintf(file, "\tmovq\t%s, %d(%%rbp)\n", reg.c_str(), lhs->stack_offset);
-				}
-				else
-				{
-					// Array element access: calculate offset and load value
-					int stack_offset = rhs->stack_offset + std::stod(instruction.arg2) * instruction.type.get_size();
-					fprintf(file, "\t%s\t%d(%%rbp), %s\n", mov_text.c_str(), stack_offset, reg.c_str());
-					fprintf(file, "\t%s\t%s, %d(%%rbp)\n", mov_text.c_str(), reg.c_str(), lhs->stack_offset);
-				}
-			}
-			else
-			{
-				fprintf(file, "\t%s\t%d(%%rbp), %s\n", mov_text.c_str(), rhs->stack_offset, reg.c_str());
-				fprintf(file, "\t%s\t%s, %d(%%rbp)\n", mov_text.c_str(), reg.c_str(), lhs->stack_offset);
-			}
-		}
-		else
-		{
-			if (lhs->has_static_sd())
-				fprintf(file, "\t%s\t$%s, _%s(%%rip)\n", mov_text.c_str(), instruction.result.c_str(), instruction.arg1.c_str());
-			else
-				fprintf(file, "\t%s\t$%s, %d(%%rbp)\n", mov_text.c_str(), instruction.result.c_str(), lhs->stack_offset);
-		}
-
-		fprintf(file, "\n");
+	case VarType::TEXT:
+		return handle_text_assign(instruction);
+	case VarType::BSS:
+		return handle_bss_assign(instruction);
+	case VarType::DATA:
+		return handle_data_assign(instruction);
+	case VarType::LITERAL8:
+		return handle_literal8_assign(instruction);
+	case VarType::STR:
+		return handle_str_assign(instruction);
 	}
-	else if (current_var_type == VarType::BSS)
+}
+
+void Assembler::handle_text_assign(TACInstruction &instruction)
+{
+	Symbol *dst = gst->get_symbol(instruction.arg1);
+	Symbol *src = gst->get_symbol(instruction.result);
+	std::string mov_text = get_mov_instruction(instruction.type);
+	std::string reg = get_reg_name("%r10", instruction.type);
+
+	comment_instruction(instruction);
+
+	load_to_reg(instruction.result, "%r10", instruction.type, instruction.arg2);
+	store_from_reg(instruction.arg1, "%r10", instruction.type, instruction.arg2);
+
+	fprintf(file, "\n");
+}
+
+void Assembler::handle_bss_assign(TACInstruction &instruction)
+{
+	if (instruction.arg3 == "global")
+		fprintf(file, "\t.global\t_%s\n", instruction.arg1.c_str());
+	fprintf(file, "_%s:\n", instruction.arg1.c_str());
+	if (instruction.type.is_size_8())
+		fprintf(file, "\t.zero 8\n\n");
+	else
+		fprintf(file, "\t.zero 4\n\n");
+}
+
+void Assembler::handle_data_assign(TACInstruction &instruction)
+{
+	Symbol *potential_var = gst->get_symbol(instruction.result);
+
+	if (potential_var == nullptr)
 	{
 		if (instruction.arg3 == "global")
-			fprintf(file, "\t.global\t_%s\n", instruction.arg1.c_str());
+			fprintf(file, ".global	_%s\n", instruction.arg1.c_str());
 		fprintf(file, "_%s:\n", instruction.arg1.c_str());
+
 		if (instruction.type.is_size_8())
-			fprintf(file, "\t.zero 8\n\n");
+			fprintf(file, "\t.quad %s\n\n", instruction.result.c_str());
 		else
-			fprintf(file, "\t.zero 4\n\n");
+			fprintf(file, "\t.long %s\n\n", instruction.result.c_str());
 	}
-	else if (current_var_type == VarType::DATA)
-	{
-		Symbol *potential_var = gst->get_symbol(instruction.result);
+}
 
-		if (potential_var == nullptr)
-		{
-			if (instruction.arg3 == "global")
-				fprintf(file, ".global	_%s\n", instruction.arg1.c_str());
-			fprintf(file, "_%s:\n", instruction.arg1.c_str());
+void Assembler::handle_literal8_assign(TACInstruction &instruction)
+{
+	if (!instruction.type.has_base_type(BaseType::DOUBLE))
+		return;
 
-			if (instruction.type.is_size_8())
-				fprintf(file, "\t.quad %s\n\n", instruction.result.c_str());
-			else
-				fprintf(file, "\t.long %s\n\n", instruction.result.c_str());
-		}
-	}
-	else if (current_var_type == VarType::LITERAL8)
-	{
-		if (!instruction.type.has_base_type(BaseType::DOUBLE))
-			return;
+	fprintf(file, "_%s:\n", instruction.arg1.c_str());
 
-		fprintf(file, "_%s:\n", instruction.arg1.c_str());
+	double value = std::stod(instruction.result);
+	std::string double_hex = double_to_hex(value);
 
-		double value = std::stod(instruction.result);
-		std::string double_hex = double_to_hex(value);
+	fprintf(file, "\t.quad %s # %s\n\n", double_hex.c_str(), instruction.result.c_str());
+}
 
-		fprintf(file, "\t.quad %s # %s\n\n", double_hex.c_str(), instruction.result.c_str());
-	}
-	else if (current_var_type == VarType::STR)
-	{
-		if (!instruction.type.has_base_type(BaseType::CHAR))
-			return;
+void Assembler::handle_str_assign(TACInstruction &instruction)
+{
+	if (!instruction.type.has_base_type(BaseType::CHAR))
+		return;
 
-		fprintf(file, "_%s:\n", instruction.arg1.c_str());
-		fprintf(file, "\t.asciz \"%s\"\n\n", instruction.result.c_str());
-	}
+	fprintf(file, "_%s:\n", instruction.arg1.c_str());
+	fprintf(file, "\t.asciz \"%s\"\n\n", instruction.result.c_str());
 }
 
 void Assembler::handle_return(TACInstruction &instruction)
@@ -530,8 +525,6 @@ void Assembler::handle_not(TACInstruction &instruction)
 	comment_instruction(instruction);
 
 	load_to_reg(instruction.arg1, "%r10", instruction.type);
-
-	// std::cout << "it has size: " << instruction.type.get_size();
 
 	std::string cmp_text = get_cmp_instruction(instruction.type);
 
@@ -755,7 +748,8 @@ void Assembler::handle_member_assign(TACInstruction &instruction)
 	// Calculate actual stack offset
 	int stack_offset = struct_sym->stack_offset - field_offset;
 
-	std::string mov_text = get_mov_instruction(instruction.type);
+	std::string mov_text = get_mov_instruction(instruction.type.get_base_type());
+	std::string reg_name = get_reg_name("%r10", instruction.type.get_base_type());
 
 	// Load value into temporary register and then store to struct field
 	if (value_sym != nullptr)
@@ -771,25 +765,25 @@ void Assembler::handle_member_assign(TACInstruction &instruction)
 			int array_size = value_sym->type.get_array_size();
 			for (int i = 0; i < array_size; i++)
 			{
-				fprintf(file, "\t%s\t%d(%%rbp), %%r10%s\n",
+				fprintf(file, "\t%s\t%d(%%rbp), %s\n",
 						mov_text.c_str(),
 						value_sym->stack_offset + i * instruction.type.get_size(),
-						instruction.type.is_size_8() ? "" : "d");
-				fprintf(file, "\t%s\t%%r10%s, %d(%%rbp)\n",
+						reg_name.c_str());
+				fprintf(file, "\t%s\t%s, %d(%%rbp)\n",
 						mov_text.c_str(),
-						instruction.type.is_size_8() ? "" : "d",
+						reg_name.c_str(),
 						stack_offset + i * instruction.type.get_size());
 			}
 		}
 		else
 		{
-			fprintf(file, "\t%s\t%d(%%rbp), %%r10%s\n",
+			fprintf(file, "\t%s\t%d(%%rbp), %s\n",
 					mov_text.c_str(),
 					value_sym->stack_offset,
-					instruction.type.is_size_8() ? "" : "d");
-			fprintf(file, "\t%s\t%%r10%s, %d(%%rbp)\n",
+					reg_name.c_str());
+			fprintf(file, "\t%s\t%s, %d(%%rbp)\n",
 					mov_text.c_str(),
-					instruction.type.is_size_8() ? "" : "d",
+					reg_name.c_str(),
 					stack_offset);
 		}
 	}
@@ -814,17 +808,18 @@ void Assembler::handle_member_access(TACInstruction &instruction)
 	int field_offset = struct_sym->type.get_field_offset(instruction.arg2);
 
 	std::string mov_text = get_mov_instruction(instruction.type);
+	std::string reg_name = get_reg_name("%r10", instruction.type);
 
 	// Load from struct field
-	fprintf(file, "\t%s\t%d(%%rbp), %%r10%s\n",
+	fprintf(file, "\t%s\t%d(%%rbp), %s\n",
 			mov_text.c_str(),
 			struct_sym->stack_offset - field_offset,
-			instruction.type.is_size_8() ? "" : "d");
+			reg_name.c_str());
 
 	// Store to destination
-	fprintf(file, "\t%s\t%%r10%s, %d(%%rbp)\n",
+	fprintf(file, "\t%s\t%s, %d(%%rbp)\n",
 			mov_text.c_str(),
-			instruction.type.is_size_8() ? "" : "d",
+			reg_name.c_str(),
 			result_sym->stack_offset);
 
 	fprintf(file, "\n");
@@ -844,7 +839,7 @@ std::string Assembler::get_mov_instruction(Type type)
 	case 8:
 		return "movq";
 	default:
-		std::cerr << "Invalid type size for mov: " << type.get_size() << std::endl;
+		std::cerr << "Assembler Error: Invalid type size for mov: " << type.get_size() << std::endl;
 		type.print();
 		return "";
 	}
@@ -864,7 +859,7 @@ std::string Assembler::get_cmp_instruction(Type type)
 	case 8:
 		return "cmpq";
 	default:
-		std::cerr << "Invalid type size for cmp: " << type.get_size() << std::endl;
+		std::cerr << "Assembler Error: Invalid type size for cmp: " << type.get_size() << std::endl;
 		type.print();
 		return "";
 	}
@@ -872,6 +867,9 @@ std::string Assembler::get_cmp_instruction(Type type)
 
 std::string Assembler::get_reg_name(const char *base_reg, Type type)
 {
+	if (type.has_base_type(BaseType::DOUBLE))
+		return "%xmm0";
+
 	std::string reg_name = base_reg;
 
 	if (strcmp(base_reg, "%eax") == 0 && type.get_size() == 4)
@@ -906,4 +904,9 @@ std::string Assembler::format_memory_ref(Symbol *sym, int offset)
 void Assembler::comment_instruction(TACInstruction &instr)
 {
 	fprintf(file, "\t# %s\n", TacGenerator::gen_tac_str(instr).c_str());
+}
+
+void Assembler::error(const std::string &message)
+{
+	throw std::runtime_error("Tac Generator Error: " + message);
 }

@@ -65,14 +65,14 @@ std::unordered_map<std::string, TokenType> string_to_token = {
     {"true", TOKEN_TRUE},
     {"false", TOKEN_FALSE},
     {"bool", TOKEN_BOOL},
-};
+    {"identifier", TOKEN_IDENTIFIER}};
 
 std::string token_to_string(TokenType token_type)
 {
     for (const auto &pair : string_to_token)
         if (pair.second == token_type)
             return pair.first;
-    return "";
+    return "Unknown (" + std::to_string(static_cast<int>(token_type)) + ")";
 }
 
 Lexer::Lexer(const std::string &src) : source(src), index(0) {}

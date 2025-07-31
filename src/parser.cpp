@@ -348,6 +348,7 @@ std::unique_ptr<ASTNode> Parser::parse_loop_control()
     return std::make_unique<LoopControl>(token_type, "");
 }
 
+// Specifier is static/extern
 std::unique_ptr<VarDeclNode> Parser::parse_var_decl(TokenType specifier)
 {
     Type var_type = parse_type();
@@ -445,7 +446,6 @@ Type Parser::determine_type(std::vector<TokenType> &types)
             base_type = BaseType::CHAR;
             break;
         case TOKEN_IDENTIFIER:
-            // std::cout << "here ig\n";
             return Type(current_token.text, ptr_level);
         case TOKEN_BOOL:
             base_type = BaseType::BOOL;
