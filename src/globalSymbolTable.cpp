@@ -124,6 +124,21 @@ void GlobalSymbolTable::handle_local_var_decl(VarNode *node)
 	if (it2 == functions.end())
 		throw std::runtime_error("Semantic Error: Function '" + current_func + "' is not declared");
 
+	/*
+		In a function, the same variable name can be used inside different scopes ie
+
+		void func()
+		{
+			int a;
+			int b = 5;
+			if (b = 5) {
+				int a = 9;
+			}
+		}
+
+		Hence they need unqiue names to easily identify them
+	*/
+
 	auto [has_name_changed, new_name] = std::get<1>(it2->second)->declare_var(node->name, node->type, node->specifier == Specifier::STATIC);
 
 	if (has_name_changed)

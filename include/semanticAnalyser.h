@@ -44,8 +44,6 @@ private:
     void analyse_loop_control(ASTNode *node);
     void analyse_func_call(ASTNode *node);
     void analyse_cast(ASTNode *node);
-    void analyse_addr_of(ASTNode *node);
-    void analyse_deref(ASTNode *node);
     void analyse_struct_decl(ASTNode *node);
     void analyse_compound_literal_init(ASTNode *node);
     void analyse_postfix(ASTNode *node);

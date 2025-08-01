@@ -1,23 +1,13 @@
-struct Test {
-    int a;
-    double b;
-    char c[3];
-};
-
 fn main() -> int
 {
-    struct Test example2 = {3, 2.0, {'a', 'b', 'c'}};
+    int a = 5;
+    int b = 3;
 
-    return example2;
+    if (a == 5 || b == 5)
+    {
+        return 8;
+    }
+
+    return 5;
 }
 
-std::string Assembler::format_memory_ref(Symbol *sym, int offset)
-{
-	if (!sym)
-		return "";
-
-	if (sym->has_static_sd() || sym->is_literal8)
-		return "_" + sym->name + "(%rip)";
-	else
-		return std::to_string(sym->stack_offset + offset) + "(%rbp)";
-}

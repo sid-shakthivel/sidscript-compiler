@@ -12,11 +12,11 @@
 
 enum class UnaryOpType
 {
-    NEGATE,
-    COMPLEMENT,
-    DECREMENT,
-    INCREMENT,
-    NOT,
+    NEGATE,     // Arithmetic negation (flips sign of number)
+    COMPLEMENT, // Bitwise complement (flips all bits of an integer)
+    NOT,        // Logical not (!x)
+    DEREF,      // Accesses value stored at memory address pointed to
+    ADDR_OF     // Retrieves address of variable
 };
 
 enum class BinOpType
@@ -55,8 +55,6 @@ enum class NodeType
     NODE_FUNC_CALL,
     NODE_CAST,
     NODE_POSTFIX,
-    NODE_DEREF,
-    NODE_ADDR_OF,
     NODE_ARRAY_ACCESS,
     NODE_CHAR,
     NODE_STRING,
@@ -100,10 +98,6 @@ inline std::string node_type_to_string(NodeType type)
         return "CAST";
     case NodeType::NODE_POSTFIX:
         return "POSTFIX";
-    case NodeType::NODE_DEREF:
-        return "DEREF";
-    case NodeType::NODE_ADDR_OF:
-        return "ADDR_OF";
     case NodeType::NODE_ARRAY_ACCESS:
         return "ARRAY_ACCESS";
     case NodeType::NODE_CHAR:
@@ -421,26 +415,6 @@ public:
     std::string label;
 
     LoopControl(TokenType t, std::string l);
-    void print(int tabs) override;
-};
-
-class DerefNode : public ASTNode
-{
-public:
-    std::unique_ptr<ASTNode> expr;
-    Type type = Type(BaseType::VOID);
-
-    DerefNode(std::unique_ptr<ASTNode> expr);
-    void print(int tabs) override;
-};
-
-class AddrOfNode : public ASTNode
-{
-public:
-    std::unique_ptr<ASTNode> expr;
-    Type type = Type(BaseType::VOID);
-
-    AddrOfNode(std::unique_ptr<ASTNode> expr);
     void print(int tabs) override;
 };
 

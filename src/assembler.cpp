@@ -77,6 +77,8 @@ void Assembler::initialize_handlers()
 	REGISTER_HANDLER(MEMBER_ASSIGN, handle_member_assign);
 	REGISTER_HANDLER(MEMBER_ACCESS, handle_member_access);
 	REGISTER_HANDLER(NOT, handle_not);
+	REGISTER_HANDLER(AND, handle_log_and);
+	REGISTER_HANDLER(OR, handle_log_or);
 }
 
 void Assembler::assemble(const std::vector<TACInstruction> &instructions)
@@ -119,7 +121,7 @@ void Assembler::load_to_reg(const std::string &operand, const char *reg, Type ty
 		if (arg2.empty())
 		{
 			/*
-				Case: array-to-pointer decay (get adress of array start)
+				Case: array-to-pointer decay (get address of array start)
 				(e.g, int* p = array;)
 			*/
 			fprintf(file, "\tleaq\t%d(%%rbp), %s\n", sym->stack_offset, reg_name.c_str());
@@ -327,10 +329,14 @@ void Assembler::handle_str_assign(TACInstruction &instruction)
 
 void Assembler::handle_return(TACInstruction &instruction)
 {
-	std::string reg = instruction.type.is_size_8() ? "%rax" : "%eax";
 	comment_instruction(instruction);
+
+	std::string reg = get_reg_name("%rax", instruction.type);
+
+	// Optionally load the return value into rax/eax
 	if (instruction.arg1 != "")
 		load_to_reg(instruction.arg1, reg.c_str(), instruction.type);
+
 	fprintf(file, "\tjmp\t.L%s_end\n", gst->get_current_func().c_str());
 }
 
@@ -338,20 +344,22 @@ void Assembler::handle_bin_op(TACInstruction &instruction, const std::string &op
 {
 	comment_instruction(instruction);
 
-	load_to_reg(instruction.arg1, instruction.type.has_base_type(BaseType::DOUBLE) ? "%xmm0" : "%r10", instruction.type);
+	std::string reg = get_reg_name("%r10", instruction.type);
+
+	load_to_reg(instruction.arg1, reg.c_str(), instruction.type);
 
 	if (instruction.type.has_base_type(BaseType::DOUBLE))
 		load_to_reg(instruction.arg2, "%xmm1", instruction.type);
 
 	std::string actual_op = op;
-	// if (op == "imul" && !instruction.type.is_signed())
-	// 	actual_op = "mul"; // unsigned multiplication
+	if (op == "imul" && !instruction.type.is_signed())
+		actual_op = "mul"; // unsigned multiplication
 
 	if (instruction.type.has_base_type(BaseType::DOUBLE))
 		actual_op = op + "sd";
 
 	apply_bin_op_to_reg(instruction.arg2, instruction.type.has_base_type(BaseType::DOUBLE) ? "%xmm1" : "%r10", actual_op, instruction.type);
-	store_from_reg(instruction.result, instruction.type.has_base_type(BaseType::DOUBLE) ? "%xmm0" : "%r10", instruction.type);
+	store_from_reg(instruction.result, reg.c_str(), instruction.type);
 	fprintf(file, "\n");
 }
 
@@ -825,21 +833,62 @@ void Assembler::handle_member_access(TACInstruction &instruction)
 	fprintf(file, "\n");
 }
 
+void Assembler::handle_log_and(TACInstruction &instruction)
+{
+	comment_instruction(instruction);
+
+	std::string and_text = format_instr("and", instruction.type);
+	std::string reg_a = get_reg_name("%r11", instruction.type);
+	std::string reg_b = get_reg_name("%r10", instruction.type);
+
+	load_to_reg(instruction.arg1, "%r11", instruction.type);
+	load_to_reg(instruction.arg2, "%r10", instruction.type);
+
+	fprintf(file, "\t%s\t%s, %s\n", and_text.c_str(), reg_a.c_str(), reg_b.c_str());
+
+	store_from_reg(instruction.result, "%r10", instruction.type);
+
+	fprintf(file, "\n");
+}
+
+void Assembler::handle_log_or(TACInstruction &instruction)
+{
+	comment_instruction(instruction);
+
+	std::string and_text = format_instr("or", instruction.type);
+	std::string reg_a = get_reg_name("%r11", instruction.type);
+	std::string reg_b = get_reg_name("%r10", instruction.type);
+
+	load_to_reg(instruction.arg1, "%r11", instruction.type);
+	load_to_reg(instruction.arg2, "%r10", instruction.type);
+
+	fprintf(file, "\t%s\t%s, %s\n", and_text.c_str(), reg_a.c_str(), reg_b.c_str());
+
+	store_from_reg(instruction.result, "%r10", instruction.type);
+
+	fprintf(file, "\n");
+}
+
 std::string Assembler::get_mov_instruction(Type type)
 {
 	if (type.has_base_type(BaseType::DOUBLE))
 		return "movsd";
 
+	return format_instr("mov", type);
+}
+
+std::string Assembler::format_instr(std::string instr, Type type)
+{
 	switch (type.get_size())
 	{
 	case 1:
-		return "movb";
+		return instr + "b";
 	case 4:
-		return "movl";
+		return instr + "l";
 	case 8:
-		return "movq";
+		return instr + "q";
 	default:
-		std::cerr << "Assembler Error: Invalid type size for mov: " << type.get_size() << std::endl;
+		std::cerr << "Assembler Error: Invalid type size for " << instr << ": " << type.get_size() << std::endl;
 		type.print();
 		return "";
 	}
@@ -869,6 +918,9 @@ std::string Assembler::get_reg_name(const char *base_reg, Type type)
 {
 	if (type.has_base_type(BaseType::DOUBLE))
 		return "%xmm0";
+
+	if (strcmp(base_reg, "%rax") == 0 && type.get_size() == 4)
+		return "%eax";
 
 	std::string reg_name = base_reg;
 

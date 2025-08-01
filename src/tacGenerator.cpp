@@ -44,10 +44,6 @@ TACOp convert_UnaryOpType_to_TACOp(UnaryOpType op)
         return TACOp::NEGATE;
     case UnaryOpType::COMPLEMENT:
         return TACOp::COMPLEMENT;
-    case UnaryOpType::DECREMENT:
-        return TACOp::DECREMENT;
-    case UnaryOpType::INCREMENT:
-        return TACOp::INCREMENT;
     case UnaryOpType::NOT:
         return TACOp::NOT;
     }
@@ -345,12 +341,7 @@ void TacGenerator::generate_tac_element(ASTNode *element)
         }
         else if (if_stmt->condition->node_type == NodeType::NODE_UNARY)
         {
-            // For conditions like: if (!a) - not supported yet
             UnaryNode *unary_condition = dynamic_cast<UnaryNode *>(if_stmt->condition.get());
-
-            if (unary_condition->op != UnaryOpType::NOT)
-                error("Unsuported condition in if statement");
-
             instructions.emplace_back(TACOp::IF, condition_res, "", label_success, Type(BaseType::BOOL));
             if_instruction.op2 = convert_BinOpType_to_TACOp(BinOpType::NOT_EQUAL);
         }
@@ -498,10 +489,6 @@ void TacGenerator::generate_tac_element(ASTNode *element)
         else if (loop_control->type == TOKEN_CONTINUE)
             instructions.emplace_back(TACOp::GOTO, "", "", loop_control->label + "_post");
     }
-    else if (element->node_type == NodeType::NODE_UNARY)
-    {
-        UnaryNode *unary = (UnaryNode *)element;
-    }
     else if (element->node_type == NodeType::NODE_POSTFIX)
     {
         PostfixNode *postfix = (PostfixNode *)element;
@@ -600,6 +587,9 @@ std::string TacGenerator::generate_tac_expr(ASTNode *expr, Type type)
 
         if (unary->type.has_base_type(BaseType::DOUBLE))
         {
+            if (unary->type.is_pointer())
+                error("Cannot take the address of a double yet?");
+
             gst->declare_const_var("_.Lsign_bit", Type(BaseType::DOUBLE));
             literal8_vars.emplace_back(TACOp::ASSIGN, "_.Lsign_bit", "", "9223372036854775808", Type(BaseType::DOUBLE));
             instructions.emplace_back(convert_UnaryOpType_to_TACOp(unary->op), result, "_.Lsign_bit", temp_var, unary->type);
@@ -658,28 +648,6 @@ std::string TacGenerator::generate_tac_expr(ASTNode *expr, Type type)
             instructions.emplace_back(TACOp::SUB, result, "1", result, postfix->type);
 
         return result;
-    }
-    else if (expr->node_type == NodeType::NODE_DEREF)
-    {
-        DerefNode *deref = (DerefNode *)expr;
-
-        std::string var = generate_tac_expr(deref->expr.get());
-        std::string temp_var = gen_new_temp_var();
-        gst->declare_temp_var(temp_var, deref->type);
-        instructions.emplace_back(TACOp::DEREF, var, "", temp_var);
-
-        return temp_var;
-    }
-    else if (expr->node_type == NodeType::NODE_ADDR_OF)
-    {
-        AddrOfNode *addr_of = (AddrOfNode *)expr;
-
-        std::string var = generate_tac_expr(addr_of->expr.get());
-        std::string temp_var = gen_new_temp_var();
-        gst->declare_temp_var(temp_var, addr_of->type);
-        instructions.emplace_back(TACOp::ADDR_OF, var, "", temp_var);
-
-        return temp_var;
     }
     else if (expr->node_type == NodeType::NODE_ARRAY_ACCESS)
     {

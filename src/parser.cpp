@@ -648,12 +648,7 @@ std::unique_ptr<ASTNode> Parser::parse_unary_operation()
 
     auto expr = parse_factor();
 
-    if (op == TOKEN_AMPERSAND)
-        return std::make_unique<AddrOfNode>(std::move(expr));
-    else if (op == TOKEN_STAR)
-        return std::make_unique<DerefNode>(std::move(expr));
-    else
-        return std::make_unique<UnaryNode>(get_unary_op_type(op), std::move(expr));
+    return std::make_unique<UnaryNode>(get_unary_op_type(op), std::move(expr));
 }
 
 std::unique_ptr<CompoundLiteral> Parser::parse_compound_literal(const Type &array_type)

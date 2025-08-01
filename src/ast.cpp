@@ -12,12 +12,12 @@ UnaryOpType get_unary_op_type(const TokenType &t)
         return UnaryOpType::NEGATE;
     case TOKEN_TILDA:
         return UnaryOpType::COMPLEMENT;
-    case TOKEN_INCREMENT:
-        return UnaryOpType::INCREMENT;
-    case TOKEN_DECREMENT:
-        return UnaryOpType::DECREMENT;
     case TOKEN_EXCLAMATION:
         return UnaryOpType::NOT;
+    case TOKEN_STAR:
+        return UnaryOpType::DEREF;
+    case TOKEN_AMPERSAND:
+        return UnaryOpType::ADDR_OF;
     default:
         throw std::runtime_error("Parser Error: Invalid unary operator which is " + std::to_string(t));
     }
@@ -261,12 +261,12 @@ void UnaryNode::print(int tabs)
             return "NEGATE";
         case UnaryOpType::COMPLEMENT:
             return "COMPLEMENT";
-        case UnaryOpType::DECREMENT:
-            return "DECREMENT";
-        case UnaryOpType::INCREMENT:
-            return "INCREMENT";
         case UnaryOpType::NOT:
             return "NOT";
+        case UnaryOpType::DEREF:
+            return "PointerDeref";
+        case UnaryOpType::ADDR_OF:
+            return "AddrOf";
         }
         return "";
     };
@@ -433,21 +433,21 @@ void LoopControl::print(int tabs)
     std::cout << std::string(tabs, ' ') << typeText << label << std::endl;
 }
 
-DerefNode::DerefNode(std::unique_ptr<ASTNode> v) : ASTNode(NodeType::NODE_DEREF), expr(std::move(v)) {}
+// DerefNode::DerefNode(std::unique_ptr<ASTNode> v) : ASTNode(NodeType::NODE_DEREF), expr(std::move(v)) {}
 
-void DerefNode::print(int tabs)
-{
-    std::cout << std::string(tabs, ' ') << "PointerDeref: " << std::endl;
-    expr->print(tabs + 1);
-}
+// void DerefNode::print(int tabs)
+// {
+//     std::cout << std::string(tabs, ' ') << "PointerDeref: " << std::endl;
+//     expr->print(tabs + 1);
+// }
 
-AddrOfNode::AddrOfNode(std::unique_ptr<ASTNode> v) : ASTNode(NodeType::NODE_ADDR_OF), expr(std::move(v)) {}
+// AddrOfNode::AddrOfNode(std::unique_ptr<ASTNode> v) : ASTNode(NodeType::NODE_ADDR_OF), expr(std::move(v)) {}
 
-void AddrOfNode::print(int tabs)
-{
-    std::cout << std::string(tabs, ' ') << "AddrOf: " << std::endl;
-    expr->print(tabs + 1);
-}
+// void AddrOfNode::print(int tabs)
+// {
+//     std::cout << std::string(tabs, ' ') << "AddrOf: " << std::endl;
+//     expr->print(tabs + 1);
+// }
 
 ArrayAccessNode::ArrayAccessNode(std::unique_ptr<VarNode> arr, std::unique_ptr<ASTNode> idx) : ASTNode(NodeType::NODE_ARRAY_ACCESS), array(std::move(arr)), index(std::move(idx)) {}
 

@@ -59,11 +59,14 @@ private:
     void handle_member_assign(TACInstruction &instruction);
     void handle_member_access(TACInstruction &instruction);
     void handle_not(TACInstruction &instruction);
+    void handle_log_and(TACInstruction &instruction);
+    void handle_log_or(TACInstruction &instruction);
 
     std::string get_mov_instruction(Type type);
     std::string get_cmp_instruction(Type type);
     std::string get_reg_name(const char *base_reg, Type type);
     std::string format_memory_ref(Symbol *sym, int offset = 0);
+    std::string format_instr(std::string instr, Type type);
 
     void load_to_reg(const std::string &operand, const char *reg, Type type, std::string arg2 = "");
     void store_from_reg(const std::string &operand, const char *reg, Type type, std::string arg2 = "");
