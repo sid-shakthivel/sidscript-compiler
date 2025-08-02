@@ -69,6 +69,11 @@ void SemanticAnalyser::analyse_func(ASTNode *node)
     for (auto &element : func_node->elements)
         analyse_node(element.get());
 
+    // Ensure return is present at end of function
+    if (!func_node->return_type.has_base_type(BaseType::VOID))
+        if (func_node->elements.back()->node_type != NodeType::NODE_RETURN)
+            error("Return statement missing from function " + func_node->name);
+
     gst->leave_func_scope();
 }
 
