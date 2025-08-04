@@ -34,6 +34,8 @@ TACOp convert_BinOpType_to_TACOp(BinOpType op)
     case BinOpType::GREATER_OR_EQUAL:
         return TACOp::GTE;
     }
+
+    throw std::runtime_error("Invalid BinOpType");
 }
 
 TACOp convert_UnaryOpType_to_TACOp(UnaryOpType op)
@@ -46,7 +48,13 @@ TACOp convert_UnaryOpType_to_TACOp(UnaryOpType op)
         return TACOp::COMPLEMENT;
     case UnaryOpType::NOT:
         return TACOp::NOT;
+    case UnaryOpType::DEREF:
+        return TACOp::DEREF;
+    case UnaryOpType::ADDR_OF:
+        return TACOp::ADDR_OF;
     }
+
+    throw std::runtime_error("Invalid UnaryOpType");
 }
 
 TacGenerator::TacGenerator(std::shared_ptr<GlobalSymbolTable> gst, std::shared_ptr<SemanticAnalyser> sem_analyser) : gst(gst), sem_analyser(sem_analyser) {}
@@ -218,8 +226,6 @@ void TacGenerator::generate_tac_element(ASTNode *element)
 
         if (var_decl->var->type.is_array() && var_decl->var->type.has_base_type(BaseType::CHAR))
         {
-            std::cout << "shouldn't be here?\n";
-
             // Handle string literal initialization
             StringLiteral *str = dynamic_cast<StringLiteral *>(var_decl->value.get());
             size_t str_size = str->value.length();
@@ -596,6 +602,9 @@ std::string TacGenerator::generate_tac_expr(ASTNode *expr, Type type)
 
             return temp_var;
         }
+
+        // std::cout << "in unary: \n";
+        // unary->type.print();
 
         instructions.emplace_back(convert_UnaryOpType_to_TACOp(unary->op), result, "", temp_var, unary->type);
         return temp_var;

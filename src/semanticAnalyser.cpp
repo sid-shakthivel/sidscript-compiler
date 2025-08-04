@@ -2,41 +2,27 @@
 
 #include <iostream>
 
+#define REGISTER_HANDLER(node_type, fn) handlers[node_type] = [this](ASTNode *node) { fn(node); }
+
 SemanticAnalyser::SemanticAnalyser(std::shared_ptr<GlobalSymbolTable> gst) : gst(gst)
 {
     // Initialise analysers
-    handlers[NodeType::NODE_FUNCTION] = [this](ASTNode *node)
-    { analyse_func(node); };
-    handlers[NodeType::NODE_VAR_DECL] = [this](ASTNode *node)
-    { analyse_var_decl(node); };
-    handlers[NodeType::NODE_VAR_ASSIGN] = [this](ASTNode *node)
-    { analyse_var_assign(node); };
-    handlers[NodeType::NODE_RETURN] = [this](ASTNode *node)
-    { analyse_rtn(node); };
-    handlers[NodeType::NODE_IF] = [this](ASTNode *node)
-    { analyse_if_stmt(node); };
-    handlers[NodeType::NODE_WHILE] = [this](ASTNode *node)
-    { analyse_while_stmt(node); };
-    handlers[NodeType::NODE_FOR] = [this](ASTNode *node)
-    { analyse_for_stmt(node); };
-    handlers[NodeType::NODE_LOOP_CONTROL] = [this](ASTNode *node)
-    { analyse_loop_control(node); };
-    handlers[NodeType::NODE_FUNC_CALL] = [this](ASTNode *node)
-    { analyse_func_call(node); };
-    handlers[NodeType::NODE_CAST] = [this](ASTNode *node)
-    { analyse_cast(node); };
-    handlers[NodeType::NODE_BINARY] = [this](ASTNode *node)
-    { analyse_binary(node); };
-    handlers[NodeType::NODE_UNARY] = [this](ASTNode *node)
-    { analyse_unary(node); };
-    handlers[NodeType::NODE_VAR] = [this](ASTNode *node)
-    { analyse_var(node); };
-    handlers[NodeType::NODE_POSTFIX] = [this](ASTNode *node)
-    { analyse_postfix(node); };
-    handlers[NodeType::NODE_STRUCT_DECL] = [this](ASTNode *node)
-    { analyse_struct_decl(node); };
-    handlers[NodeType::NODE_COMPOUND_INIT] = [this](ASTNode *node)
-    { analyse_compound_literal_init(node); };
+    REGISTER_HANDLER(NodeType::NODE_FUNCTION, analyse_func);
+    REGISTER_HANDLER(NodeType::NODE_VAR_DECL, analyse_var_decl);
+    REGISTER_HANDLER(NodeType::NODE_VAR_ASSIGN, analyse_var_assign);
+    REGISTER_HANDLER(NodeType::NODE_RETURN, analyse_rtn);
+    REGISTER_HANDLER(NodeType::NODE_IF, analyse_if_stmt);
+    REGISTER_HANDLER(NodeType::NODE_WHILE, analyse_while_stmt);
+    REGISTER_HANDLER(NodeType::NODE_FOR, analyse_for_stmt);
+    REGISTER_HANDLER(NodeType::NODE_LOOP_CONTROL, analyse_loop_control);
+    REGISTER_HANDLER(NodeType::NODE_FUNC_CALL, analyse_func_call);
+    REGISTER_HANDLER(NodeType::NODE_CAST, analyse_cast);
+    REGISTER_HANDLER(NodeType::NODE_BINARY, analyse_binary);
+    REGISTER_HANDLER(NodeType::NODE_UNARY, analyse_unary);
+    REGISTER_HANDLER(NodeType::NODE_VAR, analyse_var);
+    REGISTER_HANDLER(NodeType::NODE_POSTFIX, analyse_postfix);
+    REGISTER_HANDLER(NodeType::NODE_STRUCT_DECL, analyse_struct_decl);
+    REGISTER_HANDLER(NodeType::NODE_COMPOUND_INIT, analyse_compound_literal_init);
 }
 
 void SemanticAnalyser::analyse(std::shared_ptr<ProgramNode> program)
@@ -600,7 +586,11 @@ Type SemanticAnalyser::infer_type(ASTNode *node)
         if (type.has_base_type(BaseType::DOUBLE) && un_node->op == UnaryOpType::COMPLEMENT)
             error("Cannot take bitwise complement of a double");
 
-        un_node->type = type;
+        if (un_node->op == UnaryOpType::ADDR_OF)
+            type = Type(type.get_base_type(), type.get_ptr_depth() + 1);
+        else if (un_node->op == UnaryOpType::DEREF)
+            type = Type(type.get_base_type(), type.get_ptr_depth() - 1);
+
         return type;
     }
     case NodeType::NODE_CAST:

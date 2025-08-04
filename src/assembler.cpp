@@ -259,7 +259,7 @@ void Assembler::handle_bss_assign(TACInstruction &instruction)
 	if (instruction.arg3 == "global")
 		fprintf(file, "\t.global\t_%s\n", instruction.arg1.c_str());
 	fprintf(file, "_%s:\n", instruction.arg1.c_str());
-	fprintf(file, "\t.zero %d\n\n", instruction.type.get_size());
+	fprintf(file, "\t.zero %zu\n\n", instruction.type.get_size());
 }
 
 void Assembler::handle_data_assign(TACInstruction &instruction)
@@ -644,7 +644,7 @@ void Assembler::handle_deref(TACInstruction &instruction)
 
 	// Now dereference it and store the value
 	fprintf(file, "\t%s\t(%%rax), %s\n", mov.c_str(), reg.c_str());
-	store_from_reg(instruction.result, "r10", instruction.type);
+	store_from_reg(instruction.result, "%r10", instruction.type);
 
 	fprintf(file, "\n");
 }
@@ -724,11 +724,11 @@ void Assembler::handle_member_assign(TACInstruction &instruction)
 			int array_size = value_sym->type.get_array_size();
 			for (int i = 0; i < array_size; i++)
 			{
-				fprintf(file, "\t%s\t%d(%%rbp), %s\n",
+				fprintf(file, "\t%s\t%zu(%%rbp), %s\n",
 						mov_text.c_str(),
 						value_sym->stack_offset + i * instruction.type.get_size(),
 						reg_name.c_str());
-				fprintf(file, "\t%s\t%s, %d(%%rbp)\n",
+				fprintf(file, "\t%s\t%s, %zu(%%rbp)\n",
 						mov_text.c_str(),
 						reg_name.c_str(),
 						stack_offset + i * instruction.type.get_size());
@@ -877,6 +877,9 @@ std::string Assembler::fix_sign_instr(std::string instr)
 		return "seta"; // above
 	else if (instr == "setge")
 		return "setae"; // above or equal
+
+	// Issue may occur here
+	return instr;
 }
 
 std::string Assembler::get_reg_name(const char *base_reg, Type type)
@@ -927,5 +930,5 @@ void Assembler::comment_instruction(TACInstruction &instr)
 
 void Assembler::error(const std::string &message)
 {
-	throw std::runtime_error("Tac Generator Error: " + message);
+	throw std::runtime_error("Assembler Error: " + message);
 }
