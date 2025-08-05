@@ -82,7 +82,7 @@ class TacGenerator
 public:
     TacGenerator(std::shared_ptr<GlobalSymbolTable> gst, std::shared_ptr<SemanticAnalyser> sem_analyser);
 
-    void generate_tac(std::shared_ptr<ProgramNode> program);
+    void generate_all_tac(std::shared_ptr<ProgramNode> program);
     void print_all_tac();
     static std::string gen_tac_str(TACInstruction &instruction);
 
@@ -98,6 +98,8 @@ private:
     std::vector<TACInstruction> literal8_vars;
     std::vector<TACInstruction> str_vars;
 
+    std::unordered_map<NodeType, std::function<void(ASTNode *)>> handlers;
+
     std::array<std::string, 6> registers = {"%edi", "%esi", "%edx", "%ecx", "%r8", "%r9"};
 
     int tempCounter = 0;
@@ -108,8 +110,18 @@ private:
     std::string gen_new_label(std::string label = "");
     std::string gen_new_const_label();
 
-    void generate_tac_func(FuncNode *func);
-    void generate_tac_element(ASTNode *element);
+    void generate_tac(ASTNode *node);
+
+    void generate_tac_func(ASTNode *element);
+    void generate_tac_rtn(ASTNode *element);
+    void generate_tac_var_decl(ASTNode *element);
+    void generate_tac_var_assign(ASTNode *element);
+    void generate_tac_if(ASTNode *element);
+    void generate_tac_while(ASTNode *element);
+    void generate_tac_for(ASTNode *element);
+    void generate_tac_loop_ctrl(ASTNode *element);
+    void generate_tac_postfix(ASTNode *element);
+    void generate_tac_func_call(ASTNode *element);
 
     void error(const std::string &message);
 

@@ -25,11 +25,6 @@ Assembler::Assembler(std::shared_ptr<GlobalSymbolTable> gst, std::string filenam
 		return;
 	}
 
-	initialize_handlers();
-}
-
-void Assembler::initialize_handlers()
-{
 	REGISTER_HANDLER(FUNC_BEGIN, handle_func_begin);
 	REGISTER_HANDLER(FUNC_END, handle_func_end);
 	REGISTER_HANDLER(ASSIGN, handle_assign);

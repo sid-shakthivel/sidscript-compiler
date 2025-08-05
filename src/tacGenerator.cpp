@@ -3,6 +3,30 @@
 #include "../include/tacGenerator.h"
 #include "../include/semanticAnalyser.h"
 
+#define REGISTER_HANDLER(nodeType, fn) \
+    handlers[NodeType::nodeType] = [this](ASTNode *node) { fn(node); };
+
+auto switch_condition = [](BinaryNode *node) -> BinOpType
+{
+    switch (node->op)
+    {
+    case BinOpType::EQUAL:
+        return BinOpType::NOT_EQUAL;
+    case BinOpType::NOT_EQUAL:
+        return BinOpType::EQUAL;
+    case BinOpType::LESS_THAN:
+        return BinOpType::GREATER_OR_EQUAL;
+    case BinOpType::LESS_OR_EQUAL:
+        return BinOpType::GREATER_THAN;
+    case BinOpType::GREATER_THAN:
+        return BinOpType::LESS_OR_EQUAL;
+    case BinOpType::GREATER_OR_EQUAL:
+        return BinOpType::LESS_THAN;
+    default:
+        return node->op;
+    }
+};
+
 TACOp convert_BinOpType_to_TACOp(BinOpType op)
 {
     switch (op)
@@ -57,7 +81,20 @@ TACOp convert_UnaryOpType_to_TACOp(UnaryOpType op)
     throw std::runtime_error("Invalid UnaryOpType");
 }
 
-TacGenerator::TacGenerator(std::shared_ptr<GlobalSymbolTable> gst, std::shared_ptr<SemanticAnalyser> sem_analyser) : gst(gst), sem_analyser(sem_analyser) {}
+TacGenerator::TacGenerator(std::shared_ptr<GlobalSymbolTable> gst, std::shared_ptr<SemanticAnalyser> sem_analyser) : gst(gst), sem_analyser(sem_analyser)
+{
+    // Register all handlers
+    REGISTER_HANDLER(NODE_FUNCTION, generate_tac_func);
+    REGISTER_HANDLER(NODE_RETURN, generate_tac_rtn);
+    REGISTER_HANDLER(NODE_VAR_DECL, generate_tac_var_decl);
+    REGISTER_HANDLER(NODE_VAR_ASSIGN, generate_tac_var_assign);
+    REGISTER_HANDLER(NODE_IF, generate_tac_if);
+    REGISTER_HANDLER(NODE_WHILE, generate_tac_while);
+    REGISTER_HANDLER(NODE_FOR, generate_tac_for);
+    REGISTER_HANDLER(NODE_LOOP_CONTROL, generate_tac_loop_ctrl);
+    REGISTER_HANDLER(NODE_POSTFIX, generate_tac_postfix);
+    REGISTER_HANDLER(NODE_FUNC_CALL, generate_tac_func_call);
+}
 
 std::string TacGenerator::gen_new_temp_var()
 {
@@ -74,15 +111,10 @@ std::string TacGenerator::gen_new_const_label()
     return ".L" + std::string("const_") + std::to_string(constCounter++);
 }
 
-void TacGenerator::generate_tac(std::shared_ptr<ProgramNode> program)
+void TacGenerator::generate_all_tac(std::shared_ptr<ProgramNode> program)
 {
     for (auto &decl : program->decls)
-    {
-        if (decl->node_type == NodeType::NODE_FUNCTION)
-            generate_tac_func(dynamic_cast<FuncNode *>(decl.get()));
-        else if (decl->node_type == NodeType::NODE_VAR_DECL)
-            generate_tac_element(dynamic_cast<VarDeclNode *>(decl.get()));
-    }
+        generate_tac(decl.get());
 
     instructions.insert(instructions.begin(), TACInstruction(TACOp::ENTER_TEXT));
 
@@ -111,8 +143,19 @@ void TacGenerator::generate_tac(std::shared_ptr<ProgramNode> program)
     }
 }
 
-void TacGenerator::generate_tac_func(FuncNode *func)
+void TacGenerator::generate_tac(ASTNode *node)
 {
+    auto handler = handlers.find(node->node_type);
+    if (handler != handlers.end())
+        handler->second(node);
+    else
+        error("No handler for node type " + std::to_string((int)node->node_type));
+}
+
+void TacGenerator::generate_tac_func(ASTNode *element)
+{
+    FuncNode *func = (FuncNode *)element;
+
     gst->enter_func_scope(func->name);
     instructions.emplace_back(TACOp::FUNC_BEGIN, func->name, func->specifier == Specifier::STATIC ? "static" : "global");
 
@@ -123,7 +166,7 @@ void TacGenerator::generate_tac_func(FuncNode *func)
             instructions.emplace_back(TACOp::MOV, func->get_param_name(i), registers[i], "", func_symbol->arg_types[i]);
 
     for (auto &element : func->elements)
-        generate_tac_element(element.get());
+        generate_tac(element.get());
 
     instructions.emplace_back(TACOp::FUNC_END);
 
@@ -135,381 +178,364 @@ void TacGenerator::error(const std::string &message)
     throw std::runtime_error("Tac Generator Error: " + message);
 }
 
-void TacGenerator::generate_tac_element(ASTNode *element)
+void TacGenerator::generate_tac_rtn(ASTNode *element)
 {
-    // Explain this (used for loops)
-    auto switch_condition = [](BinaryNode *node) -> BinOpType
+    FuncSymbol *func = gst->get_func_symbol(gst->get_current_func());
+    RtnNode *rtn = (RtnNode *)element;
+    std::string result = "";
+
+    if (rtn->value != nullptr)
+        result = generate_tac_expr(rtn->value.get());
+
+    instructions.emplace_back(TACOp::RETURN, result, "", "", func->return_type);
+}
+
+void TacGenerator::generate_tac_var_decl(ASTNode *element)
+{
+    VarDeclNode *var_decl = (VarDeclNode *)element;
+    Symbol *var_symbol = gst->get_symbol(var_decl->var->name);
+
+    if (var_decl->var->type.is_struct())
     {
-        switch (node->op)
+        // Handle struct initialisation
+        if (var_decl->value != nullptr && var_decl->value->node_type == NodeType::NODE_COMPOUND_INIT)
         {
-        case BinOpType::EQUAL:
-            return BinOpType::NOT_EQUAL;
-        case BinOpType::NOT_EQUAL:
-            return BinOpType::EQUAL;
-        case BinOpType::LESS_THAN:
-            return BinOpType::GREATER_OR_EQUAL;
-        case BinOpType::LESS_OR_EQUAL:
-            return BinOpType::GREATER_THAN;
-        case BinOpType::GREATER_THAN:
-            return BinOpType::LESS_OR_EQUAL;
-        case BinOpType::GREATER_OR_EQUAL:
-            return BinOpType::LESS_THAN;
-        default:
-            return node->op;
-        }
-    };
+            CompoundLiteral *init = dynamic_cast<CompoundLiteral *>(var_decl->value.get());
+            instructions.emplace_back(TACOp::STRUCT_INIT, var_decl->var->name, "", "", var_decl->var->type);
 
-    if (element->node_type == NodeType::NODE_RETURN)
-    {
-        FuncSymbol *func = gst->get_func_symbol(gst->get_current_func());
-        RtnNode *rtn = (RtnNode *)element;
-        std::string result = "";
-
-        if (rtn->value != nullptr)
-            result = generate_tac_expr(rtn->value.get());
-
-        instructions.emplace_back(TACOp::RETURN, result, "", "", func->return_type);
-    }
-    else if (element->node_type == NodeType::NODE_VAR_DECL)
-    {
-        VarDeclNode *var_decl = (VarDeclNode *)element;
-        Symbol *var_symbol = gst->get_symbol(var_decl->var->name);
-
-        if (var_decl->var->type.is_struct())
-        {
-            // Handle struct initialisation
-            if (var_decl->value != nullptr && var_decl->value->node_type == NodeType::NODE_COMPOUND_INIT)
+            size_t field_index = 0;
+            for (const auto &value : init->values)
             {
-                CompoundLiteral *init = dynamic_cast<CompoundLiteral *>(var_decl->value.get());
-                instructions.emplace_back(TACOp::STRUCT_INIT, var_decl->var->name, "", "", var_decl->var->type);
-
-                size_t field_index = 0;
-                for (const auto &value : init->values)
-                {
-                    std::string result = generate_tac_expr(value.get());
-                    instructions.emplace_back(TACOp::MEMBER_ASSIGN,
-                                              var_decl->var->name,
-                                              var_decl->var->type.get_field_name(field_index),
-                                              result,
-                                              sem_analyser->infer_type(value.get()));
-                    field_index++;
-                }
-            }
-            return;
-        }
-
-        // Check if some sort of global/static
-        if (var_symbol->linkage != Linkage::None || var_symbol->storage_duration == StorageDuration::Static)
-        {
-            // Place in BSS if not initialised
-            if (var_decl->value == nullptr)
-            {
-                TACInstruction instruction(TACOp::ASSIGN, var_decl->var->name, "", "0", var_symbol->type);
-                instruction.arg3 = var_symbol->linkage == Linkage::External ? "global" : "";
-                bss_vars.emplace_back(instruction);
-            }
-            else
-            {
-                // Place in Data
-                std::string result = generate_tac_expr(var_decl->value.get(), var_decl->var->type);
-                TACInstruction instruction(TACOp::ASSIGN, var_decl->var->name, "", result, var_symbol->type);
-                instruction.arg3 = var_symbol->linkage == Linkage::External ? "global" : "";
-                data_vars.emplace_back(instruction);
-            }
-
-            return;
-        }
-
-        // Only need to assign anything if initialised to a value otherwise ignore
-        if (var_decl->value == nullptr)
-            return;
-
-        if (var_decl->var->type.is_array() && var_decl->var->type.has_base_type(BaseType::CHAR))
-        {
-            // Handle string literal initialization
-            StringLiteral *str = dynamic_cast<StringLiteral *>(var_decl->value.get());
-            size_t str_size = str->value.length();
-            int array_size = var_decl->var->type.get_array_size();
-
-            // Copy characters from string
-            for (size_t i = 0; i < str_size; i++)
-            {
-                instructions.emplace_back(TACOp::ASSIGN, var_decl->var->name,
-                                          std::to_string(i), std::to_string(static_cast<int>(str->value[i])),
-                                          Type(BaseType::CHAR));
-            }
-
-            // Fill remaining space with null terminators if any
-            for (size_t i = str_size; i < array_size; i++)
-            {
-                instructions.emplace_back(TACOp::ASSIGN, var_decl->var->name,
-                                          std::to_string(i), "0", Type(BaseType::CHAR));
-            }
-
-            return;
-        }
-        if (var_decl->var->type.is_array())
-        {
-            CompoundLiteral *array_init = dynamic_cast<CompoundLiteral *>(var_decl->value.get());
-            int array_size = var_decl->var->type.get_array_size();
-
-            for (size_t i = 0; i < array_init->values.size(); i++)
-            {
-                std::string result = generate_tac_expr(array_init->values[i].get(), var_symbol->type);
-                instructions.emplace_back(TACOp::ASSIGN, var_decl->var->name, std::to_string((i)), result, var_symbol->type.get_base_type());
-            }
-
-            for (size_t i = array_init->values.size(); i < array_size; i++)
-                instructions.emplace_back(TACOp::ASSIGN, var_decl->var->name, std::to_string((i)), "0", var_symbol->type.get_base_type());
-
-            return;
-        }
-
-        std::string result = generate_tac_expr(var_decl->value.get(), var_symbol->type);
-        instructions.emplace_back(TACOp::ASSIGN, var_decl->var->name, "", result, var_symbol->type);
-    }
-    else if (element->node_type == NodeType::NODE_VAR_ASSIGN)
-    {
-        VarAssignNode *var_assign = (VarAssignNode *)element;
-        if (var_assign->var->node_type == NodeType::NODE_VAR)
-        {
-            VarNode *var = (VarNode *)var_assign->var.get();
-            Symbol *var_symbol = gst->get_symbol(var->name);
-
-            std::string result = generate_tac_expr(var_assign->value.get(), var_symbol->type);
-            instructions.emplace_back(TACOp::ASSIGN, var->name, "", result, var_symbol->type);
-        }
-        else if (var_assign->var->node_type == NodeType::NODE_ARRAY_ACCESS)
-        {
-            ArrayAccessNode *array_access = (ArrayAccessNode *)var_assign->var.get();
-
-            std::string result = generate_tac_expr(var_assign->value.get(), array_access->type);
-            std::string index = generate_tac_expr(array_access->index.get());
-
-            instructions.emplace_back(TACOp::ASSIGN, array_access->array->name, index, result, array_access->type);
-        }
-        else if (var_assign->var->node_type == NodeType::NODE_POSTFIX)
-        {
-            PostfixNode *postfix = dynamic_cast<PostfixNode *>(var_assign->var.get());
-            if (postfix->op == TokenType::TOKEN_DOT || postfix->op == TokenType::TOKEN_ARROW)
-            {
-                std::string base = generate_tac_expr(postfix->value.get(), postfix->type);
-                std::string result = generate_tac_expr(var_assign->value.get());
-
-                if (postfix->op == TokenType::TOKEN_ARROW)
-                {
-                    std::string deref = gen_new_temp_var();
-                    instructions.emplace_back(TACOp::DEREF, base, "", deref);
-                    base = deref;
-                }
-
+                std::string result = generate_tac_expr(value.get());
                 instructions.emplace_back(TACOp::MEMBER_ASSIGN,
-                                          base,
-                                          postfix->field,
+                                          var_decl->var->name,
+                                          var_decl->var->type.get_field_name(field_index),
                                           result,
-                                          sem_analyser->infer_type(var_assign->value.get()));
-                return;
+                                          sem_analyser->infer_type(value.get()));
+                field_index++;
             }
         }
+        return;
     }
-    else if (element->node_type == NodeType::NODE_IF)
+
+    // Check if some sort of global/static
+    if (var_symbol->linkage != Linkage::None || var_symbol->storage_duration == StorageDuration::Static)
     {
-        IfNode *if_stmt = (IfNode *)element;
-
-        std::string condition_res = generate_tac_expr(if_stmt->condition.get());
-        std::string label_success = gen_new_label();
-        std::string label_failure = gen_new_label();
-
-        TACInstruction if_instruction(TACOp::IF, condition_res, "", label_success);
-
-        if (if_stmt->condition->node_type == NodeType::NODE_BINARY)
+        // Place in BSS if not initialised
+        if (var_decl->value == nullptr)
         {
-            // For conditions like: if (a == 5)
-            BinaryNode *bin_condition = dynamic_cast<BinaryNode *>(if_stmt->condition.get());
-            TACInstruction if_instruction(TACOp::IF, condition_res, "", label_success, bin_condition->type);
-            if_instruction.op2 = convert_BinOpType_to_TACOp(bin_condition->op);
-            instructions.emplace_back(if_instruction);
-        }
-        else if (if_stmt->condition->node_type == NodeType::NODE_BOOL)
-        {
-            // For conditions like: if (true)
-            BoolLiteral *bool_condition = dynamic_cast<BoolLiteral *>(if_stmt->condition.get());
-            if (bool_condition->value)
-            {
-                // If true, just fall through to the then block
-                instructions.emplace_back(TACOp::GOTO, "", "", label_success);
-            }
-            else
-            {
-                // If false, skip to the end
-                instructions.emplace_back(TACOp::GOTO, "", "", label_failure);
-            }
-        }
-        else if (if_stmt->condition->node_type == NodeType::NODE_UNARY)
-        {
-            UnaryNode *unary_condition = dynamic_cast<UnaryNode *>(if_stmt->condition.get());
-            instructions.emplace_back(TACOp::IF, condition_res, "", label_success, Type(BaseType::BOOL));
-            if_instruction.op2 = convert_BinOpType_to_TACOp(BinOpType::NOT_EQUAL);
+            TACInstruction instruction(TACOp::ASSIGN, var_decl->var->name, "", "0", var_symbol->type);
+            instruction.arg3 = var_symbol->linkage == Linkage::External ? "global" : "";
+            bss_vars.emplace_back(instruction);
         }
         else
         {
-            // For conditions like: if (a)
-            instructions.emplace_back(TACOp::IF, condition_res, "", label_success, Type(BaseType::BOOL));
-            if_instruction.op2 = convert_BinOpType_to_TACOp(BinOpType::EQUAL);
+            // Place in Data
+            std::string result = generate_tac_expr(var_decl->value.get(), var_decl->var->type);
+            TACInstruction instruction(TACOp::ASSIGN, var_decl->var->name, "", result, var_symbol->type);
+            instruction.arg3 = var_symbol->linkage == Linkage::External ? "global" : "";
+            data_vars.emplace_back(instruction);
         }
 
-        // Skip then block if condition is false
-        instructions.emplace_back(TACOp::GOTO, "", "", label_failure);
-
-        // Then block
-        instructions.emplace_back(TACOp::LABEL, label_success);
-        for (auto &element : if_stmt->then_elements)
-            generate_tac_element(element.get());
-
-        instructions.emplace_back(TACOp::LABEL, label_failure);
-
-        if (!if_stmt->else_elements.empty())
-        {
-            std::string label_else_end = gen_new_label("else_end");
-            instructions.emplace_back(TACOp::GOTO, "", "", label_else_end);
-
-            for (auto &element : if_stmt->else_elements)
-                generate_tac_element(element.get());
-
-            instructions.emplace_back(TACOp::LABEL, label_else_end);
-        }
+        return;
     }
-    else if (element->node_type == NodeType::NODE_WHILE)
+
+    // Only need to assign anything if initialised to a value otherwise ignore
+    if (var_decl->value == nullptr)
+        return;
+
+    if (var_decl->var->type.is_array() && var_decl->var->type.has_base_type(BaseType::CHAR))
     {
-        WhileNode *while_stmt = (WhileNode *)element;
+        // Handle string literal initialization
+        StringLiteral *str = dynamic_cast<StringLiteral *>(var_decl->value.get());
+        size_t str_size = str->value.length();
+        int array_size = var_decl->var->type.get_array_size();
 
-        std::string start = while_stmt->label + "_start";
-        std::string post = while_stmt->label + "_post";
-        std::string end = while_stmt->label + "_end";
-
-        instructions.emplace_back(TACOp::LABEL, start);
-
-        std::string condition_res = generate_tac_expr(while_stmt->condition.get());
-
-        if (while_stmt->condition->node_type == NodeType::NODE_BINARY)
+        // Copy characters from string
+        for (size_t i = 0; i < str_size; i++)
         {
-            // For conditions like: while (a == 5)
-            BinaryNode *bin_condition = dynamic_cast<BinaryNode *>(while_stmt->condition.get());
-            bin_condition->op = switch_condition(bin_condition);
-            condition_res = generate_tac_expr(while_stmt->condition.get());
-            TACInstruction if_instruction(TACOp::IF, condition_res, "", end, bin_condition->type);
-            if_instruction.op2 = convert_BinOpType_to_TACOp(bin_condition->op);
-            instructions.emplace_back(if_instruction);
+            instructions.emplace_back(TACOp::ASSIGN, var_decl->var->name,
+                                      std::to_string(i), std::to_string(static_cast<int>(str->value[i])),
+                                      Type(BaseType::CHAR));
         }
-        else if (while_stmt->condition->node_type == NodeType::NODE_BOOL)
+
+        // Fill remaining space with null terminators if any
+        for (size_t i = str_size; i < array_size; i++)
         {
-            // For conditions like: while (true)
-            BoolLiteral *bool_condition = dynamic_cast<BoolLiteral *>(while_stmt->condition.get());
-            if (!bool_condition->value)
+            instructions.emplace_back(TACOp::ASSIGN, var_decl->var->name,
+                                      std::to_string(i), "0", Type(BaseType::CHAR));
+        }
+
+        return;
+    }
+    if (var_decl->var->type.is_array())
+    {
+        CompoundLiteral *array_init = dynamic_cast<CompoundLiteral *>(var_decl->value.get());
+        int array_size = var_decl->var->type.get_array_size();
+
+        for (size_t i = 0; i < array_init->values.size(); i++)
+        {
+            std::string result = generate_tac_expr(array_init->values[i].get(), var_symbol->type);
+            instructions.emplace_back(TACOp::ASSIGN, var_decl->var->name, std::to_string((i)), result, var_symbol->type.get_base_type());
+        }
+
+        for (size_t i = array_init->values.size(); i < array_size; i++)
+            instructions.emplace_back(TACOp::ASSIGN, var_decl->var->name, std::to_string((i)), "0", var_symbol->type.get_base_type());
+
+        return;
+    }
+
+    std::string result = generate_tac_expr(var_decl->value.get(), var_symbol->type);
+    instructions.emplace_back(TACOp::ASSIGN, var_decl->var->name, "", result, var_symbol->type);
+}
+
+void TacGenerator::generate_tac_var_assign(ASTNode *element)
+{
+    VarAssignNode *var_assign = (VarAssignNode *)element;
+    if (var_assign->var->node_type == NodeType::NODE_VAR)
+    {
+        VarNode *var = (VarNode *)var_assign->var.get();
+        Symbol *var_symbol = gst->get_symbol(var->name);
+
+        std::string result = generate_tac_expr(var_assign->value.get(), var_symbol->type);
+        instructions.emplace_back(TACOp::ASSIGN, var->name, "", result, var_symbol->type);
+    }
+    else if (var_assign->var->node_type == NodeType::NODE_ARRAY_ACCESS)
+    {
+        ArrayAccessNode *array_access = (ArrayAccessNode *)var_assign->var.get();
+
+        std::string result = generate_tac_expr(var_assign->value.get(), array_access->type);
+        std::string index = generate_tac_expr(array_access->index.get());
+
+        instructions.emplace_back(TACOp::ASSIGN, array_access->array->name, index, result, array_access->type);
+    }
+    else if (var_assign->var->node_type == NodeType::NODE_POSTFIX)
+    {
+        PostfixNode *postfix = dynamic_cast<PostfixNode *>(var_assign->var.get());
+        if (postfix->op == TokenType::TOKEN_DOT || postfix->op == TokenType::TOKEN_ARROW)
+        {
+            std::string base = generate_tac_expr(postfix->value.get(), postfix->type);
+            std::string result = generate_tac_expr(var_assign->value.get());
+
+            if (postfix->op == TokenType::TOKEN_ARROW)
             {
-                // If false, skip the loop entirely
-                instructions.emplace_back(TACOp::GOTO, "", "", end);
+                std::string deref = gen_new_temp_var();
+                instructions.emplace_back(TACOp::DEREF, base, "", deref);
+                base = deref;
             }
-            // If true, just fall through to the loop body
+
+            instructions.emplace_back(TACOp::MEMBER_ASSIGN,
+                                      base,
+                                      postfix->field,
+                                      result,
+                                      sem_analyser->infer_type(var_assign->value.get()));
+            return;
         }
-        else if (while_stmt->condition->node_type == NodeType::NODE_UNARY)
-        {
-            // For conditions like: while (!a)
-            UnaryNode *unary_condition = dynamic_cast<UnaryNode *>(while_stmt->condition.get());
-
-            if (unary_condition->op != UnaryOpType::NOT)
-                error("Unsupported condition in while statement");
-
-            std::string temp_var = gen_new_temp_var();
-            gst->declare_temp_var(temp_var, unary_condition->type);
-
-            instructions.emplace_back(TACOp::NOT_EQUAL, condition_res, "1", temp_var, unary_condition->type);
-
-            TACInstruction if_instruction(TACOp::IF, temp_var, "", end, unary_condition->type);
-            instructions.emplace_back(if_instruction);
-        }
-        else if (while_stmt->condition->node_type == NodeType::NODE_VAR)
-        {
-            // For conditions like: while (a)
-            VarNode *var_condition = dynamic_cast<VarNode *>(while_stmt->condition.get());
-
-            std::string temp_var = gen_new_temp_var();
-            gst->declare_temp_var(temp_var, var_condition->type);
-
-            instructions.emplace_back(TACOp::EQUAL, condition_res, "0", temp_var, var_condition->type);
-
-            TACInstruction if_instruction(TACOp::IF, temp_var, "", end, var_condition->type);
-            instructions.emplace_back(if_instruction);
-        }
-        else
-        {
-            error("Unknown while condition");
-        }
-
-        for (auto &element : while_stmt->elements)
-            generate_tac_element(element.get());
-
-        instructions.emplace_back(TACOp::LABEL, post);
-        instructions.emplace_back(TACOp::GOTO, "", "", start);
-
-        instructions.emplace_back(TACOp::NOP);
-        instructions.emplace_back(TACOp::LABEL, end);
     }
-    else if (element->node_type == NodeType::NODE_FOR)
+}
+
+void TacGenerator::generate_tac_if(ASTNode *element)
+{
+    IfNode *if_stmt = (IfNode *)element;
+
+    std::string condition_res = generate_tac_expr(if_stmt->condition.get());
+    std::string label_success = gen_new_label();
+    std::string label_failure = gen_new_label();
+
+    TACInstruction if_instruction(TACOp::IF, condition_res, "", label_success);
+
+    if (if_stmt->condition->node_type == NodeType::NODE_BINARY)
     {
-        ForNode *for_stmt = (ForNode *)element;
-
-        generate_tac_element(for_stmt->init.get());
-
-        std::string start = for_stmt->label + "_start";
-        std::string post = for_stmt->label + "_post";
-        std::string end = for_stmt->label + "_end";
-
-        instructions.emplace_back(TACOp::LABEL, start);
-
-        for_stmt->condition->op = switch_condition(for_stmt->condition.get());
-        std::string condition_res = generate_tac_expr(for_stmt->condition.get());
-
-        TACInstruction if_instruction(TACOp::IF, condition_res, "", end);
-        if_instruction.op2 = convert_BinOpType_to_TACOp(for_stmt->condition->op);
+        // For conditions like: if (a == 5)
+        BinaryNode *bin_condition = dynamic_cast<BinaryNode *>(if_stmt->condition.get());
+        TACInstruction if_instruction(TACOp::IF, condition_res, "", label_success, bin_condition->type);
+        if_instruction.op2 = convert_BinOpType_to_TACOp(bin_condition->op);
         instructions.emplace_back(if_instruction);
-
-        instructions.emplace_back(TACOp::NOP);
-
-        for (auto &element : for_stmt->elements)
-            generate_tac_element(element.get());
-
-        instructions.emplace_back(TACOp::LABEL, post);
-        generate_tac_element(for_stmt->post.get());
-        instructions.emplace_back(TACOp::GOTO, "", "", start);
-
-        instructions.emplace_back(TACOp::NOP);
-
-        instructions.emplace_back(TACOp::LABEL, end);
     }
-    else if (element->node_type == NodeType::NODE_LOOP_CONTROL)
+    else if (if_stmt->condition->node_type == NodeType::NODE_BOOL)
     {
-        LoopControl *loop_control = (LoopControl *)element;
-        if (loop_control->type == TOKEN_BREAK)
-            instructions.emplace_back(TACOp::GOTO, "", "", loop_control->label + "_end");
-        else if (loop_control->type == TOKEN_CONTINUE)
-            instructions.emplace_back(TACOp::GOTO, "", "", loop_control->label + "_post");
+        // For conditions like: if (true)
+        BoolLiteral *bool_condition = dynamic_cast<BoolLiteral *>(if_stmt->condition.get());
+        if (bool_condition->value)
+        {
+            // If true, just fall through to the then block
+            instructions.emplace_back(TACOp::GOTO, "", "", label_success);
+        }
+        else
+        {
+            // If false, skip to the end
+            instructions.emplace_back(TACOp::GOTO, "", "", label_failure);
+        }
     }
-    else if (element->node_type == NodeType::NODE_POSTFIX)
+    else if (if_stmt->condition->node_type == NodeType::NODE_UNARY)
     {
-        PostfixNode *postfix = (PostfixNode *)element;
-
-        std::string result = generate_tac_expr(postfix->value.get());
-
-        if (postfix->op == TokenType::TOKEN_INCREMENT)
-            instructions.emplace_back(TACOp::ADD, result, "1", result, postfix->type);
-        else if (postfix->op == TokenType::TOKEN_DECREMENT)
-            instructions.emplace_back(TACOp::SUB, result, "1", result, postfix->type);
+        UnaryNode *unary_condition = dynamic_cast<UnaryNode *>(if_stmt->condition.get());
+        instructions.emplace_back(TACOp::IF, condition_res, "", label_success, Type(BaseType::BOOL));
+        if_instruction.op2 = convert_BinOpType_to_TACOp(BinOpType::NOT_EQUAL);
     }
-    else if (element->node_type == NodeType::NODE_FUNC_CALL)
+    else
     {
-        std::string result = generate_tac_expr(element);
+        // For conditions like: if (a)
+        instructions.emplace_back(TACOp::IF, condition_res, "", label_success, Type(BaseType::BOOL));
+        if_instruction.op2 = convert_BinOpType_to_TACOp(BinOpType::EQUAL);
     }
+
+    // Skip then block if condition is false
+    instructions.emplace_back(TACOp::GOTO, "", "", label_failure);
+
+    // Then block
+    instructions.emplace_back(TACOp::LABEL, label_success);
+    for (auto &element : if_stmt->then_elements)
+        generate_tac(element.get());
+
+    instructions.emplace_back(TACOp::LABEL, label_failure);
+
+    if (!if_stmt->else_elements.empty())
+    {
+        std::string label_else_end = gen_new_label("else_end");
+        instructions.emplace_back(TACOp::GOTO, "", "", label_else_end);
+
+        for (auto &element : if_stmt->else_elements)
+            generate_tac(element.get());
+
+        instructions.emplace_back(TACOp::LABEL, label_else_end);
+    }
+}
+
+void TacGenerator::generate_tac_while(ASTNode *element)
+{
+    WhileNode *while_stmt = (WhileNode *)element;
+
+    std::string start = while_stmt->label + "_start";
+    std::string post = while_stmt->label + "_post";
+    std::string end = while_stmt->label + "_end";
+
+    instructions.emplace_back(TACOp::LABEL, start);
+
+    std::string condition_res = generate_tac_expr(while_stmt->condition.get());
+
+    if (while_stmt->condition->node_type == NodeType::NODE_BINARY)
+    {
+        // For conditions like: while (a == 5)
+        BinaryNode *bin_condition = dynamic_cast<BinaryNode *>(while_stmt->condition.get());
+        bin_condition->op = switch_condition(bin_condition);
+        condition_res = generate_tac_expr(while_stmt->condition.get());
+        TACInstruction if_instruction(TACOp::IF, condition_res, "", end, bin_condition->type);
+        if_instruction.op2 = convert_BinOpType_to_TACOp(bin_condition->op);
+        instructions.emplace_back(if_instruction);
+    }
+    else if (while_stmt->condition->node_type == NodeType::NODE_BOOL)
+    {
+        // For conditions like: while (true)
+        BoolLiteral *bool_condition = dynamic_cast<BoolLiteral *>(while_stmt->condition.get());
+        if (!bool_condition->value)
+        {
+            // If false, skip the loop entirely
+            instructions.emplace_back(TACOp::GOTO, "", "", end);
+        }
+        // If true, just fall through to the loop body
+    }
+    else if (while_stmt->condition->node_type == NodeType::NODE_UNARY)
+    {
+        // For conditions like: while (!a)
+        UnaryNode *unary_condition = dynamic_cast<UnaryNode *>(while_stmt->condition.get());
+
+        if (unary_condition->op != UnaryOpType::NOT)
+            error("Unsupported condition in while statement");
+
+        std::string temp_var = gen_new_temp_var();
+        gst->declare_temp_var(temp_var, unary_condition->type);
+
+        instructions.emplace_back(TACOp::NOT_EQUAL, condition_res, "1", temp_var, unary_condition->type);
+
+        TACInstruction if_instruction(TACOp::IF, temp_var, "", end, unary_condition->type);
+        instructions.emplace_back(if_instruction);
+    }
+    else if (while_stmt->condition->node_type == NodeType::NODE_VAR)
+    {
+        // For conditions like: while (a)
+        VarNode *var_condition = dynamic_cast<VarNode *>(while_stmt->condition.get());
+
+        std::string temp_var = gen_new_temp_var();
+        gst->declare_temp_var(temp_var, var_condition->type);
+
+        instructions.emplace_back(TACOp::EQUAL, condition_res, "0", temp_var, var_condition->type);
+
+        TACInstruction if_instruction(TACOp::IF, temp_var, "", end, var_condition->type);
+        instructions.emplace_back(if_instruction);
+    }
+    else
+    {
+        error("Unknown while condition");
+    }
+
+    for (auto &element : while_stmt->elements)
+        generate_tac(element.get());
+
+    instructions.emplace_back(TACOp::LABEL, post);
+    instructions.emplace_back(TACOp::GOTO, "", "", start);
+
+    instructions.emplace_back(TACOp::NOP);
+    instructions.emplace_back(TACOp::LABEL, end);
+}
+
+void TacGenerator::generate_tac_for(ASTNode *element)
+{
+    ForNode *for_stmt = (ForNode *)element;
+
+    generate_tac(for_stmt->init.get());
+
+    std::string start = for_stmt->label + "_start";
+    std::string post = for_stmt->label + "_post";
+    std::string end = for_stmt->label + "_end";
+
+    instructions.emplace_back(TACOp::LABEL, start);
+
+    for_stmt->condition->op = switch_condition(for_stmt->condition.get());
+    std::string condition_res = generate_tac_expr(for_stmt->condition.get());
+
+    TACInstruction if_instruction(TACOp::IF, condition_res, "", end);
+    if_instruction.op2 = convert_BinOpType_to_TACOp(for_stmt->condition->op);
+    instructions.emplace_back(if_instruction);
+
+    instructions.emplace_back(TACOp::NOP);
+
+    for (auto &element : for_stmt->elements)
+        generate_tac(element.get());
+
+    instructions.emplace_back(TACOp::LABEL, post);
+    generate_tac(for_stmt->post.get());
+    instructions.emplace_back(TACOp::GOTO, "", "", start);
+
+    instructions.emplace_back(TACOp::NOP);
+
+    instructions.emplace_back(TACOp::LABEL, end);
+}
+
+void TacGenerator::generate_tac_loop_ctrl(ASTNode *element)
+{
+    LoopControl *loop_control = (LoopControl *)element;
+    if (loop_control->type == TOKEN_BREAK)
+        instructions.emplace_back(TACOp::GOTO, "", "", loop_control->label + "_end");
+    else if (loop_control->type == TOKEN_CONTINUE)
+        instructions.emplace_back(TACOp::GOTO, "", "", loop_control->label + "_post");
+}
+
+void TacGenerator::generate_tac_postfix(ASTNode *element)
+{
+    PostfixNode *postfix = (PostfixNode *)element;
+
+    std::string result = generate_tac_expr(postfix->value.get());
+
+    if (postfix->op == TokenType::TOKEN_INCREMENT)
+        instructions.emplace_back(TACOp::ADD, result, "1", result, postfix->type);
+    else if (postfix->op == TokenType::TOKEN_DECREMENT)
+        instructions.emplace_back(TACOp::SUB, result, "1", result, postfix->type);
+}
+
+void TacGenerator::generate_tac_func_call(ASTNode *element)
+{
+    std::string result = generate_tac_expr(element);
 }
 
 std::string TacGenerator::generate_tac_expr(ASTNode *expr, Type type)

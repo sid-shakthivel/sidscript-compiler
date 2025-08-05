@@ -1,6 +1,6 @@
 fn main() -> int
 {
-    int a = 5;
+    int a = 7;
     int* ptr = &a;
 
     int c = *ptr;

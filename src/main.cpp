@@ -44,7 +44,7 @@ int main()
     sem_analyser->analyse(program);
 
     TacGenerator tacGenerator(gst, sem_analyser);
-    tacGenerator.generate_tac(program);
+    tacGenerator.generate_all_tac(program);
     tacGenerator.print_all_tac();
 
     // gst->print();

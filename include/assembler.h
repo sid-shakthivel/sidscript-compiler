@@ -32,7 +32,6 @@ private:
 
     std::unordered_map<TACOp, std::function<void(TACInstruction)>> handlers;
 
-    void initialize_handlers();
     void compare_and_store_result(const std::string &operand_a, const std::string &operand_b, const std::string &result, const char *reg, const std::string &op, Type type);
 
     void handle_func_begin(TACInstruction &instruction);
@@ -56,7 +55,7 @@ private:
     void handle_member_assign(TACInstruction &instruction);
     void handle_member_access(TACInstruction &instruction);
     void handle_not(TACInstruction &instruction);
-    
+
     std::string get_mov_instruction(Type type);
     std::string get_cmp_instruction(Type type);
     std::string get_reg_name(const char *base_reg, Type type);
@@ -66,7 +65,7 @@ private:
 
     void load_to_reg(const std::string &operand, const char *reg, Type type, std::string arg2 = "");
     void store_from_reg(const std::string &operand, const char *reg, Type type, std::string arg2 = "");
-    
+
     void handle_log_and(TACInstruction &instruction);
     void handle_log_or(TACInstruction &instruction);
     void handle_log_op(TACInstruction &instruction, const std::string &op);
