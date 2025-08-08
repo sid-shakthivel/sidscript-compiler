@@ -458,3 +458,17 @@ void ArrayAccessNode::print(int tabs)
     array->print(tabs + 1);
     index->print(tabs + 1);
 }
+
+SizeOfNode::SizeOfNode(Type t) : ASTNode(NodeType::NODE_SIZE_OF), type(t) {}
+
+SizeOfNode::SizeOfNode(std::unique_ptr<VarNode> v) : ASTNode(NodeType::NODE_SIZE_OF), var(std::move(v)) {}
+
+void SizeOfNode::print(int tabs)
+{
+    std::cout << std::string(tabs, ' ') << "SizeOf: " << std::endl;
+
+    if (var)
+        std::cout << std::string(tabs + 1, ' ') << "Var: " << var->name << std::endl;
+    else
+        std::cout << std::string(tabs + 1, ' ') << "Type: " << type.to_string() << std::endl;
+}

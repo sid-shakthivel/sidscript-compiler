@@ -152,6 +152,11 @@ void TacGenerator::generate_tac(ASTNode *node)
         error("No handler for node type " + std::to_string((int)node->node_type));
 }
 
+void TacGenerator::error(const std::string &message)
+{
+    throw std::runtime_error("Tac Generator Error: " + message);
+}
+
 void TacGenerator::generate_tac_func(ASTNode *element)
 {
     FuncNode *func = (FuncNode *)element;
@@ -173,11 +178,6 @@ void TacGenerator::generate_tac_func(ASTNode *element)
     gst->leave_func_scope();
 }
 
-void TacGenerator::error(const std::string &message)
-{
-    throw std::runtime_error("Tac Generator Error: " + message);
-}
-
 void TacGenerator::generate_tac_rtn(ASTNode *element)
 {
     FuncSymbol *func = gst->get_func_symbol(gst->get_current_func());
@@ -195,54 +195,53 @@ void TacGenerator::generate_tac_var_decl(ASTNode *element)
     VarDeclNode *var_decl = (VarDeclNode *)element;
     Symbol *var_symbol = gst->get_symbol(var_decl->var->name);
 
-    if (var_decl->var->type.is_struct())
-    {
-        // Handle struct initialisation
-        if (var_decl->value != nullptr && var_decl->value->node_type == NodeType::NODE_COMPOUND_INIT)
-        {
-            CompoundLiteral *init = dynamic_cast<CompoundLiteral *>(var_decl->value.get());
-            instructions.emplace_back(TACOp::STRUCT_INIT, var_decl->var->name, "", "", var_decl->var->type);
-
-            size_t field_index = 0;
-            for (const auto &value : init->values)
-            {
-                std::string result = generate_tac_expr(value.get());
-                instructions.emplace_back(TACOp::MEMBER_ASSIGN,
-                                          var_decl->var->name,
-                                          var_decl->var->type.get_field_name(field_index),
-                                          result,
-                                          sem_analyser->infer_type(value.get()));
-                field_index++;
-            }
-        }
-        return;
-    }
+    std::string result = generate_tac_expr(var_decl->value.get(), var_decl->var->type);
+    TACInstruction instruction(TACOp::ASSIGN, var_decl->var->name, "", result, var_symbol->type);
 
     // Check if some sort of global/static
     if (var_symbol->linkage != Linkage::None || var_symbol->storage_duration == StorageDuration::Static)
     {
-        // Place in BSS if not initialised
-        if (var_decl->value == nullptr)
-        {
-            TACInstruction instruction(TACOp::ASSIGN, var_decl->var->name, "", "0", var_symbol->type);
-            instruction.arg3 = var_symbol->linkage == Linkage::External ? "global" : "";
-            bss_vars.emplace_back(instruction);
-        }
-        else
-        {
-            // Place in Data
-            std::string result = generate_tac_expr(var_decl->value.get(), var_decl->var->type);
-            TACInstruction instruction(TACOp::ASSIGN, var_decl->var->name, "", result, var_symbol->type);
-            instruction.arg3 = var_symbol->linkage == Linkage::External ? "global" : "";
+        instruction.arg3 = var_symbol->linkage == Linkage::External ? "global" : "";
+
+        // Place in BSS (if not initialised); otherwise Data
+        if (var_decl->value)
             data_vars.emplace_back(instruction);
-        }
+        else
+            bss_vars.emplace_back(instruction);
 
         return;
     }
 
-    // Only need to assign anything if initialised to a value otherwise ignore
-    if (var_decl->value == nullptr)
+    // Only carry on assigning if initialised to a value
+    if (!var_decl->value)
         return;
+
+    if (var_decl->node_type != NodeType::NODE_COMPOUND_INIT)
+    {
+        instructions.emplace_back(instruction);
+        return;
+    }
+
+    CompoundLiteral *array_init = dynamic_cast<CompoundLiteral *>(var_decl->value.get());
+
+    if (var_decl->var->type.is_struct())
+    {
+        instructions.emplace_back(TACOp::STRUCT_INIT, var_decl->var->name, "", "", var_decl->var->type);
+
+        size_t field_index = 0;
+        for (const auto &value : array_init->values)
+        {
+            std::string result = generate_tac_expr(value.get());
+            instructions.emplace_back(TACOp::MEMBER_ASSIGN,
+                                      var_decl->var->name,
+                                      var_decl->var->type.get_field_name(field_index),
+                                      result,
+                                      sem_analyser->infer_type(value.get()));
+            field_index++;
+        }
+
+        return;
+    }
 
     if (var_decl->var->type.is_array() && var_decl->var->type.has_base_type(BaseType::CHAR))
     {
@@ -253,24 +252,20 @@ void TacGenerator::generate_tac_var_decl(ASTNode *element)
 
         // Copy characters from string
         for (size_t i = 0; i < str_size; i++)
-        {
             instructions.emplace_back(TACOp::ASSIGN, var_decl->var->name,
                                       std::to_string(i), std::to_string(static_cast<int>(str->value[i])),
                                       Type(BaseType::CHAR));
-        }
 
         // Fill remaining space with null terminators if any
         for (size_t i = str_size; i < array_size; i++)
-        {
             instructions.emplace_back(TACOp::ASSIGN, var_decl->var->name,
                                       std::to_string(i), "0", Type(BaseType::CHAR));
-        }
 
         return;
     }
+
     if (var_decl->var->type.is_array())
     {
-        CompoundLiteral *array_init = dynamic_cast<CompoundLiteral *>(var_decl->value.get());
         int array_size = var_decl->var->type.get_array_size();
 
         for (size_t i = 0; i < array_init->values.size(); i++)
@@ -281,12 +276,7 @@ void TacGenerator::generate_tac_var_decl(ASTNode *element)
 
         for (size_t i = array_init->values.size(); i < array_size; i++)
             instructions.emplace_back(TACOp::ASSIGN, var_decl->var->name, std::to_string((i)), "0", var_symbol->type.get_base_type());
-
-        return;
     }
-
-    std::string result = generate_tac_expr(var_decl->value.get(), var_symbol->type);
-    instructions.emplace_back(TACOp::ASSIGN, var_decl->var->name, "", result, var_symbol->type);
 }
 
 void TacGenerator::generate_tac_var_assign(ASTNode *element)
@@ -629,9 +619,6 @@ std::string TacGenerator::generate_tac_expr(ASTNode *expr, Type type)
             return temp_var;
         }
 
-        // std::cout << "in unary: \n";
-        // unary->type.print();
-
         instructions.emplace_back(convert_UnaryOpType_to_TACOp(unary->op), result, "", temp_var, unary->type);
         return temp_var;
     }
@@ -764,7 +751,6 @@ std::string TacGenerator::generate_tac_expr(ASTNode *expr, Type type)
     }
     else if (expr->node_type == NodeType::NODE_COMPOUND_INIT)
     {
-        std::cout << "I bet you money it's right here somewhere?\n";
         CompoundLiteral *array_init = dynamic_cast<CompoundLiteral *>(expr);
 
         type = array_init->type;
@@ -786,6 +772,14 @@ std::string TacGenerator::generate_tac_expr(ASTNode *expr, Type type)
             instructions.emplace_back(TACOp::ASSIGN, temp_var, std::to_string(i), "0", type.get_base_type());
         }
 
+        return temp_var;
+    }
+    else if (expr->node_type == NodeType::NODE_SIZE_OF)
+    {
+        SizeOfNode *sizeof_node = (SizeOfNode *)expr;
+        std::string temp_var = gen_new_temp_var();
+        gst->declare_temp_var(temp_var, sizeof_node->type);
+        instructions.emplace_back(TACOp::ASSIGN, temp_var, "", std::to_string(sizeof_node->type.get_size()), BaseType::INT);
         return temp_var;
     }
 

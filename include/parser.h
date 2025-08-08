@@ -53,6 +53,7 @@ private:
     std::unique_ptr<ASTNode> parse_number_literal();
     std::unique_ptr<ASTNode> parse_lvalue(Specifier specifier = Specifier::NONE);
     std::unique_ptr<ASTNode> parse_struct_decl();
+    std::unique_ptr<ASTNode> parse_sizeof();
 
     int get_precedence(TokenType op);
     Type determine_type(std::vector<TokenType> &types);

@@ -55,13 +55,13 @@ void Parser::error(const std::string &message)
 void Parser::expect(TokenType token_type)
 {
     if (current_token.type != token_type)
-        error("Expected " + token_to_string(token_type));
+        error("Expected " + lexer->token_to_string(token_type));
 }
 
 void Parser::expect(std::vector<TokenType> &tokens)
 {
     if (!match(tokens))
-        error("Expected (multiple) " + token_to_string(tokens[0]));
+        error("Expected (multiple) " + lexer->token_to_string(tokens[0]));
 }
 
 void Parser::expect_and_advance(TokenType token_type)
@@ -553,7 +553,6 @@ std::unique_ptr<ASTNode> Parser::parse_factor()
     }
     else if (match(un_op_tokens))
     {
-        // std::cout << "is it here then\n";
         return parse_unary_operation();
     }
     else if (match(TOKEN_LPAREN))
@@ -596,6 +595,10 @@ std::unique_ptr<ASTNode> Parser::parse_factor()
         auto rtn = parse_compound_literal();
         retreat();
         return rtn;
+    }
+    else if (match(TOKEN_SIZEOF))
+    {
+        return parse_sizeof();
     }
     else
         error("Expected expression");
@@ -743,4 +746,27 @@ std::unique_ptr<ASTNode> Parser::parse_cast()
         error("Expected expression after cast");
 
     return std::make_unique<CastNode>(std::move(factor), type);
+}
+
+std::unique_ptr<ASTNode> Parser::parse_sizeof()
+{
+    expect_and_advance(TOKEN_SIZEOF);
+    expect_and_advance(TOKEN_LPAREN);
+
+    std::cout << current_token.text << " " << lexer->token_to_string(current_token.type) << std::endl;
+
+    std::unique_ptr<SizeOfNode> sizeof_node = nullptr;
+
+    if (match(TOKEN_IDENTIFIER))
+    {
+        std::string var_name = current_token.text;
+        advance();
+        sizeof_node = std::make_unique<SizeOfNode>(std::make_unique<VarNode>(var_name));
+    }
+    else
+        sizeof_node = std::make_unique<SizeOfNode>(parse_type());
+
+    expect(TOKEN_RPAREN);
+
+    return sizeof_node;
 }

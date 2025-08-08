@@ -70,6 +70,7 @@ enum TokenType
     TOKEN_DOT,
     TOKEN_TRUE,
     TOKEN_FALSE,
+    TOKEN_SIZEOF,
 };
 
 extern std::unordered_map<std::string, TokenType> string_to_token;
@@ -94,6 +95,8 @@ public:
     Token rewind(int iterations = 1);
     void print_all_tokens();
     void print_stack();
+
+    std::string token_to_string(TokenType token_type);
 
 private:
     std::string source;

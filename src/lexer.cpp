@@ -65,15 +65,8 @@ std::unordered_map<std::string, TokenType> string_to_token = {
     {"true", TOKEN_TRUE},
     {"false", TOKEN_FALSE},
     {"bool", TOKEN_BOOL},
-    {"identifier", TOKEN_IDENTIFIER}};
-
-std::string token_to_string(TokenType token_type)
-{
-    for (const auto &pair : string_to_token)
-        if (pair.second == token_type)
-            return pair.first;
-    return "Unknown (" + std::to_string(static_cast<int>(token_type)) + ")";
-}
+    {"identifier", TOKEN_IDENTIFIER},
+    {"sizeof", TOKEN_SIZEOF}};
 
 Lexer::Lexer(const std::string &src) : source(src), index(0) {}
 
@@ -347,4 +340,12 @@ void Lexer::print_stack()
         std::cout << "Index: " << state.index << ", Line: " << state.line << ", Char: " << source[state.index] << "\n";
         temp_stack.pop();
     }
+}
+
+std::string Lexer::token_to_string(TokenType token_type)
+{
+    for (const auto &pair : string_to_token)
+        if (pair.second == token_type)
+            return pair.first;
+    return "Unknown (" + std::to_string(static_cast<int>(token_type)) + ")";
 }

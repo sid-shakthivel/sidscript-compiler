@@ -633,6 +633,32 @@ Type SemanticAnalyser::infer_type(ASTNode *node)
 
         return array_symbol->type.get_base_type();
     }
+    case NodeType::NODE_SIZE_OF:
+    {
+        /*
+            SIZE_OF nodes have a default size of 4 (ints)
+            As presumably the size of things will not be too large
+
+            They can either be used for the following:
+            - Get size of a type ie int
+            - Get size of any variable ie 'a'
+            - This check could be moved as it's not strictly related to inferring types
+        */
+
+        SizeOfNode *size_of_node = (SizeOfNode *)node;
+
+        if (size_of_node->var)
+        {
+            auto var_node = (VarNode *)size_of_node->var.get();
+
+            auto rtn = gst->get_symbol(var_node->name);
+
+            if (rtn == nullptr)
+                error("Variable '" + ((VarNode *)node)->name + "' not defined");
+        }
+
+        return Type(BaseType::INT);
+    }
     default:
         error("Cannot infer type of node of type ");
     }

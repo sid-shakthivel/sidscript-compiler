@@ -1,10 +1,8 @@
+struct Nested { int a; double b; };
+
 fn main() -> int
 {
-    int a = 7;
-    int* ptr = &a;
-
-    int c = *ptr;
-
-    return c;
+    int a;
+    return sizeof(a);
 }
 

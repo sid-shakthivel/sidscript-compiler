@@ -59,7 +59,8 @@ enum class NodeType
     NODE_CHAR,
     NODE_STRING,
     NODE_STRUCT_DECL,
-    NODE_LOOP_CONTROL
+    NODE_LOOP_CONTROL,
+    NODE_SIZE_OF
 };
 
 inline std::string node_type_to_string(NodeType type)
@@ -110,6 +111,8 @@ inline std::string node_type_to_string(NodeType type)
         return "LOOP_CONTROL";
     case NodeType::NODE_BOOL:
         return "BOOL";
+    case NodeType::NODE_SIZE_OF:
+        return "SIZE_OF";
     default:
         return "UNKNOWN";
     }
@@ -432,5 +435,16 @@ public:
 
     ArrayAccessNode(std::unique_ptr<VarNode> arr, std::unique_ptr<ASTNode> idx);
 
+    void print(int tabs) override;
+};
+
+class SizeOfNode : public ASTNode
+{
+public:
+    Type type;
+    std::unique_ptr<VarNode> var;
+
+    SizeOfNode(Type t);
+    SizeOfNode(std::unique_ptr<VarNode> v);
     void print(int tabs) override;
 };
