@@ -122,6 +122,8 @@ void SemanticAnalyser::analyse_var_decl(ASTNode *node)
     }
 
     gst->declare_var(var_decl_node->var.get());
+
+    analyse_var(var_decl_node->var.get());
 }
 
 void SemanticAnalyser::analyse_compound_literal_init(ASTNode *node)
@@ -647,9 +649,20 @@ Type SemanticAnalyser::infer_type(ASTNode *node)
 
         SizeOfNode *size_of_node = (SizeOfNode *)node;
 
+        if (size_of_node->type.is_struct())
+        {
+            if (struct_table[size_of_node->type.get_struct_name()].empty())
+                error("Struct '" + size_of_node->type.get_struct_name() + "' not defined");
+
+            for (auto &member : struct_table[size_of_node->type.get_struct_name()])
+                size_of_node->type.add_field(member.first, member.second);
+        }
+
         if (size_of_node->var)
         {
             auto var_node = (VarNode *)size_of_node->var.get();
+
+            analyse_var(var_node);
 
             auto rtn = gst->get_symbol(var_node->name);
 

@@ -753,8 +753,6 @@ std::unique_ptr<ASTNode> Parser::parse_sizeof()
     expect_and_advance(TOKEN_SIZEOF);
     expect_and_advance(TOKEN_LPAREN);
 
-    std::cout << current_token.text << " " << lexer->token_to_string(current_token.type) << std::endl;
-
     std::unique_ptr<SizeOfNode> sizeof_node = nullptr;
 
     if (match(TOKEN_IDENTIFIER))

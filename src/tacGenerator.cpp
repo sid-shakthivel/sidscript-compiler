@@ -148,8 +148,8 @@ void TacGenerator::generate_tac(ASTNode *node)
     auto handler = handlers.find(node->node_type);
     if (handler != handlers.end())
         handler->second(node);
-    else
-        error("No handler for node type " + std::to_string((int)node->node_type));
+    // else
+    // error("No handler for node type " + node_type_to_string(node->node_type));
 }
 
 void TacGenerator::error(const std::string &message)
@@ -194,8 +194,8 @@ void TacGenerator::generate_tac_var_decl(ASTNode *element)
 {
     VarDeclNode *var_decl = (VarDeclNode *)element;
     Symbol *var_symbol = gst->get_symbol(var_decl->var->name);
-
     std::string result = generate_tac_expr(var_decl->value.get(), var_decl->var->type);
+
     TACInstruction instruction(TACOp::ASSIGN, var_decl->var->name, "", result, var_symbol->type);
 
     // Check if some sort of global/static
@@ -530,6 +530,9 @@ void TacGenerator::generate_tac_func_call(ASTNode *element)
 
 std::string TacGenerator::generate_tac_expr(ASTNode *expr, Type type)
 {
+    if (!expr)
+        return "";
+
     if (expr->node_type == NodeType::NODE_VAR)
     {
         return ((VarNode *)expr)->name;
@@ -777,9 +780,19 @@ std::string TacGenerator::generate_tac_expr(ASTNode *expr, Type type)
     else if (expr->node_type == NodeType::NODE_SIZE_OF)
     {
         SizeOfNode *sizeof_node = (SizeOfNode *)expr;
+
         std::string temp_var = gen_new_temp_var();
-        gst->declare_temp_var(temp_var, sizeof_node->type);
-        instructions.emplace_back(TACOp::ASSIGN, temp_var, "", std::to_string(sizeof_node->type.get_size()), BaseType::INT);
+        gst->declare_temp_var(temp_var, BaseType::INT);
+
+        if (sizeof_node->var)
+        {
+            instructions.emplace_back(TACOp::ASSIGN, temp_var, "", std::to_string(sizeof_node->var->type.get_size()), BaseType::INT);
+        }
+        else
+        {
+            instructions.emplace_back(TACOp::ASSIGN, temp_var, "", std::to_string(sizeof_node->type.get_size()), BaseType::INT);
+        }
+
         return temp_var;
     }
 
