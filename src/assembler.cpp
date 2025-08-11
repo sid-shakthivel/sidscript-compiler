@@ -105,9 +105,9 @@ void Assembler::load_to_reg(const std::string &operand, const char *reg, Type ty
 	}
 
 	// Case: src is a char pointer (e.g., char *str = "Hello")
-	if (sym->type.is_pointer() && sym->type.has_base_type(BaseType::CHAR))
+	if (sym->type.has_base_type(BaseType::CHAR) && (sym->type.is_pointer() || sym->type.is_array()))
 	{
-		fprintf(file, "\tleaq\t%s(%%rip), %s\n", arg2.c_str(), reg_name.c_str());
+		fprintf(file, "\tleaq\t_%s(%%rip), %s\n", operand.c_str(), reg_name.c_str());
 		return;
 	}
 
@@ -408,7 +408,7 @@ void Assembler::handle_mov(TACInstruction &instruction)
 	if (!arg2.empty() && arg2[0] == '$')
 		arg2.erase(0, 1);
 
-	fprintf(file, "\t%s\t%s, %s\n", mov.c_str(), arg1.c_str(), arg2.c_str());
+	fprintf(file, "\t%s\t%s, %s\n\n", mov.c_str(), arg1.c_str(), arg2.c_str());
 }
 
 void Assembler::handle_nop(TACInstruction &instruction)
@@ -851,7 +851,7 @@ std::string Assembler::format_instr(std::string instr, Type type)
 	default:
 		std::cerr << "Assembler Error: Invalid type size for " << instr << ": " << type.get_size() << std::endl;
 		type.print();
-		return "";
+		return instr + "l";
 	}
 }
 
@@ -901,7 +901,7 @@ std::string Assembler::get_reg_name(const char *base_reg, Type type)
 	default:
 		std::cerr << "Invalid type size for register: " << type.get_size() << std::endl;
 		type.print();
-		return reg_name;
+		return reg_name + "d";
 	}
 }
 
@@ -913,7 +913,9 @@ std::string Assembler::format_memory_ref(const std::string &sym_name)
 		return "$" + sym_name;
 
 	if (sym->has_static_sd() || sym->is_literal8)
+	{
 		return "_" + sym->name + "(%rip)";
+	}
 	else
 		return std::to_string(sym->stack_offset) + "(%rbp)";
 }

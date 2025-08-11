@@ -101,6 +101,7 @@ private:
     std::unordered_map<NodeType, std::function<void(ASTNode *)>> handlers;
 
     std::array<std::string, 6> registers = {"%edi", "%esi", "%edx", "%ecx", "%r8", "%r9"};
+    std::array<std::string, 6> x64_registers = {"%rdi", "%rsi", "%rdx", "%rcx", "%r8", "%r9"};
 
     int tempCounter = 0;
     int labelCounter = 0;
@@ -122,6 +123,8 @@ private:
     void generate_tac_loop_ctrl(ASTNode *element);
     void generate_tac_postfix(ASTNode *element);
     void generate_tac_func_call(ASTNode *element);
+
+    void generate_tac_var_array_assign(VarNode *var_node, Symbol *var_symbol, ASTNode* value);
 
     void error(const std::string &message);
 

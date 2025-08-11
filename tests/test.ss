@@ -1,7 +1,11 @@
-struct Nested { int a; double b; };
-
 fn main() -> int
 {
-    return sizeof(struct Nested);
+    int i = 5;
+    int j = 4;
+    if (i < 10 && j >= 4)
+    {
+        return 9;
+    }
+    return 3;
 }
 

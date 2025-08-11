@@ -191,6 +191,12 @@ bool Type::can_assign_from(const Type &other) const
     if (*this == other)
         return true;
 
+    // Allow for Array to pointer decay (for strings)
+    if (is_pointer() && other.is_array())
+    {
+        return base_type == other.base_type;
+    }
+
     if (is_pointer())
     {
         if (other.is_pointer())
