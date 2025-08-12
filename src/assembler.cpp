@@ -210,7 +210,7 @@ void Assembler::handle_func_begin(TACInstruction &instruction)
 void Assembler::handle_func_end(TACInstruction &instruction)
 {
 	std::string current_func = gst->get_current_func();
-	fprintf(file, "\n.L%s_end: # %s", current_func.c_str(), TacGenerator::gen_tac_str(instruction).c_str());
+	fprintf(file, ".L%s_end: # %s", current_func.c_str(), TacGenerator::gen_tac_str(instruction).c_str());
 	int stack_space = gst->get_func_st(current_func)->get_stack_size();
 	fprintf(file, "\taddq\t$%d, %%rsp\n", stack_space);
 	fprintf(file, "\tpopq\t%%rbp\n");
@@ -303,7 +303,7 @@ void Assembler::handle_return(TACInstruction &instruction)
 	if (instruction.arg1 != "")
 		load_to_reg(instruction.arg1, reg.c_str(), instruction.type);
 
-	fprintf(file, "\tjmp\t.L%s_end\n", gst->get_current_func().c_str());
+	fprintf(file, "\tjmp\t.L%s_end\n\n", gst->get_current_func().c_str());
 }
 
 void Assembler::handle_bin_op(TACInstruction &instruction, const std::string &op)
@@ -365,26 +365,24 @@ void Assembler::handle_if(TACInstruction &instruction)
 	comment_instruction(instruction);
 
 	Symbol *sym = gst->get_symbol(instruction.arg1);
+
 	std::string cmp_text = get_cmp_instruction(instruction.type);
+	std::string jmp = get_conditional_jump(instruction.cmp_op, instruction.type);
 
-	fprintf(file, "\t%s\t$0, %s\n", cmp_text.c_str(), format_memory_ref(instruction.arg1).c_str());
+	fprintf(file, "\t%s\t%s, %s\n", cmp_text.c_str(), format_memory_ref(instruction.arg2).c_str(), format_memory_ref(instruction.arg1).c_str());
 
-	if (instruction.type.has_base_type(BaseType::DOUBLE))
-		fprintf(file, "\tjb\t%s\n", instruction.result.c_str());
-	else if (!instruction.type.is_signed())
-		fprintf(file, "\tjne\t%s\n", instruction.result.c_str());
-	else
-		fprintf(file, "\tjg\t%s\n", instruction.result.c_str());
+	fprintf(file, "\t%s\t%s\n\n", jmp.c_str(), instruction.result.c_str());
 }
 
 void Assembler::handle_goto(TACInstruction &instruction)
 {
-	fprintf(file, "\tjmp\t%s # %s\n", instruction.result.c_str(), TacGenerator::gen_tac_str(instruction).c_str());
+	comment_instruction(instruction);
+	fprintf(file, "\tjmp\t%s\n\n", instruction.result.c_str());
 }
 
 void Assembler::handle_label(TACInstruction &instruction)
 {
-	fprintf(file, "\n%s: # %s\n", instruction.arg1.c_str(), TacGenerator::gen_tac_str(instruction).c_str());
+	fprintf(file, "%s: # %s\n", instruction.arg1.c_str(), TacGenerator::gen_tac_str(instruction).c_str());
 }
 
 void Assembler::handle_call(TACInstruction &instruction)
@@ -918,6 +916,28 @@ std::string Assembler::format_memory_ref(const std::string &sym_name)
 	}
 	else
 		return std::to_string(sym->stack_offset) + "(%rbp)";
+}
+
+std::string Assembler::get_conditional_jump(BinOpType op, Type type)
+{
+
+	switch (op)
+	{
+	case BinOpType::EQUAL:
+		return "je";
+	case BinOpType::NOT_EQUAL:
+		return "jne";
+	case BinOpType::LESS_THAN:
+		return type.is_signed() ? "jl" : "jb";
+	case BinOpType::GREATER_THAN:
+		return type.is_signed() ? "jg" : "ja";
+	case BinOpType::LESS_OR_EQUAL:
+		return type.is_signed() ? "jle" : "jbe";
+	case BinOpType::GREATER_OR_EQUAL:
+		return type.is_signed() ? "jge" : "jae";
+	default:
+		throw std::runtime_error("No conditional jump for this BinOpType");
+	}
 }
 
 void Assembler::comment_instruction(TACInstruction &instr)

@@ -294,49 +294,16 @@ void TacGenerator::generate_tac_if(ASTNode *element)
 {
     IfNode *if_stmt = (IfNode *)element;
 
-    std::string condition_res = generate_tac_expr(if_stmt->condition.get());
     std::string label_success = gen_new_label();
     std::string label_failure = gen_new_label();
 
-    TACInstruction if_instruction(TACOp::IF, condition_res, "", label_success);
+    // Actually generate TAC comparison code
+    generate_tac_cmp(if_stmt->condition.get(), label_success, label_failure);
 
-    if (if_stmt->condition->node_type == NodeType::NODE_BINARY)
-    {
-        // For conditions like: if (a == 5)
-        BinaryNode *bin_condition = dynamic_cast<BinaryNode *>(if_stmt->condition.get());
-        TACInstruction if_instruction(TACOp::IF, condition_res, "", label_success, bin_condition->type);
-        if_instruction.op2 = convert_BinOpType_to_TACOp(bin_condition->op);
-        instructions.emplace_back(if_instruction);
-    }
-    else if (if_stmt->condition->node_type == NodeType::NODE_BOOL)
-    {
-        // For conditions like: if (true)
-        BoolLiteral *bool_condition = dynamic_cast<BoolLiteral *>(if_stmt->condition.get());
-        if (bool_condition->value)
-        {
-            // If true, just fall through to the then block
-            instructions.emplace_back(TACOp::GOTO, "", "", label_success);
-        }
-        else
-        {
-            // If false, skip to the end
-            instructions.emplace_back(TACOp::GOTO, "", "", label_failure);
-        }
-    }
-    else if (if_stmt->condition->node_type == NodeType::NODE_UNARY)
-    {
-        UnaryNode *unary_condition = dynamic_cast<UnaryNode *>(if_stmt->condition.get());
-        instructions.emplace_back(TACOp::IF, condition_res, "", label_success, Type(BaseType::BOOL));
-        if_instruction.op2 = convert_BinOpType_to_TACOp(BinOpType::NOT_EQUAL);
-    }
-    else
-    {
-        // For conditions like: if (a)
-        instructions.emplace_back(TACOp::IF, condition_res, "", label_success, Type(BaseType::BOOL));
-        if_instruction.op2 = convert_BinOpType_to_TACOp(BinOpType::EQUAL);
-    }
-
-    // Skip then block if condition is false
+    /*
+        Previous TAC will jump to "then block" if condition is true
+        If condition is false, jump to "else block"/next bit of code if not present
+    */
     instructions.emplace_back(TACOp::GOTO, "", "", label_failure);
 
     // Then block
@@ -344,16 +311,26 @@ void TacGenerator::generate_tac_if(ASTNode *element)
     for (auto &element : if_stmt->then_elements)
         generate_tac(element.get());
 
-    instructions.emplace_back(TACOp::LABEL, label_failure);
-
-    if (!if_stmt->else_elements.empty())
+    if (if_stmt->else_elements.empty())
     {
+        // No else block, jump to end of "if block"
+        instructions.emplace_back(TACOp::LABEL, label_failure);
+    }
+    else
+    {
+        /*
+            Recall we're still in the "then block"
+            Therefore jump straight to the end of the entire "if block"
+        */
         std::string label_else_end = gen_new_label("else_end");
         instructions.emplace_back(TACOp::GOTO, "", "", label_else_end);
 
+        // Else block
+        instructions.emplace_back(TACOp::LABEL, label_failure);
         for (auto &element : if_stmt->else_elements)
             generate_tac(element.get());
 
+        // End of entire "if block"
         instructions.emplace_back(TACOp::LABEL, label_else_end);
     }
 }
@@ -377,7 +354,7 @@ void TacGenerator::generate_tac_while(ASTNode *element)
         bin_condition->op = switch_condition(bin_condition);
         condition_res = generate_tac_expr(while_stmt->condition.get());
         TACInstruction if_instruction(TACOp::IF, condition_res, "", end, bin_condition->type);
-        if_instruction.op2 = convert_BinOpType_to_TACOp(bin_condition->op);
+        if_instruction.cmp_op = bin_condition->op;
         instructions.emplace_back(if_instruction);
     }
     else if (while_stmt->condition->node_type == NodeType::NODE_BOOL)
@@ -451,7 +428,7 @@ void TacGenerator::generate_tac_for(ASTNode *element)
     std::string condition_res = generate_tac_expr(for_stmt->condition.get());
 
     TACInstruction if_instruction(TACOp::IF, condition_res, "", end);
-    if_instruction.op2 = convert_BinOpType_to_TACOp(for_stmt->condition->op);
+    if_instruction.cmp_op = for_stmt->condition->op;
     instructions.emplace_back(if_instruction);
 
     instructions.emplace_back(TACOp::NOP);
@@ -771,6 +748,87 @@ void TacGenerator::generate_tac_var_array_assign(VarNode *var_node, Symbol *var_
     for (size_t i = elements.size(); i < (size_t)array_size; i++)
         instructions.emplace_back(TACOp::ASSIGN, var_node->name,
                                   std::to_string(i), "0", Type(base_type));
+}
+
+void TacGenerator::generate_tac_cmp(ASTNode *condition, const std::string &label_success,
+                                    const std::string &label_failure)
+{
+    /*
+        The cases which should be supported include:
+        - Binary comparisons ie
+            - a < b / a <= b
+            - a < b && a < c / a < b || a < c (short circuiting/recursion is needed)
+        - Unary comparisons ie
+            - !a
+        - Boolean comparisons ie
+            - true, false
+        - Variable comparions ie
+            - a
+    */
+
+    switch (condition->node_type)
+    {
+    case NodeType::NODE_BINARY:
+    {
+        BinaryNode *bin = dynamic_cast<BinaryNode *>(condition);
+
+        if (bin->op == BinOpType::AND)
+        {
+            std::string go_next_cond = gen_new_label();
+
+            generate_tac_cmp(bin->left.get(), go_next_cond, label_failure);
+            instructions.emplace_back(TACOp::LABEL, go_next_cond);
+            generate_tac_cmp(bin->right.get(), label_success, label_failure);
+
+            break;
+        }
+
+        if (bin->op == BinOpType::OR)
+        {
+            std::string go_next_cond = gen_new_label();
+
+            generate_tac_cmp(bin->left.get(), label_success, go_next_cond);
+            instructions.emplace_back(TACOp::LABEL, go_next_cond);
+            generate_tac_cmp(bin->right.get(), label_success, label_failure);
+
+            break;
+        }
+
+        TACInstruction if_instruction(TACOp::IF, generate_tac_expr(bin->left.get()), generate_tac_expr(bin->right.get()), label_success, bin->type);
+        if_instruction.cmp_op = bin->op;
+        instructions.emplace_back(if_instruction);
+        break;
+    }
+    case NodeType::NODE_BOOL:
+    {
+        BoolLiteral *bool_node = (BoolLiteral *)condition;
+        if (bool_node->value)
+            instructions.emplace_back(TACOp::GOTO, label_success);
+        else
+            instructions.emplace_back(TACOp::GOTO, label_failure);
+        break;
+    }
+    case NodeType::NODE_VAR:
+    {
+        VarNode *var_node = (VarNode *)condition;
+        TACInstruction if_instruction(TACOp::IF, var_node->name, "1", label_success, var_node->type);
+        if_instruction.cmp_op = BinOpType::EQUAL;
+        instructions.emplace_back(if_instruction);
+        break;
+    }
+    case NodeType::NODE_UNARY:
+    {
+        UnaryNode *unary_node = (UnaryNode *)condition;
+        TACInstruction if_instruction(TACOp::IF, generate_tac_expr(unary_node->value.get()), "1", label_success, unary_node->type);
+        if_instruction.cmp_op = BinOpType::NOT_EQUAL;
+        instructions.emplace_back(if_instruction);
+        break;
+    }
+    default:
+    {
+        error("Invalid condition type (for now)");
+    }
+    }
 }
 
 void TacGenerator::print_all_tac()

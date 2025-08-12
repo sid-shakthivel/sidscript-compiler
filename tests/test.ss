@@ -1,10 +1,10 @@
 fn main() -> int
 {
-    int i = 5;
-    int j = 4;
-    if (i < 10 && j >= 4)
+    int a = 5;
+    int b = 3;
+    if (a < 8 && b > 3)
     {
-        return 9;
+        return 5;
     }
     return 3;
 }

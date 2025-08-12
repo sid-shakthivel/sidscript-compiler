@@ -69,12 +69,12 @@ struct TACInstruction
     std::string result; // Result variable or temporary
     Type type;
 
-    TACOp op2;        // Optional argument
+    BinOpType cmp_op; // Optional argument
     std::string arg3; // Another optional argument
 
     TACInstruction(TACOp op, const std::string &arg1 = "",
                    const std::string &arg2 = "", const std::string &result = "", Type type = Type(BaseType::VOID))
-        : op(op), arg1(arg1), arg2(arg2), result(result), op2(TACOp::NOP), type(type), arg3{""} {}
+        : op(op), arg1(arg1), arg2(arg2), result(result), cmp_op(BinOpType::EQUAL), type(type), arg3{""} {}
 };
 
 class TacGenerator
@@ -124,7 +124,9 @@ private:
     void generate_tac_postfix(ASTNode *element);
     void generate_tac_func_call(ASTNode *element);
 
-    void generate_tac_var_array_assign(VarNode *var_node, Symbol *var_symbol, ASTNode* value);
+    void generate_tac_var_array_assign(VarNode *var_node, Symbol *var_symbol, ASTNode *value);
+    void generate_tac_cmp(ASTNode *condition, const std::string &label_success,
+                          const std::string &label_failure);
 
     void error(const std::string &message);
 

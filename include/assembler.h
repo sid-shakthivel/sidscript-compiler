@@ -81,6 +81,8 @@ private:
     void handle_literal8_assign(TACInstruction &instruction);
     void handle_str_assign(TACInstruction &instruction);
 
+    std::string get_conditional_jump(BinOpType op, Type type);
+
     void comment_instruction(TACInstruction &instr);
     std::string double_to_hex(double value);
     void error(const std::string &message);
