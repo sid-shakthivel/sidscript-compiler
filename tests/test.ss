@@ -1,11 +1,10 @@
 fn main() -> int
 {
-    int a = 5;
-    int b = 3;
-    if (a < 8 && b > 3)
+    int i = 0;
+    while (i < 5)
     {
-        return 5;
+        i = i + 1;
     }
-    return 3;
+    return i;
 }
 

@@ -6,27 +6,6 @@
 #define REGISTER_HANDLER(nodeType, fn) \
     handlers[NodeType::nodeType] = [this](ASTNode *node) { fn(node); };
 
-auto switch_condition = [](BinaryNode *node) -> BinOpType
-{
-    switch (node->op)
-    {
-    case BinOpType::EQUAL:
-        return BinOpType::NOT_EQUAL;
-    case BinOpType::NOT_EQUAL:
-        return BinOpType::EQUAL;
-    case BinOpType::LESS_THAN:
-        return BinOpType::GREATER_OR_EQUAL;
-    case BinOpType::LESS_OR_EQUAL:
-        return BinOpType::GREATER_THAN;
-    case BinOpType::GREATER_THAN:
-        return BinOpType::LESS_OR_EQUAL;
-    case BinOpType::GREATER_OR_EQUAL:
-        return BinOpType::LESS_THAN;
-    default:
-        return node->op;
-    }
-};
-
 TACOp convert_BinOpType_to_TACOp(BinOpType op)
 {
     switch (op)
@@ -297,7 +276,7 @@ void TacGenerator::generate_tac_if(ASTNode *element)
     std::string label_success = gen_new_label();
     std::string label_failure = gen_new_label();
 
-    // Actually generate TAC comparison code
+    // Generate TAC comparison code
     generate_tac_cmp(if_stmt->condition.get(), label_success, label_failure);
 
     /*
@@ -339,77 +318,31 @@ void TacGenerator::generate_tac_while(ASTNode *element)
 {
     WhileNode *while_stmt = (WhileNode *)element;
 
-    std::string start = while_stmt->label + "_start";
-    std::string post = while_stmt->label + "_post";
-    std::string end = while_stmt->label + "_end";
+    std::string label_start = while_stmt->label + "_start";
+    std::string label_body = while_stmt->label + "_body";
+    std::string label_end = while_stmt->label + "_end";
 
-    instructions.emplace_back(TACOp::LABEL, start);
+    instructions.emplace_back(TACOp::LABEL, label_start);
 
-    std::string condition_res = generate_tac_expr(while_stmt->condition.get());
+    // Generate CMP
+    generate_tac_cmp(while_stmt->condition.get(), label_body, label_end);
 
-    if (while_stmt->condition->node_type == NodeType::NODE_BINARY)
-    {
-        // For conditions like: while (a == 5)
-        BinaryNode *bin_condition = dynamic_cast<BinaryNode *>(while_stmt->condition.get());
-        bin_condition->op = switch_condition(bin_condition);
-        condition_res = generate_tac_expr(while_stmt->condition.get());
-        TACInstruction if_instruction(TACOp::IF, condition_res, "", end, bin_condition->type);
-        if_instruction.cmp_op = bin_condition->op;
-        instructions.emplace_back(if_instruction);
-    }
-    else if (while_stmt->condition->node_type == NodeType::NODE_BOOL)
-    {
-        // For conditions like: while (true)
-        BoolLiteral *bool_condition = dynamic_cast<BoolLiteral *>(while_stmt->condition.get());
-        if (!bool_condition->value)
-        {
-            // If false, skip the loop entirely
-            instructions.emplace_back(TACOp::GOTO, "", "", end);
-        }
-        // If true, just fall through to the loop body
-    }
-    else if (while_stmt->condition->node_type == NodeType::NODE_UNARY)
-    {
-        // For conditions like: while (!a)
-        UnaryNode *unary_condition = dynamic_cast<UnaryNode *>(while_stmt->condition.get());
+    /*
+        Previous TAC will jump to "while block" if condition is true
+        If condition is false, jump to end of while
+    */
+    instructions.emplace_back(TACOp::GOTO, "", "", label_end);
 
-        if (unary_condition->op != UnaryOpType::NOT)
-            error("Unsupported condition in while statement");
-
-        std::string temp_var = gen_new_temp_var();
-        gst->declare_temp_var(temp_var, unary_condition->type);
-
-        instructions.emplace_back(TACOp::NOT_EQUAL, condition_res, "1", temp_var, unary_condition->type);
-
-        TACInstruction if_instruction(TACOp::IF, temp_var, "", end, unary_condition->type);
-        instructions.emplace_back(if_instruction);
-    }
-    else if (while_stmt->condition->node_type == NodeType::NODE_VAR)
-    {
-        // For conditions like: while (a)
-        VarNode *var_condition = dynamic_cast<VarNode *>(while_stmt->condition.get());
-
-        std::string temp_var = gen_new_temp_var();
-        gst->declare_temp_var(temp_var, var_condition->type);
-
-        instructions.emplace_back(TACOp::EQUAL, condition_res, "0", temp_var, var_condition->type);
-
-        TACInstruction if_instruction(TACOp::IF, temp_var, "", end, var_condition->type);
-        instructions.emplace_back(if_instruction);
-    }
-    else
-    {
-        error("Unknown while condition");
-    }
-
+    // While block
+    instructions.emplace_back(TACOp::LABEL, label_body);
     for (auto &element : while_stmt->elements)
         generate_tac(element.get());
 
-    instructions.emplace_back(TACOp::LABEL, post);
-    instructions.emplace_back(TACOp::GOTO, "", "", start);
+    // Go back to start of while loop (to check condition)
+    instructions.emplace_back(TACOp::GOTO, "", "", label_start);
 
     instructions.emplace_back(TACOp::NOP);
-    instructions.emplace_back(TACOp::LABEL, end);
+    instructions.emplace_back(TACOp::LABEL, label_end);
 }
 
 void TacGenerator::generate_tac_for(ASTNode *element)
@@ -418,31 +351,25 @@ void TacGenerator::generate_tac_for(ASTNode *element)
 
     generate_tac(for_stmt->init.get());
 
-    std::string start = for_stmt->label + "_start";
-    std::string post = for_stmt->label + "_post";
-    std::string end = for_stmt->label + "_end";
+    std::string label_start = for_stmt->label + "_start";
+    std::string label_body = for_stmt->label + "_body";
+    std::string label_post = for_stmt->label + "_post";
+    std::string label_end = for_stmt->label + "_end";
 
-    instructions.emplace_back(TACOp::LABEL, start);
+    instructions.emplace_back(TACOp::LABEL, label_start);
 
-    for_stmt->condition->op = switch_condition(for_stmt->condition.get());
-    std::string condition_res = generate_tac_expr(for_stmt->condition.get());
+    generate_tac_cmp(for_stmt->condition.get(), label_body, label_end);
 
-    TACInstruction if_instruction(TACOp::IF, condition_res, "", end);
-    if_instruction.cmp_op = for_stmt->condition->op;
-    instructions.emplace_back(if_instruction);
-
-    instructions.emplace_back(TACOp::NOP);
-
+    // For block
     for (auto &element : for_stmt->elements)
         generate_tac(element.get());
 
-    instructions.emplace_back(TACOp::LABEL, post);
+    instructions.emplace_back(TACOp::LABEL, label_post);
     generate_tac(for_stmt->post.get());
-    instructions.emplace_back(TACOp::GOTO, "", "", start);
 
-    instructions.emplace_back(TACOp::NOP);
+    instructions.emplace_back(TACOp::GOTO, "", "", label_start);
 
-    instructions.emplace_back(TACOp::LABEL, end);
+    instructions.emplace_back(TACOp::LABEL, label_end);
 }
 
 void TacGenerator::generate_tac_loop_ctrl(ASTNode *element)

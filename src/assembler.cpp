@@ -312,7 +312,7 @@ void Assembler::handle_bin_op(TACInstruction &instruction, const std::string &op
 
 	std::string reg = get_reg_name("%r10", instruction.type);
 
-	load_to_reg(instruction.arg1, reg.c_str(), instruction.type);
+	load_to_reg(instruction.arg1, "%r10", instruction.type);
 
 	if (instruction.type.has_base_type(BaseType::DOUBLE))
 		load_to_reg(instruction.arg2, "%xmm1", instruction.type);
@@ -325,7 +325,7 @@ void Assembler::handle_bin_op(TACInstruction &instruction, const std::string &op
 	else
 		fprintf(file, "\t%s\t%s, %s\n", instr.c_str(), format_memory_ref(instruction.arg2).c_str(), reg.c_str());
 
-	store_from_reg(instruction.result, reg.c_str(), instruction.type);
+	store_from_reg(instruction.result, "%r10", instruction.type);
 
 	fprintf(file, "\n");
 }
