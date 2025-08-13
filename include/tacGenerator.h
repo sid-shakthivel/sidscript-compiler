@@ -51,7 +51,6 @@ enum class TACOp
     CONVERT_TYPE,
     DEREF,
     ADDR_OF,
-    STORE_ARRAY,
     PRINTF,
     STRUCT_INIT,
     MEMBER_ACCESS,
@@ -99,6 +98,7 @@ private:
     std::vector<TACInstruction> str_vars;
 
     std::unordered_map<NodeType, std::function<void(ASTNode *)>> handlers;
+    std::unordered_map<NodeType, std::function<std::string(ASTNode *)>> expr_handlers;
 
     std::array<std::string, 6> registers = {"%edi", "%esi", "%edx", "%ecx", "%r8", "%r9"};
     std::array<std::string, 6> x64_registers = {"%rdi", "%rsi", "%rdx", "%rcx", "%r8", "%r9"};
@@ -124,11 +124,23 @@ private:
     void generate_tac_postfix(ASTNode *element);
     void generate_tac_func_call(ASTNode *element);
 
+    std::string generate_tac_expr(ASTNode *expr);
+    std::string generate_tac_expr_var(ASTNode *expr);
+    std::string generate_tac_expr_bool(ASTNode *expr);
+    std::string generate_tac_expr_cast(ASTNode *expr);
+    std::string generate_tac_expr_number(ASTNode *expr);
+    std::string generate_tac_expr_char(ASTNode *expr);
+    std::string generate_tac_expr_string(ASTNode *expr);
+    std::string generate_tac_expr_unary(ASTNode *expr);
+    std::string generate_tac_expr_binary(ASTNode *expr);
+    std::string generate_tac_expr_postfix(ASTNode *expr);
+    std::string generate_tac_expr_array_access(ASTNode *expr);
+    std::string generate_tac_expr_func_call(ASTNode *expr);
+    std::string generate_tac_expr_size_of(ASTNode *expr);
+
     void generate_tac_var_array_assign(VarNode *var_node, Symbol *var_symbol, ASTNode *value);
     void generate_tac_cmp(ASTNode *condition, const std::string &label_success,
                           const std::string &label_failure);
 
     void error(const std::string &message);
-
-    std::string generate_tac_expr(ASTNode *expr, Type type = Type(BaseType::VOID));
 };

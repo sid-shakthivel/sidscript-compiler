@@ -1,10 +1,7 @@
 fn main() -> int
 {
-    int i = 0;
-    while (i < 5)
-    {
-        i = i + 1;
-    }
-    return i;
+    int arr[3] = {1, 2, 3};
+    int test = arr[1] + 1;
+    return test;
 }
 

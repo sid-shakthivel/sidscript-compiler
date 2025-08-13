@@ -107,7 +107,7 @@ void Assembler::load_to_reg(const std::string &operand, const char *reg, Type ty
 	// Case: src is a char pointer (e.g., char *str = "Hello")
 	if (sym->type.has_base_type(BaseType::CHAR) && (sym->type.is_pointer() || sym->type.is_array()))
 	{
-		fprintf(file, "\tleaq\t_%s(%%rip), %s\n", operand.c_str(), reg_name.c_str());
+		fprintf(file, "\tleaq\t_%s(%%rip), %s\n", operand.c_str(), reg);
 		return;
 	}
 
@@ -119,7 +119,7 @@ void Assembler::load_to_reg(const std::string &operand, const char *reg, Type ty
 				Case: array-to-pointer decay (get address of array start)
 				(e.g, int* p = array;)
 			*/
-			fprintf(file, "\tleaq\t%d(%%rbp), %s\n", sym->stack_offset, reg_name.c_str());
+			fprintf(file, "\tleaq\t%d(%%rbp), %s\n", sym->stack_offset, reg);
 		}
 		else
 		{
@@ -243,7 +243,6 @@ void Assembler::handle_text_assign(TACInstruction &instruction)
 	Symbol *src = gst->get_symbol(instruction.result);
 
 	load_to_reg(instruction.result, "%r10", instruction.type, instruction.arg2);
-
 	store_from_reg(instruction.arg1, "%r10", instruction.type, instruction.arg2);
 
 	fprintf(file, "\n");
@@ -301,7 +300,7 @@ void Assembler::handle_return(TACInstruction &instruction)
 
 	// Optionally load the return value into rax/eax
 	if (instruction.arg1 != "")
-		load_to_reg(instruction.arg1, reg.c_str(), instruction.type);
+		load_to_reg(instruction.arg1, reg.c_str(), instruction.type, instruction.arg2);
 
 	fprintf(file, "\tjmp\t.L%s_end\n\n", gst->get_current_func().c_str());
 }

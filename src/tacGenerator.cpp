@@ -6,6 +6,9 @@
 #define REGISTER_HANDLER(nodeType, fn) \
     handlers[NodeType::nodeType] = [this](ASTNode *node) { fn(node); };
 
+#define REGISTER_EXPR_HANDLER(nodeType, fn) \
+    expr_handlers[NodeType::nodeType] = [this](ASTNode *node) { return fn(node); };
+
 TACOp convert_BinOpType_to_TACOp(BinOpType op)
 {
     switch (op)
@@ -62,7 +65,7 @@ TACOp convert_UnaryOpType_to_TACOp(UnaryOpType op)
 
 TacGenerator::TacGenerator(std::shared_ptr<GlobalSymbolTable> gst, std::shared_ptr<SemanticAnalyser> sem_analyser) : gst(gst), sem_analyser(sem_analyser)
 {
-    // Register all handlers
+    // Register main handlers
     REGISTER_HANDLER(NODE_FUNCTION, generate_tac_func);
     REGISTER_HANDLER(NODE_RETURN, generate_tac_rtn);
     REGISTER_HANDLER(NODE_VAR_DECL, generate_tac_var_decl);
@@ -73,6 +76,20 @@ TacGenerator::TacGenerator(std::shared_ptr<GlobalSymbolTable> gst, std::shared_p
     REGISTER_HANDLER(NODE_LOOP_CONTROL, generate_tac_loop_ctrl);
     REGISTER_HANDLER(NODE_POSTFIX, generate_tac_postfix);
     REGISTER_HANDLER(NODE_FUNC_CALL, generate_tac_func_call);
+
+    // Register expr handlers
+    REGISTER_EXPR_HANDLER(NODE_VAR, generate_tac_expr_var);
+    REGISTER_EXPR_HANDLER(NODE_BOOL, generate_tac_expr_bool);
+    REGISTER_EXPR_HANDLER(NODE_CAST, generate_tac_expr_cast);
+    REGISTER_EXPR_HANDLER(NODE_NUMBER, generate_tac_expr_number);
+    REGISTER_EXPR_HANDLER(NODE_CHAR, generate_tac_expr_char);
+    REGISTER_EXPR_HANDLER(NODE_STRING, generate_tac_expr_string);
+    REGISTER_EXPR_HANDLER(NODE_UNARY, generate_tac_expr_unary);
+    REGISTER_EXPR_HANDLER(NODE_BINARY, generate_tac_expr_binary);
+    REGISTER_EXPR_HANDLER(NODE_POSTFIX, generate_tac_expr_postfix);
+    REGISTER_EXPR_HANDLER(NODE_ARRAY_ACCESS, generate_tac_expr_array_access);
+    REGISTER_EXPR_HANDLER(NODE_FUNC_CALL, generate_tac_expr_func_call);
+    REGISTER_EXPR_HANDLER(NODE_SIZE_OF, generate_tac_expr_size_of);
 }
 
 std::string TacGenerator::gen_new_temp_var()
@@ -177,7 +194,7 @@ void TacGenerator::generate_tac_var_decl(ASTNode *element)
     if (var_decl->var->type.is_array())
         return generate_tac_var_array_assign(var_decl->var.get(), var_symbol, var_decl->value.get());
 
-    std::string result = generate_tac_expr(var_decl->value.get(), var_decl->var->type);
+    std::string result = generate_tac_expr(var_decl->value.get());
     TACInstruction instruction(TACOp::ASSIGN, var_decl->var->name, "", result, var_symbol->type);
 
     // Check if some sort of global/static
@@ -233,14 +250,14 @@ void TacGenerator::generate_tac_var_assign(ASTNode *element)
         if (var->type.is_array())
             return generate_tac_var_array_assign(var, var_symbol, var_assign->value.get());
 
-        std::string result = generate_tac_expr(var_assign->value.get(), var_symbol->type);
+        std::string result = generate_tac_expr(var_assign->value.get());
         instructions.emplace_back(TACOp::ASSIGN, var->name, "", result, var_symbol->type);
     }
     else if (var_assign->var->node_type == NodeType::NODE_ARRAY_ACCESS)
     {
         ArrayAccessNode *array_access = (ArrayAccessNode *)var_assign->var.get();
 
-        std::string result = generate_tac_expr(var_assign->value.get(), array_access->type);
+        std::string result = generate_tac_expr(var_assign->value.get());
         std::string index = generate_tac_expr(array_access->index.get());
 
         instructions.emplace_back(TACOp::ASSIGN, array_access->array->name, index, result, array_access->type.get_base_type());
@@ -250,7 +267,7 @@ void TacGenerator::generate_tac_var_assign(ASTNode *element)
         PostfixNode *postfix = dynamic_cast<PostfixNode *>(var_assign->var.get());
         if (postfix->op == TokenType::TOKEN_DOT || postfix->op == TokenType::TOKEN_ARROW)
         {
-            std::string base = generate_tac_expr(postfix->value.get(), postfix->type);
+            std::string base = generate_tac_expr(postfix->value.get());
             std::string result = generate_tac_expr(var_assign->value.get());
 
             if (postfix->op == TokenType::TOKEN_ARROW)
@@ -398,253 +415,17 @@ void TacGenerator::generate_tac_func_call(ASTNode *element)
     std::string result = generate_tac_expr(element);
 }
 
-std::string TacGenerator::generate_tac_expr(ASTNode *expr, Type type)
+std::string TacGenerator::generate_tac_expr(ASTNode *expr)
 {
     if (!expr)
         return "";
 
-    if (expr->node_type == NodeType::NODE_VAR)
+    if (expr_handlers.find(expr->node_type) != expr_handlers.end())
     {
-        return ((VarNode *)expr)->name;
+        return expr_handlers[expr->node_type](expr);
     }
-    else if (expr->node_type == NodeType::NODE_BOOL)
-    {
-        BoolLiteral *bool_node = (BoolLiteral *)expr;
-        std::string result = bool_node->value ? "1" : "0";
-        return result;
-    }
-    else if (expr->node_type == NodeType::NODE_CAST)
-    {
-        CastNode *cast = (CastNode *)expr;
-
-        if (cast->target_type.has_base_type(BaseType::DOUBLE) && cast->expr.get()->node_type == NodeType::NODE_NUMBER)
-        {
-            std::string const_var = gen_new_const_label();
-            gst->declare_const_var(const_var, Type(BaseType::DOUBLE));
-
-            std::string result = generate_tac_expr(cast->expr.get(), cast->target_type);
-
-            literal8_vars.emplace_back(TACOp::ASSIGN, const_var, "", result, Type(BaseType::DOUBLE));
-
-            return const_var;
-        }
-
-        std::string temp_var = gen_new_temp_var();
-        gst->declare_temp_var(temp_var, cast->target_type);
-
-        std::string result = generate_tac_expr(cast->expr.get(), cast->target_type);
-        instructions.emplace_back(TACOp::CONVERT_TYPE, result, cast->src_type.to_string(), temp_var, cast->target_type);
-
-        return temp_var;
-    }
-    else if (expr->node_type == NodeType::NODE_NUMBER)
-    {
-        NumericLiteral *num = (NumericLiteral *)expr;
-        if (num->value_type.has_base_type(BaseType::UINT))
-            return std::to_string(((UIntegerLiteral *)num)->value);
-        else if (num->value_type.has_base_type(BaseType::ULONG))
-            return std::to_string(((ULongLiteral *)num)->value);
-        else if (num->value_type.has_base_type(BaseType::LONG))
-            return std::to_string(((LongLiteral *)num)->value);
-        else if (num->value_type.has_base_type(BaseType::INT))
-            return std::to_string(((IntegerLiteral *)num)->value);
-        else if (num->value_type.has_base_type(BaseType::DOUBLE))
-        {
-            // All double literals must be placed in a constant section
-            std::string const_val = gen_new_const_label();
-            gst->declare_const_var(const_val, Type(BaseType::DOUBLE));
-            literal8_vars.emplace_back(TACOp::ASSIGN, const_val, "", std::to_string(((DoubleLiteral *)num)->value), Type(BaseType::DOUBLE));
-            return const_val;
-        }
-    }
-    else if (expr->node_type == NodeType::NODE_CHAR)
-    {
-        return std::to_string((int)((CharLiteral *)expr)->value);
-    }
-    else if (expr->node_type == NodeType::NODE_STRING)
-    {
-        StringLiteral *str = (StringLiteral *)expr;
-        std::string label = gen_new_const_label();
-
-        gst->declare_str_var(label, str->value_type);
-
-        str_vars.emplace_back(TACOp::ASSIGN, label, "", str->value, str->value_type);
-        return label;
-    }
-    else if (expr->node_type == NodeType::NODE_UNARY)
-    {
-        UnaryNode *unary = (UnaryNode *)expr;
-
-        std::string result = generate_tac_expr(unary->value.get());
-
-        std::string temp_var = gen_new_temp_var();
-        gst->declare_temp_var(temp_var, unary->type);
-
-        if (unary->type.has_base_type(BaseType::DOUBLE))
-        {
-            if (unary->type.is_pointer())
-                error("Cannot take the address of a double yet?");
-
-            gst->declare_const_var("_.Lsign_bit", Type(BaseType::DOUBLE));
-            literal8_vars.emplace_back(TACOp::ASSIGN, "_.Lsign_bit", "", "9223372036854775808", Type(BaseType::DOUBLE));
-            instructions.emplace_back(convert_UnaryOpType_to_TACOp(unary->op), result, "_.Lsign_bit", temp_var, unary->type);
-
-            return temp_var;
-        }
-
-        instructions.emplace_back(convert_UnaryOpType_to_TACOp(unary->op), result, "", temp_var, unary->type);
-        return temp_var;
-    }
-    else if (expr->node_type == NodeType::NODE_BINARY)
-    {
-        BinaryNode *bin_node = dynamic_cast<BinaryNode *>(expr);
-
-        std::string arg1 = generate_tac_expr(bin_node->left.get());
-        std::string arg2 = generate_tac_expr(bin_node->right.get());
-
-        std::string temp_var = gen_new_temp_var();
-        gst->declare_temp_var(temp_var, bin_node->type);
-        instructions.emplace_back(convert_BinOpType_to_TACOp(bin_node->op), arg1, arg2, temp_var, bin_node->type);
-        return temp_var;
-    }
-    else if (expr->node_type == NodeType::NODE_POSTFIX)
-    {
-        PostfixNode *postfix = (PostfixNode *)expr;
-
-        if (postfix->op == TokenType::TOKEN_DOT || postfix->op == TokenType::TOKEN_ARROW)
-        {
-            std::string base = generate_tac_expr(postfix->value.get());
-            std::string temp = gen_new_temp_var();
-
-            if (postfix->op == TokenType::TOKEN_ARROW)
-            {
-                std::string deref = gen_new_temp_var();
-                instructions.emplace_back(TACOp::DEREF, base, "", deref);
-                base = deref;
-            }
-
-            postfix->type.print();
-
-            gst->declare_temp_var(temp, postfix->type);
-
-            instructions.emplace_back(TACOp::MEMBER_ACCESS,
-                                      base,
-                                      postfix->field,
-                                      temp,
-                                      postfix->type);
-            return temp;
-        }
-
-        std::string result = generate_tac_expr(postfix->value.get());
-
-        if (postfix->op == TokenType::TOKEN_INCREMENT)
-            instructions.emplace_back(TACOp::ADD, result, "1", result, postfix->type);
-        else if (postfix->op == TokenType::TOKEN_DECREMENT)
-            instructions.emplace_back(TACOp::SUB, result, "1", result, postfix->type);
-
-        return result;
-    }
-    else if (expr->node_type == NodeType::NODE_ARRAY_ACCESS)
-    {
-        ArrayAccessNode *array_access = (ArrayAccessNode *)expr;
-
-        std::string temp_var = gen_new_temp_var();
-        gst->declare_temp_var(temp_var, array_access->type.get_base_type());
-
-        std::string index = generate_tac_expr(array_access->index.get());
-
-        instructions.emplace_back(TACOp::ASSIGN, temp_var, index, array_access->array->name, array_access->type.get_base_type());
-
-        return temp_var;
-    }
-    else if (expr->node_type == NodeType::NODE_FUNC_CALL)
-    {
-        FuncCallNode *func = (FuncCallNode *)expr;
-        FuncSymbol *func_node = gst->get_func_symbol(func->name);
-
-        if (func->name == "printf")
-        {
-            std::string fmt_label = gen_new_const_label();
-            gst->declare_str_var(fmt_label, Type(BaseType::CHAR));
-            StringLiteral *first_arg = (StringLiteral *)func->args[0].get();
-            str_vars.emplace_back(TACOp::ASSIGN, fmt_label, "", first_arg->value, Type(BaseType::CHAR));
-
-            // Handle printf arguments
-            for (size_t i = 1; i < func->args.size(); i++)
-            {
-                std::string result = generate_tac_expr(func->args[i].get());
-                if (i < 6)
-                {
-                    Type type = sem_analyser->infer_type(func->args[i].get());
-
-                    if (type.is_size_8())
-                        instructions.emplace_back(TACOp::MOV, x64_registers[i], result, "", type);
-                    else
-                        instructions.emplace_back(TACOp::MOV, registers[i], result, "", type);
-                }
-            }
-
-            instructions.emplace_back(TACOp::PRINTF, fmt_label, "", "", Type(BaseType::VOID));
-            return "";
-        }
-
-        // Handle regular function calls
-        for (size_t i = 0; i < func->args.size(); i++)
-        {
-            std::string arg_result = generate_tac_expr(func->args[i].get());
-            Type arg_type = sem_analyser->infer_type(func->args[i].get());
-
-            if (i < 6)
-            {
-                // First 6 arguments go in registers
-                instructions.emplace_back(TACOp::MOV, registers[i], arg_result, "", arg_type);
-            }
-            else
-            {
-                // Remaining arguments get pushed to stack
-                instructions.emplace_back(TACOp::PUSH, arg_result, "", "", arg_type);
-            }
-        }
-
-        // Handle stack alignment
-        int stack_offset = (func->args.size() > 6) ? (func->args.size() - 6) : 0;
-        if (stack_offset % 2 != 0 && stack_offset > 0)
-            instructions.emplace_back(TACOp::DEALLOC_STACK, "8");
-
-        // Make the function call
-        instructions.emplace_back(TACOp::CALL, func->name);
-
-        // Restore stack alignment
-        if (stack_offset % 2 != 0 && stack_offset > 0)
-            instructions.emplace_back(TACOp::ALLOC_STACK, "8");
-
-        if (func_node->return_type.has_base_type(BaseType::VOID))
-            return "";
-
-        // Handle return value
-        std::string temp_var = gen_new_temp_var();
-        Type return_type = gst->get_func_symbol(func->name)->return_type;
-        gst->declare_temp_var(temp_var, return_type);
-        instructions.emplace_back(TACOp::MOV, temp_var, "%eax", "", return_type);
-
-        return temp_var;
-    }
-    else if (expr->node_type == NodeType::NODE_SIZE_OF)
-    {
-        SizeOfNode *sizeof_node = (SizeOfNode *)expr;
-
-        std::string temp_var = gen_new_temp_var();
-        gst->declare_temp_var(temp_var, BaseType::INT);
-
-        if (sizeof_node->var)
-            instructions.emplace_back(TACOp::ASSIGN, temp_var, "", std::to_string(sizeof_node->var->type.get_size()), BaseType::INT);
-        else
-            instructions.emplace_back(TACOp::ASSIGN, temp_var, "", std::to_string(sizeof_node->type.get_size()), BaseType::INT);
-
-        return temp_var;
-    }
-
-    error("Tac Generation: Invalid expression of type " + node_type_to_string(expr->node_type) + " encountered");
+    else
+        error("Tac Generation: Invalid expression of type " + node_type_to_string(expr->node_type) + " encountered");
 }
 
 void TacGenerator::generate_tac_var_array_assign(VarNode *var_node, Symbol *var_symbol, ASTNode *value)
@@ -663,7 +444,7 @@ void TacGenerator::generate_tac_var_array_assign(VarNode *var_node, Symbol *var_
     {
         CompoundLiteral *array_init = dynamic_cast<CompoundLiteral *>(value);
         for (size_t i = 0; i < array_size; i++)
-            elements.emplace_back(generate_tac_expr(array_init->values[i].get(), var_symbol->type));
+            elements.emplace_back(generate_tac_expr(array_init->values[i].get()));
     }
 
     // Assign provided values
@@ -753,9 +534,257 @@ void TacGenerator::generate_tac_cmp(ASTNode *condition, const std::string &label
     }
     default:
     {
-        error("Invalid condition type (for now)");
+        error("Invalid condition type");
     }
     }
+}
+
+std::string TacGenerator::generate_tac_expr_var(ASTNode *expr)
+{
+    return ((VarNode *)expr)->name;
+}
+
+std::string TacGenerator::generate_tac_expr_bool(ASTNode *expr)
+{
+    return ((BoolLiteral *)expr)->value ? "1" : "0";
+}
+
+std::string TacGenerator::generate_tac_expr_cast(ASTNode *expr)
+{
+    CastNode *cast = (CastNode *)expr;
+
+    std::string result = generate_tac_expr(cast->expr.get());
+
+    if (cast->target_type.has_base_type(BaseType::DOUBLE) && cast->expr.get()->node_type == NodeType::NODE_NUMBER)
+    {
+        std::string const_var = gen_new_const_label();
+        gst->declare_const_var(const_var, cast->target_type);
+
+        literal8_vars.emplace_back(TACOp::ASSIGN, const_var, "", result, cast->target_type);
+
+        return const_var;
+    }
+
+    std::string temp_var = gen_new_temp_var();
+    gst->declare_temp_var(temp_var, cast->target_type);
+
+    instructions.emplace_back(TACOp::CONVERT_TYPE, result, cast->src_type.to_string(), temp_var, cast->target_type);
+
+    return temp_var;
+}
+
+std::string TacGenerator::generate_tac_expr_char(ASTNode *expr)
+{
+    return std::to_string((int)((CharLiteral *)expr)->value);
+}
+
+std::string TacGenerator::generate_tac_expr_string(ASTNode *expr)
+{
+    StringLiteral *str = (StringLiteral *)expr;
+    std::string label = gen_new_const_label();
+
+    gst->declare_str_var(label, str->value_type);
+
+    str_vars.emplace_back(TACOp::ASSIGN, label, "", str->value, str->value_type);
+    return label;
+}
+
+std::string TacGenerator::generate_tac_expr_unary(ASTNode *expr)
+{
+    UnaryNode *unary = (UnaryNode *)expr;
+
+    std::string result = generate_tac_expr(unary->value.get());
+
+    std::string temp_var = gen_new_temp_var();
+    gst->declare_temp_var(temp_var, unary->type);
+
+    if (unary->type.has_base_type(BaseType::DOUBLE))
+    {
+        if (unary->type.is_pointer())
+            error("Cannot take the address of a double yet?");
+
+        gst->declare_const_var("_.Lsign_bit", Type(BaseType::DOUBLE));
+        literal8_vars.emplace_back(TACOp::ASSIGN, "_.Lsign_bit", "", "9223372036854775808", Type(BaseType::DOUBLE));
+        instructions.emplace_back(convert_UnaryOpType_to_TACOp(unary->op), result, "_.Lsign_bit", temp_var, unary->type);
+
+        return temp_var;
+    }
+
+    instructions.emplace_back(convert_UnaryOpType_to_TACOp(unary->op), result, "", temp_var, unary->type);
+    return temp_var;
+}
+
+std::string TacGenerator::generate_tac_expr_binary(ASTNode *expr)
+{
+    BinaryNode *bin_node = dynamic_cast<BinaryNode *>(expr);
+
+    std::string arg1 = generate_tac_expr(bin_node->left.get());
+    std::string arg2 = generate_tac_expr(bin_node->right.get());
+
+    std::string temp_var = gen_new_temp_var();
+    gst->declare_temp_var(temp_var, bin_node->type);
+
+    instructions.emplace_back(convert_BinOpType_to_TACOp(bin_node->op), arg1, arg2, temp_var, bin_node->type);
+
+    return temp_var;
+}
+
+std::string TacGenerator::generate_tac_expr_postfix(ASTNode *expr)
+{
+    PostfixNode *postfix = (PostfixNode *)expr;
+
+    if (postfix->op == TokenType::TOKEN_DOT || postfix->op == TokenType::TOKEN_ARROW)
+    {
+        std::string base = generate_tac_expr(postfix->value.get());
+        std::string temp = gen_new_temp_var();
+
+        if (postfix->op == TokenType::TOKEN_ARROW)
+        {
+            std::string deref = gen_new_temp_var();
+            instructions.emplace_back(TACOp::DEREF, base, "", deref);
+            base = deref;
+        }
+
+        postfix->type.print();
+
+        gst->declare_temp_var(temp, postfix->type);
+
+        instructions.emplace_back(TACOp::MEMBER_ACCESS,
+                                  base,
+                                  postfix->field,
+                                  temp,
+                                  postfix->type);
+        return temp;
+    }
+
+    std::string result = generate_tac_expr(postfix->value.get());
+
+    if (postfix->op == TokenType::TOKEN_INCREMENT)
+        instructions.emplace_back(TACOp::ADD, result, "1", result, postfix->type);
+    else if (postfix->op == TokenType::TOKEN_DECREMENT)
+        instructions.emplace_back(TACOp::SUB, result, "1", result, postfix->type);
+
+    return result;
+}
+
+std::string TacGenerator::generate_tac_expr_array_access(ASTNode *expr)
+{
+    ArrayAccessNode *array_access = (ArrayAccessNode *)expr;
+    std::string base = generate_tac_expr(array_access->array.get());
+    std::string index = generate_tac_expr(array_access->index.get());
+    std::string temp = gen_new_temp_var();
+    gst->declare_temp_var(temp, array_access->type.get_base_type());
+    instructions.emplace_back(TACOp::ASSIGN, temp, index, base, array_access->type.get_base_type());
+    return temp;
+}
+
+std::string TacGenerator::generate_tac_expr_func_call(ASTNode *expr)
+{
+    FuncCallNode *func = (FuncCallNode *)expr;
+    FuncSymbol *func_node = gst->get_func_symbol(func->name);
+
+    if (func->name == "printf")
+    {
+        std::string fmt_label = gen_new_const_label();
+        gst->declare_str_var(fmt_label, Type(BaseType::CHAR));
+        StringLiteral *first_arg = (StringLiteral *)func->args[0].get();
+        str_vars.emplace_back(TACOp::ASSIGN, fmt_label, "", first_arg->value, Type(BaseType::CHAR));
+
+        // Handle printf arguments
+        for (size_t i = 1; i < func->args.size(); i++)
+        {
+            std::string result = generate_tac_expr(func->args[i].get());
+            if (i < 6)
+            {
+                Type type = sem_analyser->infer_type(func->args[i].get());
+
+                if (type.is_size_8())
+                    instructions.emplace_back(TACOp::MOV, x64_registers[i], result, "", type);
+                else
+                    instructions.emplace_back(TACOp::MOV, registers[i], result, "", type);
+            }
+        }
+
+        instructions.emplace_back(TACOp::PRINTF, fmt_label, "", "", Type(BaseType::VOID));
+        return "";
+    }
+
+    // Handle regular function calls
+    for (size_t i = 0; i < func->args.size(); i++)
+    {
+        std::string arg_result = generate_tac_expr(func->args[i].get());
+        Type arg_type = sem_analyser->infer_type(func->args[i].get());
+
+        if (i < 6)
+        {
+            // First 6 arguments go in registers
+            instructions.emplace_back(TACOp::MOV, registers[i], arg_result, "", arg_type);
+        }
+        else
+        {
+            // Remaining arguments get pushed to stack
+            instructions.emplace_back(TACOp::PUSH, arg_result, "", "", arg_type);
+        }
+    }
+
+    // Handle stack alignment
+    int stack_offset = (func->args.size() > 6) ? (func->args.size() - 6) : 0;
+    if (stack_offset % 2 != 0 && stack_offset > 0)
+        instructions.emplace_back(TACOp::DEALLOC_STACK, "8");
+
+    // Make the function call
+    instructions.emplace_back(TACOp::CALL, func->name);
+
+    // Restore stack alignment
+    if (stack_offset % 2 != 0 && stack_offset > 0)
+        instructions.emplace_back(TACOp::ALLOC_STACK, "8");
+
+    if (func_node->return_type.has_base_type(BaseType::VOID))
+        return "";
+
+    // Handle return value
+    std::string temp_var = gen_new_temp_var();
+    Type return_type = gst->get_func_symbol(func->name)->return_type;
+    gst->declare_temp_var(temp_var, return_type);
+    instructions.emplace_back(TACOp::MOV, temp_var, "%eax", "", return_type);
+
+    return temp_var;
+}
+
+std::string TacGenerator::generate_tac_expr_number(ASTNode *expr)
+{
+    NumericLiteral *num = (NumericLiteral *)expr;
+    if (num->value_type.has_base_type(BaseType::UINT))
+        return std::to_string(((UIntegerLiteral *)num)->value);
+    else if (num->value_type.has_base_type(BaseType::ULONG))
+        return std::to_string(((ULongLiteral *)num)->value);
+    else if (num->value_type.has_base_type(BaseType::LONG))
+        return std::to_string(((LongLiteral *)num)->value);
+    else if (num->value_type.has_base_type(BaseType::INT))
+        return std::to_string(((IntegerLiteral *)num)->value);
+    else if (num->value_type.has_base_type(BaseType::DOUBLE))
+    {
+        // All double literals must be placed in a constant section
+        std::string const_val = gen_new_const_label();
+        gst->declare_const_var(const_val, Type(BaseType::DOUBLE));
+        literal8_vars.emplace_back(TACOp::ASSIGN, const_val, "", std::to_string(((DoubleLiteral *)num)->value), Type(BaseType::DOUBLE));
+        return const_val;
+    }
+}
+
+std::string TacGenerator::generate_tac_expr_size_of(ASTNode *expr)
+{
+    SizeOfNode *sizeof_node = (SizeOfNode *)expr;
+
+    std::string temp_var = gen_new_temp_var();
+    gst->declare_temp_var(temp_var, BaseType::INT);
+
+    if (sizeof_node->var)
+        instructions.emplace_back(TACOp::ASSIGN, temp_var, "", std::to_string(sizeof_node->var->type.get_size()), BaseType::INT);
+    else
+        instructions.emplace_back(TACOp::ASSIGN, temp_var, "", std::to_string(sizeof_node->type.get_size()), BaseType::INT);
+
+    return temp_var;
 }
 
 void TacGenerator::print_all_tac()
