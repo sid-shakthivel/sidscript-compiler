@@ -70,7 +70,7 @@ inline std::string node_type_to_string(NodeType type)
     case NodeType::NODE_NUMBER:
         return "NUMBER";
     case NodeType::NODE_COMPOUND_INIT:
-        return "ARRAY_INIT";
+        return "COMPOUND_INIT";
     case NodeType::NODE_RETURN:
         return "RETURN";
     case NodeType::NODE_FUNCTION:

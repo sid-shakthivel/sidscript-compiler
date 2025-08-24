@@ -131,7 +131,7 @@ std::string Type::to_string() const
         result = "bool";
         break;
     case BaseType::STRUCT:
-        result = "struct " + (struct_name.has_value() ? struct_name.value() : "unknown");
+        result = "struct " + (struct_name.has_value() ? struct_name.value() : "unknown") + " with " + std::to_string(struct_fields.size()) + " fields";
         break;
     }
 
@@ -290,7 +290,7 @@ int Type::get_field_offset(const std::string &field_name) const
 std::string Type::get_field_name(int index) const
 {
     if (!is_struct() || index < 0 || index >= struct_fields.size())
-        throw std::runtime_error("Invalid field index");
+        throw std::runtime_error("Invalid field index of " + index);
     auto it = struct_fields.begin();
     std::advance(it, index);
     return it->first;

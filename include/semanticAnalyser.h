@@ -45,7 +45,7 @@ private:
     void analyse_func_call(ASTNode *node);
     void analyse_cast(ASTNode *node);
     void analyse_struct_decl(ASTNode *node);
-    void analyse_compound_literal_init(ASTNode *node);
+    void analyse_compound_literal_init(ASTNode *node, Type var_type = Type(BaseType::VOID));
     void analyse_postfix(ASTNode *node);
 
     void validate_type_assignment(const Type &target_type, const Type &source_type,

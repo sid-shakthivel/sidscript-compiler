@@ -121,35 +121,46 @@ void SemanticAnalyser::analyse_var_decl(ASTNode *node)
         validate_type_assignment(var_type, value_type, var_decl_node->var->name);
     }
 
-    gst->declare_var(var_decl_node->var.get());
+    if (var_decl_node->var->type.is_struct())
+    {
+        std::string struct_name = var_decl_node->var->type.get_struct_name();
 
+        std::map<std::string, Type> struct_fields = struct_table[struct_name];
+
+        for (const auto &[field_name, field_type] : struct_fields)
+            var_decl_node->var->type.add_field(field_name, field_type);
+    }
+
+    gst->declare_var(var_decl_node->var.get());
     analyse_var(var_decl_node->var.get());
 }
 
-void SemanticAnalyser::analyse_compound_literal_init(ASTNode *node)
+void SemanticAnalyser::analyse_compound_literal_init(ASTNode *node, Type var_type)
 {
     CompoundLiteral *compound_literal = (CompoundLiteral *)node;
 
-    if (compound_literal->type.is_array())
+    Type type_to_cmp = var_type.has_base_type(BaseType::VOID) ? compound_literal->type : var_type;
+
+    if (type_to_cmp.is_array())
     {
         /*
             This is used when declaring an array
             - int arr[3] = {1, 2, 3};
         */
-        if (compound_literal->values.size() > compound_literal->type.get_size())
+        if (compound_literal->values.size() > type_to_cmp.get_size())
             error("Too many elements in array initialisation");
 
         for (auto &element : compound_literal->values)
         {
             analyse_node(element.get());
 
-            if (!infer_type(element.get()).has_base_type(compound_literal->type.get_base_type()))
+            if (!infer_type(element.get()).has_base_type(type_to_cmp.get_base_type()))
                 error("Type in array initialisation of some variable doesn't match");
         }
     }
-    else if (compound_literal->type.is_struct())
+    else if (type_to_cmp.is_struct())
     {
-        std::string struct_name = compound_literal->type.get_struct_name();
+        std::string struct_name = type_to_cmp.get_struct_name();
 
         if (struct_table.find(struct_name) == struct_table.end())
             error("Struct '" + struct_name + "' not defined");
@@ -198,7 +209,21 @@ void SemanticAnalyser::analyse_var_assign(ASTNode *node)
         Type var_type = gst->get_symbol(var->name)->type;
         Type value_type = infer_type(var_assign_node->value.get());
 
-        validate_type_assignment(var_type, value_type, var->name);
+        var->type = var_type;
+
+        if (var_type.is_struct())
+        {
+            analyse_compound_literal_init(var_assign_node->value.get(), var_type);
+            std::string struct_name = var->type.get_struct_name();
+
+            std::map<std::string, Type> struct_fields = struct_table[struct_name];
+
+            for (const auto &[field_name, field_type] : struct_fields)
+                var->type.add_field(field_name, field_type);
+        }
+
+        else
+            validate_type_assignment(var_type, value_type, var->name);
     }
     else if (var_assign_node->var->node_type == NodeType::NODE_ARRAY_ACCESS)
     {
@@ -604,6 +629,7 @@ Type SemanticAnalyser::infer_type(ASTNode *node)
         // PostfixNode *postfix_node = (PostfixNode *)node;
         // Type type = infer_type(postfix_node->value.get());
         // postfix_node->type = type;
+        // return type;
 
         // ((PostfixNode *)node)->type.print();
 

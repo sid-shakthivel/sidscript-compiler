@@ -100,7 +100,6 @@ private:
     std::unordered_map<NodeType, std::function<void(ASTNode *)>> handlers;
     std::unordered_map<NodeType, std::function<std::string(ASTNode *)>> expr_handlers;
 
-    std::array<std::string, 6> registers = {"%edi", "%esi", "%edx", "%ecx", "%r8", "%r9"};
     std::array<std::string, 6> x64_registers = {"%rdi", "%rsi", "%rdx", "%rcx", "%r8", "%r9"};
 
     std::vector<std::string> void_func_names = {"printf"};

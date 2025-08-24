@@ -164,7 +164,7 @@ void TacGenerator::generate_tac_func(ASTNode *element)
 
     for (int i = 0; i < func->params.size(); i++)
         if (i < 6)
-            instructions.emplace_back(TACOp::MOV_TO_REG, func->get_param_name(i), registers[i], "", func_symbol->arg_types[i]);
+            instructions.emplace_back(TACOp::MOV_TO_REG, func->get_param_name(i), x64_registers[i], "", func_symbol->arg_types[i]);
 
     for (auto &element : func->elements)
         generate_tac(element.get());
@@ -263,6 +263,27 @@ void TacGenerator::generate_tac_var_assign(ASTNode *element)
 
         if (var->type.is_array())
             return generate_tac_var_array_assign(var, var_symbol, var_assign->value.get());
+
+        if (var->type.is_struct())
+        {
+            CompoundLiteral *compound_init = dynamic_cast<CompoundLiteral *>(var_assign->value.get());
+
+            instructions.emplace_back(TACOp::STRUCT_INIT, var->name, "", "", var->type);
+
+            size_t field_index = 0;
+            for (const auto &value : compound_init->values)
+            {
+                std::string result = generate_tac_expr(value.get());
+                instructions.emplace_back(TACOp::MEMBER_ASSIGN,
+                                          var->name,
+                                          var->type.get_field_name(field_index),
+                                          result,
+                                          sem_analyser->infer_type(value.get()));
+                field_index++;
+            }
+
+            return;
+        }
 
         std::string result = generate_tac_expr(var_assign->value.get());
         instructions.emplace_back(TACOp::ASSIGN, var->name, "", result, var_symbol->type);
@@ -431,10 +452,11 @@ std::string TacGenerator::generate_tac_expr(ASTNode *expr)
     if (!expr)
         return "";
 
+    if (expr->node_type == NodeType::NODE_COMPOUND_INIT)
+        return "";
+
     if (expr_handlers.find(expr->node_type) != expr_handlers.end())
-    {
         return expr_handlers[expr->node_type](expr);
-    }
     else
         error("Tac Generation: Invalid expression of type " + node_type_to_string(expr->node_type) + " encountered");
 }

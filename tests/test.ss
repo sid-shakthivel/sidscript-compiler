@@ -1,6 +1,12 @@
+struct Test {
+    int a;
+    int b;
+};
+
 fn main() -> int
 {
-    printf("Hello %d\n", 5);
-    return 7;
+    struct Test example;
+    example = {1, 3};
+    return example.b;
 }
 

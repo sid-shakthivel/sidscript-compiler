@@ -67,7 +67,6 @@ Assembler::Assembler(std::shared_ptr<GlobalSymbolTable> gst, std::string filenam
 	REGISTER_HANDLER(CONVERT_TYPE, handle_convert_type);
 	REGISTER_HANDLER(ADDR_OF, handle_addr_of);
 	REGISTER_HANDLER(DEREF, handle_deref);
-	// REGISTER_HANDLER(PRINTF, handle_printf);
 	REGISTER_HANDLER(STRUCT_INIT, handle_struct_init);
 	REGISTER_HANDLER(MEMBER_ASSIGN, handle_member_assign);
 	REGISTER_HANDLER(MEMBER_ACCESS, handle_member_access);
@@ -649,8 +648,9 @@ void Assembler::handle_addr_of(TACInstruction &instruction)
 
 void Assembler::handle_struct_init(TACInstruction &instruction)
 {
-	comment_instruction(instruction);
 	// No assembly needed - struct space is already allocated on stack
+	comment_instruction(instruction);
+	fprintf(file, "\n");
 }
 
 void Assembler::handle_member_assign(TACInstruction &instruction)
@@ -746,7 +746,7 @@ void Assembler::handle_member_access(TACInstruction &instruction)
 			reg.c_str());
 
 	// Store to destination
-	store_from_reg(instruction.result, reg.c_str(), instruction.type);
+	store_from_reg(instruction.result, "%r10", instruction.type);
 
 	fprintf(file, "\n");
 }
