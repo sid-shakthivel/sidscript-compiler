@@ -221,25 +221,7 @@ void TacGenerator::generate_tac_var_decl(ASTNode *element)
         return;
 
     if (var_decl->var->type.is_struct())
-    {
-        CompoundLiteral *compound_init = dynamic_cast<CompoundLiteral *>(var_decl->value.get());
-
-        instructions.emplace_back(TACOp::STRUCT_INIT, var_decl->var->name, "", "", var_decl->var->type);
-
-        size_t field_index = 0;
-        for (const auto &value : compound_init->values)
-        {
-            std::string result = generate_tac_expr(value.get());
-            instructions.emplace_back(TACOp::MEMBER_ASSIGN,
-                                      var_decl->var->name,
-                                      var_decl->var->type.get_field_name(field_index),
-                                      result,
-                                      sem_analyser->infer_type(value.get()));
-            field_index++;
-        }
-
-        return;
-    }
+        return generate_tac_struct_assign(var_decl->var.get(), var_decl->value.get());
 
     instructions.emplace_back(instruction);
 }
@@ -265,25 +247,7 @@ void TacGenerator::generate_tac_var_assign(ASTNode *element)
             return generate_tac_var_array_assign(var, var_symbol, var_assign->value.get());
 
         if (var->type.is_struct())
-        {
-            CompoundLiteral *compound_init = dynamic_cast<CompoundLiteral *>(var_assign->value.get());
-
-            instructions.emplace_back(TACOp::STRUCT_INIT, var->name, "", "", var->type);
-
-            size_t field_index = 0;
-            for (const auto &value : compound_init->values)
-            {
-                std::string result = generate_tac_expr(value.get());
-                instructions.emplace_back(TACOp::MEMBER_ASSIGN,
-                                          var->name,
-                                          var->type.get_field_name(field_index),
-                                          result,
-                                          sem_analyser->infer_type(value.get()));
-                field_index++;
-            }
-
-            return;
-        }
+            return generate_tac_struct_assign(var, var_assign->value.get());
 
         std::string result = generate_tac_expr(var_assign->value.get());
         instructions.emplace_back(TACOp::ASSIGN, var->name, "", result, var_symbol->type);
@@ -569,6 +533,25 @@ void TacGenerator::generate_tac_cmp(ASTNode *condition, const std::string &label
     {
         error("Invalid condition type");
     }
+    }
+}
+
+void TacGenerator::generate_tac_struct_assign(VarNode *var, ASTNode *value)
+{
+    CompoundLiteral *compound_init = dynamic_cast<CompoundLiteral *>(value);
+
+    instructions.emplace_back(TACOp::STRUCT_INIT, var->name, "", "", var->type);
+
+    size_t field_index = 0;
+    for (const auto &value : compound_init->values)
+    {
+        std::string result = generate_tac_expr(value.get());
+        instructions.emplace_back(TACOp::MEMBER_ASSIGN,
+                                  var->name,
+                                  var->type.get_field_name(field_index),
+                                  result,
+                                  sem_analyser->infer_type(value.get()));
+        field_index++;
     }
 }
 

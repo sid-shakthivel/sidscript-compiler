@@ -82,6 +82,15 @@ void SemanticAnalyser::analyse_var_decl(ASTNode *node)
             if (var_decl_node->value->node_type == NodeType::NODE_BINARY || var_decl_node->value->node_type == NodeType::NODE_UNARY)
                 error("Global variable " + var_decl_node->var->name + " must have constant value");
 
+    // Add each field from the struct to the type of the variable
+    if (var_decl_node->var->type.is_struct())
+    {
+        std::string struct_name = var_decl_node->var->type.get_struct_name();
+
+        for (const auto &[field_name, field_type] : struct_table[struct_name])
+            var_decl_node->var->type.add_field(field_name, field_type);
+    }
+
     if (var_decl_node->value != nullptr)
     {
         analyse_node(var_decl_node->value.get());
@@ -100,35 +109,11 @@ void SemanticAnalyser::analyse_var_decl(ASTNode *node)
             if (string_literal->value.size() + 1 > var_type.get_size())
                 error("Too many characters in string initialisation of " + var_decl_node->var->name);
         }
-        else if (var_type.is_array())
-        {
+        else if (var_type.is_array() || var_type.is_struct())
             if (var_decl_node->value->node_type != NodeType::NODE_COMPOUND_INIT)
-                error("Array initialisation of " + var_decl_node->var->name + " requires array literal");
-        }
-        else if (var_type.is_struct())
-        {
-            if (var_decl_node->value->node_type != NodeType::NODE_COMPOUND_INIT)
-                error("Struct initialisation of " + var_decl_node->var->name + " requires struct literal");
-
-            std::string struct_name = var_decl_node->var->type.get_struct_name();
-
-            std::map<std::string, Type> struct_fields = struct_table[struct_name];
-
-            for (const auto &[field_name, field_type] : struct_fields)
-                var_decl_node->var->type.add_field(field_name, field_type);
-        }
+                error("Compound initialisation of " + var_decl_node->var->name + " requires compound literal");
 
         validate_type_assignment(var_type, value_type, var_decl_node->var->name);
-    }
-
-    if (var_decl_node->var->type.is_struct())
-    {
-        std::string struct_name = var_decl_node->var->type.get_struct_name();
-
-        std::map<std::string, Type> struct_fields = struct_table[struct_name];
-
-        for (const auto &[field_name, field_type] : struct_fields)
-            var_decl_node->var->type.add_field(field_name, field_type);
     }
 
     gst->declare_var(var_decl_node->var.get());
@@ -212,16 +197,7 @@ void SemanticAnalyser::analyse_var_assign(ASTNode *node)
         var->type = var_type;
 
         if (var_type.is_struct())
-        {
             analyse_compound_literal_init(var_assign_node->value.get(), var_type);
-            std::string struct_name = var->type.get_struct_name();
-
-            std::map<std::string, Type> struct_fields = struct_table[struct_name];
-
-            for (const auto &[field_name, field_type] : struct_fields)
-                var->type.add_field(field_name, field_type);
-        }
-
         else
             validate_type_assignment(var_type, value_type, var->name);
     }
