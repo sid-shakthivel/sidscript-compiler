@@ -1,7 +1,6 @@
 fn main() -> int
 {
-    int arr[3] = {1, 2, 3};
-    int test = arr[1] + 1;
-    return test;
+    printf("Hello %d\n", 5);
+    return 7;
 }
 

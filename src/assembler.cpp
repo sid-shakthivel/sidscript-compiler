@@ -57,7 +57,7 @@ Assembler::Assembler(std::shared_ptr<GlobalSymbolTable> gst, std::string filenam
 	REGISTER_HANDLER(GOTO, handle_goto);
 	REGISTER_HANDLER(LABEL, handle_label);
 	REGISTER_HANDLER(CALL, handle_call);
-	REGISTER_HANDLER(MOV, handle_mov);
+	REGISTER_HANDLER(MOV_TO_REG, handle_mov_to_reg);
 	REGISTER_HANDLER(NOP, handle_nop);
 	REGISTER_HANDLER(ENTER_TEXT, handle_section);
 	REGISTER_HANDLER(ENTER_BSS, handle_section);
@@ -67,7 +67,7 @@ Assembler::Assembler(std::shared_ptr<GlobalSymbolTable> gst, std::string filenam
 	REGISTER_HANDLER(CONVERT_TYPE, handle_convert_type);
 	REGISTER_HANDLER(ADDR_OF, handle_addr_of);
 	REGISTER_HANDLER(DEREF, handle_deref);
-	REGISTER_HANDLER(PRINTF, handle_printf);
+	// REGISTER_HANDLER(PRINTF, handle_printf);
 	REGISTER_HANDLER(STRUCT_INIT, handle_struct_init);
 	REGISTER_HANDLER(MEMBER_ASSIGN, handle_member_assign);
 	REGISTER_HANDLER(MEMBER_ACCESS, handle_member_access);
@@ -386,26 +386,17 @@ void Assembler::handle_label(TACInstruction &instruction)
 
 void Assembler::handle_call(TACInstruction &instruction)
 {
-	fprintf(file, "\tcall\t_%s # %s\n", instruction.arg1.c_str(), TacGenerator::gen_tac_str(instruction).c_str());
+	comment_instruction(instruction);
+	fprintf(file, "\tcall\t_%s\n\n", instruction.arg1.c_str());
 }
 
 // This may not work
-void Assembler::handle_mov(TACInstruction &instruction)
+void Assembler::handle_mov_to_reg(TACInstruction &instruction)
 {
+	// MOV_TO_REG %rsi, 5 (int)
 	comment_instruction(instruction);
-
-	std::string mov = get_mov_instruction(instruction.type);
-
-	std::string arg1 = format_memory_ref(instruction.arg2);
-	std::string arg2 = format_memory_ref(instruction.arg1);
-
-	if (!arg1.empty() && arg1[0] == '$')
-		arg1.erase(0, 1);
-
-	if (!arg2.empty() && arg2[0] == '$')
-		arg2.erase(0, 1);
-
-	fprintf(file, "\t%s\t%s, %s\n\n", mov.c_str(), arg1.c_str(), arg2.c_str());
+	load_to_reg(instruction.arg2, instruction.arg1.c_str(), instruction.type);
+	fprintf(file, "\n");
 }
 
 void Assembler::handle_nop(TACInstruction &instruction)
@@ -656,18 +647,6 @@ void Assembler::handle_addr_of(TACInstruction &instruction)
 	fprintf(file, "\tmovq %%rax, %d(%%rbp)\n\n", dst->stack_offset);
 }
 
-void Assembler::handle_printf(TACInstruction &instruction)
-{
-	comment_instruction(instruction);
-
-	fprintf(file, "\tleaq\t_%s(%%rip), %%rdi\n", instruction.arg1.c_str());
-
-	// Set float argument count
-	// fprintf(file, "\tmovb\t$%s, %%al\n", instruction.arg2.c_str());
-
-	fprintf(file, "\tcall\t_printf\n\n");
-}
-
 void Assembler::handle_struct_init(TACInstruction &instruction)
 {
 	comment_instruction(instruction);
@@ -837,6 +816,9 @@ std::string Assembler::format_instr(std::string instr, Type type)
 	if (type.has_base_type(BaseType::DOUBLE))
 		return instr + "sd";
 
+	if (type.is_array())
+		return instr + "q";
+
 	switch (type.get_size())
 	{
 	case 1:
@@ -846,8 +828,7 @@ std::string Assembler::format_instr(std::string instr, Type type)
 	case 8:
 		return instr + "q";
 	default:
-		std::cerr << "Assembler Error: Invalid type size for " << instr << ": " << type.get_size() << std::endl;
-		type.print();
+		std::cerr << "Assembler Error: Invalid type size for " << instr << " with type " << type.to_string() << std::endl;
 		return instr + "l";
 	}
 }
@@ -882,9 +863,15 @@ std::string Assembler::get_reg_name(const char *base_reg, Type type)
 	if (strcmp(base_reg, "%rax") == 0 && type.get_size() == 4)
 		return "%eax";
 
+	if (strcmp(base_reg, "%rsi") == 0 && type.get_size() == 4)
+		return "%esi";
+
 	std::string reg_name = base_reg;
 
 	if (strcmp(base_reg, "%eax") == 0 && type.get_size() == 4)
+		return reg_name;
+
+	if (type.is_array())
 		return reg_name;
 
 	switch (type.get_size())
@@ -896,8 +883,7 @@ std::string Assembler::get_reg_name(const char *base_reg, Type type)
 	case 8:
 		return reg_name;
 	default:
-		std::cerr << "Invalid type size for register: " << type.get_size() << std::endl;
-		type.print();
+		std::cerr << "Assembler Error: Invalid size for register: " << base_reg << " with type " << type.to_string() << std::endl;
 		return reg_name + "d";
 	}
 }
@@ -910,9 +896,7 @@ std::string Assembler::format_memory_ref(const std::string &sym_name)
 		return "$" + sym_name;
 
 	if (sym->has_static_sd() || sym->is_literal8)
-	{
 		return "_" + sym->name + "(%rip)";
-	}
 	else
 		return std::to_string(sym->stack_offset) + "(%rbp)";
 }

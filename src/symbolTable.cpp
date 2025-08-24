@@ -125,6 +125,7 @@ void SymbolTable::print()
                       << " | name: " << std::setw(15) << symbol->name
                       << " | offset: " << std::setw(5) << symbol->stack_offset
                       << " | temp: " << std::setw(5) << (symbol->is_temporary ? "yes" : "no")
+                      << " | type: " << std::setw(5) << symbol->type.to_string()
                       << " | size: " << symbol->type.get_size() << '\n';
         }
     }

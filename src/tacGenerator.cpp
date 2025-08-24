@@ -164,7 +164,7 @@ void TacGenerator::generate_tac_func(ASTNode *element)
 
     for (int i = 0; i < func->params.size(); i++)
         if (i < 6)
-            instructions.emplace_back(TACOp::MOV, func->get_param_name(i), registers[i], "", func_symbol->arg_types[i]);
+            instructions.emplace_back(TACOp::MOV_TO_REG, func->get_param_name(i), registers[i], "", func_symbol->arg_types[i]);
 
     for (auto &element : func->elements)
         generate_tac(element.get());
@@ -188,6 +188,11 @@ void TacGenerator::generate_tac_rtn(ASTNode *element)
 
 void TacGenerator::generate_tac_var_decl(ASTNode *element)
 {
+    /*
+        VarDecl is used to declare a variable
+        It can be a global, local, or static variable (and as such all cases must be handled)
+        Struct declarations must also be handled
+    */
     VarDeclNode *var_decl = (VarDeclNode *)element;
     Symbol *var_symbol = gst->get_symbol(var_decl->var->name);
 
@@ -241,6 +246,15 @@ void TacGenerator::generate_tac_var_decl(ASTNode *element)
 
 void TacGenerator::generate_tac_var_assign(ASTNode *element)
 {
+    /*
+        VarAssign is used to assign a value to a variable (once they have been declared)
+        There are a number of cases:
+        - Assigning to a variable i.e. test = 5;
+        - Assigning to a array element i.e. arr[2] = 5;
+        - Assigning to a struct member i.e. test.struct_member = 5;
+        - Assigning to a struct member via a pointer i.e. test->struct_member = 5;
+    */
+
     VarAssignNode *var_assign = (VarAssignNode *)element;
     if (var_assign->var->node_type == NodeType::NODE_VAR)
     {
@@ -265,6 +279,7 @@ void TacGenerator::generate_tac_var_assign(ASTNode *element)
     else if (var_assign->var->node_type == NodeType::NODE_POSTFIX)
     {
         PostfixNode *postfix = dynamic_cast<PostfixNode *>(var_assign->var.get());
+
         if (postfix->op == TokenType::TOKEN_DOT || postfix->op == TokenType::TOKEN_ARROW)
         {
             std::string base = generate_tac_expr(postfix->value.get());
@@ -277,11 +292,7 @@ void TacGenerator::generate_tac_var_assign(ASTNode *element)
                 base = deref;
             }
 
-            instructions.emplace_back(TACOp::MEMBER_ASSIGN,
-                                      base,
-                                      postfix->field,
-                                      result,
-                                      sem_analyser->infer_type(var_assign->value.get()));
+            instructions.emplace_back(TACOp::MEMBER_ASSIGN, base, postfix->field, result, sem_analyser->infer_type(var_assign->value.get()));
         }
     }
 }
@@ -645,15 +656,9 @@ std::string TacGenerator::generate_tac_expr_postfix(ASTNode *expr)
             base = deref;
         }
 
-        postfix->type.print();
-
         gst->declare_temp_var(temp, postfix->type);
 
-        instructions.emplace_back(TACOp::MEMBER_ACCESS,
-                                  base,
-                                  postfix->field,
-                                  temp,
-                                  postfix->type);
+        instructions.emplace_back(TACOp::MEMBER_ACCESS, base, postfix->field, temp, postfix->type);
         return temp;
     }
 
@@ -683,48 +688,21 @@ std::string TacGenerator::generate_tac_expr_func_call(ASTNode *expr)
     FuncCallNode *func = (FuncCallNode *)expr;
     FuncSymbol *func_node = gst->get_func_symbol(func->name);
 
-    if (func->name == "printf")
-    {
-        std::string fmt_label = gen_new_const_label();
-        gst->declare_str_var(fmt_label, Type(BaseType::CHAR));
-        StringLiteral *first_arg = (StringLiteral *)func->args[0].get();
-        str_vars.emplace_back(TACOp::ASSIGN, fmt_label, "", first_arg->value, Type(BaseType::CHAR));
-
-        // Handle printf arguments
-        for (size_t i = 1; i < func->args.size(); i++)
-        {
-            std::string result = generate_tac_expr(func->args[i].get());
-            if (i < 6)
-            {
-                Type type = sem_analyser->infer_type(func->args[i].get());
-
-                if (type.is_size_8())
-                    instructions.emplace_back(TACOp::MOV, x64_registers[i], result, "", type);
-                else
-                    instructions.emplace_back(TACOp::MOV, registers[i], result, "", type);
-            }
-        }
-
-        instructions.emplace_back(TACOp::PRINTF, fmt_label, "", "", Type(BaseType::VOID));
-        return "";
-    }
-
     // Handle regular function calls
     for (size_t i = 0; i < func->args.size(); i++)
     {
         std::string arg_result = generate_tac_expr(func->args[i].get());
         Type arg_type = sem_analyser->infer_type(func->args[i].get());
 
+        /*
+            The first 6 arguments go in registers
+            Remaining arguments get pushed onto the stack
+        */
+
         if (i < 6)
-        {
-            // First 6 arguments go in registers
-            instructions.emplace_back(TACOp::MOV, registers[i], arg_result, "", arg_type);
-        }
+            instructions.emplace_back(TACOp::MOV_TO_REG, x64_registers[i], arg_result, "", arg_type);
         else
-        {
-            // Remaining arguments get pushed to stack
             instructions.emplace_back(TACOp::PUSH, arg_result, "", "", arg_type);
-        }
     }
 
     // Handle stack alignment
@@ -739,14 +717,17 @@ std::string TacGenerator::generate_tac_expr_func_call(ASTNode *expr)
     if (stack_offset % 2 != 0 && stack_offset > 0)
         instructions.emplace_back(TACOp::ALLOC_STACK, "8");
 
-    if (func_node->return_type.has_base_type(BaseType::VOID))
+    bool found = (std::find(void_func_names.begin(), void_func_names.end(), func->name) != void_func_names.end());
+    // No check here if the return_type isn't null (it could be if its a function not defined ie printf)
+
+    if (found)
         return "";
 
     // Handle return value
     std::string temp_var = gen_new_temp_var();
     Type return_type = gst->get_func_symbol(func->name)->return_type;
     gst->declare_temp_var(temp_var, return_type);
-    instructions.emplace_back(TACOp::MOV, temp_var, "%eax", "", return_type);
+    instructions.emplace_back(TACOp::MOV_TO_REG, temp_var, "%eax", "", return_type);
 
     return temp_var;
 }
@@ -855,8 +836,8 @@ std::string TacGenerator::gen_tac_str(TACInstruction &instr)
             return "PUSH";
         case TACOp::CALL:
             return "CALL";
-        case TACOp::MOV:
-            return "MOV";
+        case TACOp::MOV_TO_REG:
+            return "MOV_TO_REG";
         case TACOp::INCREMENT:
             return "INCREMENT";
         case TACOp::DECREMENT:
@@ -877,8 +858,6 @@ std::string TacGenerator::gen_tac_str(TACInstruction &instr)
             return "DEREF";
         case TACOp::ADDR_OF:
             return "ADDR_OF";
-        case TACOp::PRINTF:
-            return "PRINTF";
         case TACOp::STRUCT_INIT:
             return "STRUCT_INIT";
         case TACOp::MEMBER_ACCESS:

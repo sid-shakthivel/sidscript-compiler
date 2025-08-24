@@ -43,14 +43,13 @@ private:
     void handle_goto(TACInstruction &instruction);
     void handle_label(TACInstruction &instruction);
     void handle_call(TACInstruction &instruction);
-    void handle_mov(TACInstruction &instruction);
+    void handle_mov_to_reg(TACInstruction &instruction);
     void handle_nop(TACInstruction &instruction);
     void handle_section(TACInstruction &instruction);
     void handle_unary_op(TACInstruction &instruction, const std::string &op);
     void handle_convert_type(TACInstruction &instruction);
     void handle_deref(TACInstruction &instruction);
     void handle_addr_of(TACInstruction &instruction);
-    void handle_printf(TACInstruction &instruction);
     void handle_struct_init(TACInstruction &instruction);
     void handle_member_assign(TACInstruction &instruction);
     void handle_member_access(TACInstruction &instruction);

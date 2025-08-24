@@ -40,7 +40,7 @@ enum class TACOp
     NOP,
     INCREMENT,
     DECREMENT,
-    MOV,
+    MOV_TO_REG,
     PUSH,
     CALL,
     ENTER_BSS,
@@ -102,6 +102,8 @@ private:
 
     std::array<std::string, 6> registers = {"%edi", "%esi", "%edx", "%ecx", "%r8", "%r9"};
     std::array<std::string, 6> x64_registers = {"%rdi", "%rsi", "%rdx", "%rcx", "%r8", "%r9"};
+
+    std::vector<std::string> void_func_names = {"printf"};
 
     int tempCounter = 0;
     int labelCounter = 0;
