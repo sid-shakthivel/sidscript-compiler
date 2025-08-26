@@ -29,7 +29,7 @@ int main()
     code_file.close();
 
     Lexer lexer(file_contents);
-    // lexer.print_all_tokens();
+
     // lexer.print_stack();
 
     Parser parser(&lexer);

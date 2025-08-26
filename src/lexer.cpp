@@ -249,6 +249,49 @@ Token Lexer::get_next_token()
         return process_char();
     else if (c == '"')
         return process_string();
+    else if (c == '/' && index + 1 < source.length() && source[index + 1] == '/')
+    {
+        /*
+            Single line comments are '// This is a comment'
+            When encountering a "single line" comment do the following:
+                - Skip past the //
+                - Consume until the end of the line
+                - return the next token
+        */
+        index += 2;
+        while (index < source.length() && source[index] != '\n')
+            index++;
+        return get_next_token();
+    }
+    else if (c == '/' && index + 1 < source.length() && source[index + 1] == '*')
+    {
+        /*
+            Multi line comments include * and /
+            When encountering a "multi line" comment do the following:
+                - Consume until the end of the comment
+                - Track the line number too
+                - Return the next token
+        */
+        index += 2; // Skip '/*'
+
+        while (index + 1 < source.length())
+        {
+            if (source[index] == '*' && source[index + 1] == '/')
+            {
+                index += 2; // Skip '*/'
+                break;
+            }
+            if (source[index] == '\n')
+                line++; // Track line numbers
+            index++;
+        }
+
+        // If we hit EOF without finding */, that's a lexing error
+        if (index >= source.length())
+            throw std::runtime_error("Unterminated block comment at line " + std::to_string(line));
+
+        return get_next_token();
+    }
     else if (isdigit(c) || c == '.')
     {
         size_t init_index = index;

@@ -220,6 +220,11 @@ void TacGenerator::generate_tac_var_decl(ASTNode *element)
     if (!var_decl->value)
         return;
 
+    /*
+    
+    
+    */
+
     if (var_decl->var->type.is_struct())
         return generate_tac_struct_assign(var_decl->var.get(), var_decl->value.get());
 
