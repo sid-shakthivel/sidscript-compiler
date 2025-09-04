@@ -48,7 +48,9 @@ private:
     void analyse_compound_literal_init(ASTNode *node, Type var_type = Type(BaseType::VOID));
     void analyse_postfix(ASTNode *node);
 
-    void validate_type_assignment(const Type &target_type, const Type &source_type,
+    bool try_promote_literal(std::unique_ptr<ASTNode> &expr, const Type &target);
+
+    void validate_type_assignment(const Type &target_type, std::unique_ptr<ASTNode> &source_expr,
                                   const std::string &context);
 
     void error(const std::string &message);

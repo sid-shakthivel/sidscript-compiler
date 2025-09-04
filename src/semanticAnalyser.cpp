@@ -113,7 +113,7 @@ void SemanticAnalyser::analyse_var_decl(ASTNode *node)
             if (var_decl_node->value->node_type != NodeType::NODE_COMPOUND_INIT)
                 error("Compound initialisation of " + var_decl_node->var->name + " requires compound literal");
 
-        validate_type_assignment(var_type, value_type, var_decl_node->var->name);
+        validate_type_assignment(var_type, var_decl_node->value, var_decl_node->var->name);
     }
 
     gst->declare_var(var_decl_node->var.get());
@@ -161,8 +161,7 @@ void SemanticAnalyser::analyse_compound_literal_init(ASTNode *node, Type var_typ
         {
             analyse_node(compound_literal->values[i].get());
 
-            Type value_type = infer_type(compound_literal->values[i].get());
-            validate_type_assignment(field_type, value_type,
+            validate_type_assignment(field_type, compound_literal->values[i],
                                      "in initialization of struct field '" + field_name + "'");
             i++;
         }
@@ -199,7 +198,7 @@ void SemanticAnalyser::analyse_var_assign(ASTNode *node)
         if (var_type.is_struct())
             analyse_compound_literal_init(var_assign_node->value.get(), var_type);
         else
-            validate_type_assignment(var_type, value_type, var->name);
+            validate_type_assignment(var_type, var_assign_node->value, var->name);
     }
     else if (var_assign_node->var->node_type == NodeType::NODE_ARRAY_ACCESS)
     {
@@ -226,31 +225,32 @@ void SemanticAnalyser::analyse_var_assign(ASTNode *node)
         analyse_node(var_assign_node->var.get());
 
         Type left = infer_type(var_assign_node->var.get());
-        Type right = infer_type(var_assign_node->value.get());
 
-        validate_type_assignment(left, right, "in assignment");
+        validate_type_assignment(left, var_assign_node->value, "in assignment");
     }
 }
 
 void SemanticAnalyser::analyse_rtn(ASTNode *node)
 {
     RtnNode *rtn_node = (RtnNode *)node;
-
     FuncSymbol *func = gst->get_func_symbol(gst->get_current_func());
+    Type expected_rtn_type = func->return_type;
 
-    if (rtn_node->value == nullptr && !func->return_type.is_void())
-        error("Return statement in function '" + gst->get_current_func() + "' must have a value");
-
-    Type return_type = Type(BaseType::VOID);
-
-    // needs to be updated
-    if (rtn_node->value != nullptr && !func->return_type.is_void())
+    if (expected_rtn_type.is_void())
     {
-        analyse_node(rtn_node->value.get());
-        return_type = infer_type(rtn_node->value.get());
+        if (rtn_node->value != nullptr)
+            error("Function '" + func->name + "' has void return type but return statement provides a value");
     }
-
-    validate_type_assignment(func->return_type, return_type, func->name);
+    else
+    {
+        if (rtn_node->value == nullptr)
+            error("Function '" + func->name + "' must return a value of type " + expected_rtn_type.to_string());
+        else
+        {
+            analyse_node(rtn_node->value.get());
+            validate_type_assignment(expected_rtn_type, rtn_node->value, "return from '" + func->name + "'");
+        }
+    }
 }
 
 void SemanticAnalyser::analyse_if_stmt(ASTNode *node)
@@ -376,14 +376,10 @@ void SemanticAnalyser::analyse_func_call(ASTNode *node)
 
     for (int i = 0; i < fc_node->args.size(); i++)
     {
-        auto arg = fc_node->args[i].get();
-
-        analyse_node(arg);
-
-        Type arg_type = infer_type(arg);
         Type param_type = func->arg_types[i];
 
-        validate_type_assignment(param_type, arg_type, "in call to '" + fc_node->name + "'");
+        analyse_node(fc_node->args[i].get());
+        validate_type_assignment(param_type, fc_node->args[i], "in call to '" + fc_node->name + "'");
     }
 }
 
@@ -483,12 +479,24 @@ void SemanticAnalyser::analyse_postfix(ASTNode *node)
     postfix_node->type = infer_type(postfix_node->value.get());
 }
 
-void SemanticAnalyser::validate_type_assignment(const Type &target_type, const Type &source_type,
+void SemanticAnalyser::validate_type_assignment(const Type &target_type, std::unique_ptr<ASTNode> &source_expr,
                                                 const std::string &context)
 {
-    if (!target_type.can_assign_from(source_type))
-        error("Cannot assign " + source_type.to_string() +
-              " to " + target_type.to_string() + " in " + context);
+    Type source_type = infer_type(source_expr.get());
+
+    // if (target_type.can_assign_from(source_type))
+    // return;
+
+    if (target_type == source_type)
+        return;
+
+    // Try literal-only, exact rewrite
+    if (target_type.can_assign_from(source_type) && try_promote_literal(source_expr, target_type))
+        return;
+
+    // If still incompatible, fail
+    error("Cannot assign " + source_type.to_string() +
+          " to " + target_type.to_string() + " in " + context);
 }
 
 void SemanticAnalyser::error(const std::string &message)
@@ -677,4 +685,168 @@ Type SemanticAnalyser::infer_type(ASTNode *node)
     default:
         error("Cannot infer type of node of type ");
     }
+}
+
+bool SemanticAnalyser::try_promote_literal(std::unique_ptr<ASTNode> &expr, const Type &target)
+{
+    std::cout << "i am here for target " << target.to_string() << "\n";
+
+    switch (target.get_base_type())
+    {
+    case BaseType::DOUBLE:
+    {
+        if (auto *i = dynamic_cast<IntegerLiteral *>(expr.get()))
+        {
+            if (std::llabs((long long)i->value) <= (1LL << 53))
+            {
+                expr = std::make_unique<DoubleLiteral>(static_cast<double>(i->value));
+                return true;
+            }
+            return false;
+        }
+        if (auto *l = dynamic_cast<LongLiteral *>(expr.get()))
+        {
+            if (std::llabs(l->value) <= (1LL << 53))
+            {
+                expr = std::make_unique<DoubleLiteral>(static_cast<double>(l->value));
+                return true;
+            }
+            return false;
+        }
+        if (auto *ui = dynamic_cast<UIntegerLiteral *>(expr.get()))
+        {
+            if ((unsigned long long)ui->value <= (1ULL << 53))
+            {
+                expr = std::make_unique<DoubleLiteral>(static_cast<double>(ui->value));
+                return true;
+            }
+            return false;
+        }
+        if (auto *ul = dynamic_cast<ULongLiteral *>(expr.get()))
+        {
+            if ((unsigned long long)ul->value <= (1ULL << 53))
+            {
+                expr = std::make_unique<DoubleLiteral>(static_cast<double>(ul->value));
+                return true;
+            }
+            return false;
+        }
+        if (dynamic_cast<DoubleLiteral *>(expr.get()))
+            return true;
+        break;
+    }
+
+    case BaseType::INT:
+    {
+        if (auto *i = dynamic_cast<IntegerLiteral *>(expr.get()))
+            return true;
+        if (auto *l = dynamic_cast<LongLiteral *>(expr.get()))
+        {
+            if (l->value >= INT_MIN && l->value <= INT_MAX)
+            {
+                expr = std::make_unique<IntegerLiteral>(static_cast<int>(l->value));
+                return true;
+            }
+            return false;
+        }
+        if (auto *ui = dynamic_cast<UIntegerLiteral *>(expr.get()))
+        {
+            if (ui->value <= static_cast<unsigned int>(INT_MAX))
+            {
+                expr = std::make_unique<IntegerLiteral>(static_cast<int>(ui->value));
+                return true;
+            }
+            return false;
+        }
+        break;
+    }
+
+    case BaseType::LONG:
+    {
+        if (auto *i = dynamic_cast<IntegerLiteral *>(expr.get()))
+        {
+            expr = std::make_unique<LongLiteral>(static_cast<long>(i->value));
+            return true;
+        }
+        if (dynamic_cast<LongLiteral *>(expr.get()))
+            return true;
+        break;
+    }
+
+    case BaseType::UINT:
+    {
+        if (auto *i = dynamic_cast<IntegerLiteral *>(expr.get()))
+        {
+            if (i->value >= 0)
+            {
+                expr = std::make_unique<UIntegerLiteral>(static_cast<unsigned int>(i->value));
+                return true;
+            }
+            return false;
+        }
+        if (dynamic_cast<UIntegerLiteral *>(expr.get()))
+            return true;
+        break;
+    }
+
+    case BaseType::ULONG:
+    {
+        if (auto *i = dynamic_cast<IntegerLiteral *>(expr.get()))
+        {
+            if (i->value >= 0)
+            {
+                expr = std::make_unique<ULongLiteral>(static_cast<unsigned long>(i->value));
+                return true;
+            }
+            return false;
+        }
+        if (auto *l = dynamic_cast<LongLiteral *>(expr.get()))
+        {
+            if (l->value >= 0)
+            {
+                expr = std::make_unique<ULongLiteral>(static_cast<unsigned long>(l->value));
+                return true;
+            }
+            return false;
+        }
+        if (dynamic_cast<ULongLiteral *>(expr.get()))
+            return true;
+        break;
+    }
+
+    case BaseType::CHAR:
+    {
+        if (auto *i = dynamic_cast<IntegerLiteral *>(expr.get()))
+        {
+            if (i->value >= std::numeric_limits<char>::min() &&
+                i->value <= std::numeric_limits<char>::max())
+            {
+                expr = std::make_unique<CharLiteral>(
+                    static_cast<char>(i->value), Type(BaseType::CHAR));
+                return true;
+            }
+            return false;
+        }
+        break;
+    }
+
+    case BaseType::BOOL:
+    {
+        if (auto *i = dynamic_cast<IntegerLiteral *>(expr.get()))
+        {
+            if (i->value == 0 || i->value == 1)
+            {
+                expr = std::make_unique<BoolLiteral>(i->value != 0);
+                return true;
+            }
+            return false;
+        }
+        break;
+    }
+
+    default:
+        break;
+    }
+
+    return false;
 }

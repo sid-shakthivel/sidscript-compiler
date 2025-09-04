@@ -96,7 +96,6 @@ void SymbolTable::declare_temp_var(const std::string &name, Type type)
 
 void SymbolTable::declare_const_var(const std::string &name, Type type)
 {
-    // std::cout << "Declare const var: " << name << std::endl;
     std::shared_ptr<Symbol> new_const_var = std::make_shared<Symbol>(name, 0, type);
     new_const_var->is_literal8 = true;
     var_symbols[name] = new_const_var;
