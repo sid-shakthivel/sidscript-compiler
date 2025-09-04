@@ -221,8 +221,8 @@ void TacGenerator::generate_tac_var_decl(ASTNode *element)
         return;
 
     /*
-    
-    
+
+
     */
 
     if (var_decl->var->type.is_struct())
@@ -577,14 +577,7 @@ std::string TacGenerator::generate_tac_expr_cast(ASTNode *expr)
     std::string result = generate_tac_expr(cast->expr.get());
 
     if (cast->target_type.has_base_type(BaseType::DOUBLE) && cast->expr.get()->node_type == NodeType::NODE_NUMBER)
-    {
-        std::string const_var = gen_new_const_label();
-        gst->declare_const_var(const_var, cast->target_type);
-
-        literal8_vars.emplace_back(TACOp::ASSIGN, const_var, "", result, cast->target_type);
-
-        return const_var;
-    }
+        return get_const_label(std::stod(result));
 
     std::string temp_var = gen_new_temp_var();
     gst->declare_temp_var(temp_var, cast->target_type);
@@ -624,9 +617,7 @@ std::string TacGenerator::generate_tac_expr_unary(ASTNode *expr)
         if (unary->type.is_pointer())
             error("Cannot take the address of a double yet?");
 
-        gst->declare_const_var("_.Lsign_bit", Type(BaseType::DOUBLE));
-        literal8_vars.emplace_back(TACOp::ASSIGN, "_.Lsign_bit", "", "9223372036854775808", Type(BaseType::DOUBLE));
-        instructions.emplace_back(convert_UnaryOpType_to_TACOp(unary->op), result, "_.Lsign_bit", temp_var, unary->type);
+        instructions.emplace_back(convert_UnaryOpType_to_TACOp(unary->op), result, get_const_label(9223372036854775808), temp_var, unary->type);
 
         return temp_var;
     }
@@ -754,13 +745,7 @@ std::string TacGenerator::generate_tac_expr_number(ASTNode *expr)
     else if (num->value_type.has_base_type(BaseType::INT))
         return std::to_string(((IntegerLiteral *)num)->value);
     else if (num->value_type.has_base_type(BaseType::DOUBLE))
-    {
-        // All double literals must be placed in a constant section
-        std::string const_val = gen_new_const_label();
-        gst->declare_const_var(const_val, Type(BaseType::DOUBLE));
-        literal8_vars.emplace_back(TACOp::ASSIGN, const_val, "", std::to_string(((DoubleLiteral *)num)->value), Type(BaseType::DOUBLE));
-        return const_val;
-    }
+        return get_const_label(((DoubleLiteral *)num)->value);
 }
 
 std::string TacGenerator::generate_tac_expr_size_of(ASTNode *expr)
@@ -776,6 +761,25 @@ std::string TacGenerator::generate_tac_expr_size_of(ASTNode *expr)
         instructions.emplace_back(TACOp::ASSIGN, temp_var, "", std::to_string(sizeof_node->type.get_size()), BaseType::INT);
 
     return temp_var;
+}
+
+std::string TacGenerator::get_const_label(double value)
+{
+    /*
+        Attempt to find the constant label for the value
+        Recall all double literals must be placed in a constant section
+        Otherwise make a new label, declare + assign it and then return
+    */
+    if (const_labels.find(value) != const_labels.end())
+        return const_labels[value];
+
+    std::string const_val = gen_new_const_label();
+    gst->declare_const_var(const_val, Type(BaseType::DOUBLE));
+    literal8_vars.emplace_back(TACOp::ASSIGN, const_val, "", std::to_string(value), Type(BaseType::DOUBLE));
+
+    const_labels.insert({value, const_val});
+
+    return const_val;
 }
 
 void TacGenerator::print_all_tac()

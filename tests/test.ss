@@ -1,19 +1,9 @@
-struct Test {
-    int a;
-    int b;
-};
-
 fn main() -> int
 {
-    // Make a new struct 
-    struct Test example;
-    example = {1, 3};
-    // Return it now
+    double a = 5.0;
+    double b = 5.0;
+    int c = 5;
 
-    /*
-        This is a multiline comment
-        And it's written in the style of how i write comments
-    */
-    return example.b;
+    return 2;    
 }
 

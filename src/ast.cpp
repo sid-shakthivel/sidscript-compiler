@@ -106,7 +106,7 @@ IntegerLiteral::IntegerLiteral(int v) : NumericLiteral(NodeType::NODE_NUMBER), v
 
 void IntegerLiteral::print(int tabs)
 {
-    std::cout << std::string(tabs, ' ') << "(Int) Literal: " + std::to_string(value) << std::endl;
+    std::cout << std::string(tabs, ' ') << "Literal (Int): " + std::to_string(value) << std::endl;
 }
 
 LongLiteral::LongLiteral(long v) : NumericLiteral(NodeType::NODE_NUMBER), value(v)
@@ -116,7 +116,7 @@ LongLiteral::LongLiteral(long v) : NumericLiteral(NodeType::NODE_NUMBER), value(
 
 void LongLiteral::print(int tabs)
 {
-    std::cout << std::string(tabs, ' ') << "(Long) Literal: " + std::to_string(value) << std::endl;
+    std::cout << std::string(tabs, ' ') << "Literal (Long): " + std::to_string(value) << std::endl;
 }
 
 UIntegerLiteral::UIntegerLiteral(unsigned int v) : NumericLiteral(NodeType::NODE_NUMBER), value(v)
@@ -126,7 +126,7 @@ UIntegerLiteral::UIntegerLiteral(unsigned int v) : NumericLiteral(NodeType::NODE
 
 void UIntegerLiteral::print(int tabs)
 {
-    std::cout << std::string(tabs, ' ') << "(UInt) Literal: " + std::to_string(value) << std::endl;
+    std::cout << std::string(tabs, ' ') << "Literal (UInt): " + std::to_string(value) << std::endl;
 }
 
 ULongLiteral::ULongLiteral(unsigned long v) : NumericLiteral(NodeType::NODE_NUMBER), value(v)
@@ -136,7 +136,7 @@ ULongLiteral::ULongLiteral(unsigned long v) : NumericLiteral(NodeType::NODE_NUMB
 
 void ULongLiteral::print(int tabs)
 {
-    std::cout << std::string(tabs, ' ') << "(ULong) Literal: " + std::to_string(value) << std::endl;
+    std::cout << std::string(tabs, ' ') << "Literal (ULong): " + std::to_string(value) << std::endl;
 }
 
 DoubleLiteral::DoubleLiteral(double v) : NumericLiteral(NodeType::NODE_NUMBER), value(v)
@@ -146,7 +146,7 @@ DoubleLiteral::DoubleLiteral(double v) : NumericLiteral(NodeType::NODE_NUMBER), 
 
 void DoubleLiteral::print(int tabs)
 {
-    std::cout << std::string(tabs, ' ') << "(Double) Literal: " + std::to_string(value) << std::endl;
+    std::cout << std::string(tabs, ' ') << "Literal (Double): " + std::to_string(value) << std::endl;
 }
 
 CompoundLiteral::CompoundLiteral(Type t) : ASTNode(NodeType::NODE_COMPOUND_INIT), type(t) {}

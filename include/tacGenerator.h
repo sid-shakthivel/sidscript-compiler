@@ -3,6 +3,7 @@
 #include <vector>
 #include <string>
 #include <memory>
+#include <unordered_map>
 
 #include "globalSymbolTable.h"
 #include "symbolTable.h"
@@ -99,6 +100,7 @@ private:
 
     std::unordered_map<NodeType, std::function<void(ASTNode *)>> handlers;
     std::unordered_map<NodeType, std::function<std::string(ASTNode *)>> expr_handlers;
+    std::unordered_map<double, std::string> const_labels;
 
     std::array<std::string, 6> x64_registers = {"%rdi", "%rsi", "%rdx", "%rcx", "%r8", "%r9"};
 
@@ -143,6 +145,7 @@ private:
     void generate_tac_cmp(ASTNode *condition, const std::string &label_success,
                           const std::string &label_failure);
     void generate_tac_struct_assign(VarNode *var, ASTNode *value);
+    std::string get_const_label(double value);
 
     void error(const std::string &message);
 };
