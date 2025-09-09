@@ -14,7 +14,7 @@ class SemanticAnalyser
 public:
     SemanticAnalyser(std::shared_ptr<GlobalSymbolTable> gst);
 
-    void analyse(std::shared_ptr<ProgramNode> program);
+    void analyse(std::shared_ptr<ProgramNode> &program);
 
     Type infer_type(ASTNode *node);
 
@@ -27,7 +27,7 @@ private:
     std::string gen_new_loop_label();
     std::stack<std::string> loop_scopes;
 
-    void enter_loop_scope(std::string label);
+    void enter_loop_scope(const std::string &label);
     void exit_loop_scope();
 
     void analyse_node(ASTNode *node);
@@ -45,13 +45,12 @@ private:
     void analyse_func_call(ASTNode *node);
     void analyse_cast(ASTNode *node);
     void analyse_struct_decl(ASTNode *node);
-    void analyse_compound_literal_init(ASTNode *node, Type var_type = Type(BaseType::VOID));
+    void analyse_compound_literal_init(ASTNode *node, const Type &var_type = Type(BaseType::VOID));
     void analyse_postfix(ASTNode *node);
 
     bool try_promote_literal(std::unique_ptr<ASTNode> &expr, const Type &target);
 
-    void validate_type_assignment(const Type &target_type, std::unique_ptr<ASTNode> &source_expr,
-                                  const std::string &context);
+    void validate_type_assignment(const Type &target_type, std::unique_ptr<ASTNode> &source_expr, const std::string &context);
 
     void error(const std::string &message);
 };

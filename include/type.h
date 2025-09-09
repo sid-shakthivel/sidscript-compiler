@@ -5,6 +5,7 @@
 #include <memory>
 #include <iostream>
 #include <map>
+#include <optional>
 
 enum class BaseType
 {
@@ -32,7 +33,7 @@ public:
     Type() : base_type(BaseType::VOID), ptr_level(0) {}
     Type(BaseType base);
     Type(BaseType base, int ptr_level);
-    Type(std::string struct_name, int ptr_level);
+    Type(std::string given_struct_name, int ptr_level);
 
     Type &add_array_dimension(int size);
 
@@ -41,7 +42,7 @@ public:
     bool is_struct() const;
     bool is_void() const;
     BaseType get_base_type() const;
-    bool has_base_type(BaseType other) const;
+    bool has_base_type(const BaseType &other) const;
     int get_ptr_depth() const;
 
     bool is_signed() const;

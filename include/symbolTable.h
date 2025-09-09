@@ -50,7 +50,7 @@ struct FuncSymbol : public Symbol
     std::vector<Type> arg_types;
     Type return_type;
 
-    FuncSymbol(std::string n, int ac, std::vector<Type> &at, Type rt);
+    FuncSymbol(const std::string &n, int ac, std::vector<Type> &at, const Type &rt);
 };
 
 class SymbolTable
@@ -61,10 +61,10 @@ public:
     void enter_scope();
     void exit_scope();
 
-    std::tuple<bool, std::string> declare_var(const std::string &name, Type type, bool is_static = false);
-    void declare_temp_var(const std::string &name, Type type);
-    void declare_const_var(const std::string &name, Type type);
-    void declare_str_var(const std::string &name, Type type);
+    std::tuple<bool, std::string> declare_var(const std::string &name, const Type &type, bool is_static = false);
+    void declare_temp_var(const std::string &name, const Type &type);
+    void declare_const_var(const std::string &name, const Type &type);
+    void declare_str_var(const std::string &name, const Type &type);
 
     std::tuple<bool, std::string> check_var_defined(const std::string &name);
 
@@ -80,7 +80,7 @@ private:
     static constexpr int DEFAULT_ALIGNMENT = 16;
 
     int align_to(int size, int alignment);
-    void adjust_stack(Type &type);
+    void adjust_stack(const Type &type);
 
     int var_count = 0;
     int stack_size = 0;

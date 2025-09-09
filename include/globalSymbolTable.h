@@ -19,9 +19,9 @@ public:
     std::string get_current_func() const;
 
     void declare_var(VarNode *node);
-    void declare_temp_var(const std::string &name, Type type);
-    void declare_const_var(const std::string &name, Type type);
-    void declare_str_var(const std::string &name, Type type);
+    void declare_temp_var(const std::string &name, const Type &type);
+    void declare_const_var(const std::string &name, const Type &type);
+    void declare_str_var(const std::string &name, const Type &type);
 
     std::string check_var_defined(const std::string &name);
 

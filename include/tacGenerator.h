@@ -82,9 +82,9 @@ class TacGenerator
 public:
     TacGenerator(std::shared_ptr<GlobalSymbolTable> gst, std::shared_ptr<SemanticAnalyser> sem_analyser);
 
-    void generate_all_tac(std::shared_ptr<ProgramNode> program);
+    void generate_all_tac(std::shared_ptr<ProgramNode> &program);
     void print_all_tac();
-    static std::string gen_tac_str(TACInstruction &instruction);
+    static std::string gen_tac_str(const TACInstruction &instruction);
 
     const std::vector<TACInstruction> &get_instructions() const { return instructions; }
 
@@ -111,7 +111,7 @@ private:
     int constCounter = 0;
 
     std::string gen_new_temp_var();
-    std::string gen_new_label(std::string label = "");
+    std::string gen_new_label(const std::string &label = "");
     std::string gen_new_const_label();
 
     void generate_tac(ASTNode *node);
@@ -142,8 +142,7 @@ private:
     std::string generate_tac_expr_size_of(ASTNode *expr);
 
     void generate_tac_var_array_assign(VarNode *var_node, Symbol *var_symbol, ASTNode *value);
-    void generate_tac_cmp(ASTNode *condition, const std::string &label_success,
-                          const std::string &label_failure);
+    void generate_tac_cmp(ASTNode *condition, const std::string &label_success, const std::string &label_failure);
     void generate_tac_struct_assign(VarNode *var, ASTNode *value);
     std::string get_const_label(double value);
 

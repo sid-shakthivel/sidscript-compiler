@@ -30,9 +30,7 @@ int main()
 
     Lexer lexer(file_contents);
 
-    // lexer.print_stack();
-
-    Parser parser(&lexer);
+    Parser parser(lexer);
 
     std::shared_ptr<ProgramNode> program = parser.parse();
 

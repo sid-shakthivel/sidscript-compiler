@@ -81,7 +81,7 @@ Specifier get_specifier(const TokenType &t)
     }
 }
 
-Type get_type_from_str(std::string &t)
+Type get_type_from_str(const std::string &t)
 {
     if (t == "int")
         return Type(BaseType::INT);

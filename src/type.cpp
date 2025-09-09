@@ -4,7 +4,7 @@ Type::Type(BaseType base) : base_type(base) {}
 
 Type::Type(BaseType base, int ptr_level) : base_type(base), ptr_level(ptr_level) {}
 
-Type::Type(std::string struct_name, int ptr_level) : base_type(BaseType::STRUCT), struct_name(struct_name), ptr_level(ptr_level) {}
+Type::Type(std::string given_struct_name, int ptr_level) : base_type(BaseType::STRUCT), struct_name(std::move(given_struct_name)), ptr_level(ptr_level) {}
 
 Type &Type::add_array_dimension(int size)
 {
@@ -239,7 +239,7 @@ bool Type::can_convert_to(const Type &other) const
     return false;
 }
 
-bool Type::has_base_type(BaseType other) const
+bool Type::has_base_type(const BaseType &other) const
 {
     return base_type == other;
 }

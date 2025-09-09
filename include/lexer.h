@@ -74,7 +74,7 @@ enum TokenType
 };
 
 extern std::unordered_map<std::string, TokenType> string_to_token;
-extern std::string token_to_string(TokenType token_type);
+;
 
 struct Token
 {
@@ -96,7 +96,7 @@ public:
     void print_all_tokens();
     void print_stack();
 
-    std::string token_to_string(TokenType token_type);
+    std::string token_to_string(const TokenType &token_type);
 
 private:
     std::string source;

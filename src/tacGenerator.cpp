@@ -97,7 +97,7 @@ std::string TacGenerator::gen_new_temp_var()
     return "t" + std::to_string(tempCounter++);
 }
 
-std::string TacGenerator::gen_new_label(std::string label)
+std::string TacGenerator::gen_new_label(const std::string &label)
 {
     return ".L" + label + std::to_string(labelCounter++);
 }
@@ -107,7 +107,7 @@ std::string TacGenerator::gen_new_const_label()
     return ".L" + std::string("const_") + std::to_string(constCounter++);
 }
 
-void TacGenerator::generate_all_tac(std::shared_ptr<ProgramNode> program)
+void TacGenerator::generate_all_tac(std::shared_ptr<ProgramNode> &program)
 {
     for (auto &decl : program->decls)
         generate_tac(decl.get());
@@ -219,11 +219,6 @@ void TacGenerator::generate_tac_var_decl(ASTNode *element)
     // Only carry on assigning if initialised to a value
     if (!var_decl->value)
         return;
-
-    /*
-
-
-    */
 
     if (var_decl->var->type.is_struct())
         return generate_tac_struct_assign(var_decl->var.get(), var_decl->value.get());
@@ -788,7 +783,7 @@ void TacGenerator::print_all_tac()
         std::cout << gen_tac_str(instr) << std::endl;
 }
 
-std::string TacGenerator::gen_tac_str(TACInstruction &instr)
+std::string TacGenerator::gen_tac_str(const TACInstruction &instr)
 {
     auto tacOpToString = [](TACOp op) -> std::string
     {

@@ -145,7 +145,7 @@ void GlobalSymbolTable::handle_local_var_decl(VarNode *node)
 		node->name = new_name;
 }
 
-void GlobalSymbolTable::declare_temp_var(const std::string &name, Type type)
+void GlobalSymbolTable::declare_temp_var(const std::string &name, const Type &type)
 {
 	auto it = functions.find(current_func);
 	if (it == functions.end())
@@ -153,7 +153,7 @@ void GlobalSymbolTable::declare_temp_var(const std::string &name, Type type)
 	std::get<1>(it->second)->declare_temp_var(name, type);
 }
 
-void GlobalSymbolTable::declare_const_var(const std::string &name, Type type)
+void GlobalSymbolTable::declare_const_var(const std::string &name, const Type &type)
 {
 	auto it = functions.find(current_func);
 	if (it == functions.end())
@@ -162,7 +162,7 @@ void GlobalSymbolTable::declare_const_var(const std::string &name, Type type)
 	std::get<1>(it->second)->declare_const_var(name, type);
 }
 
-void GlobalSymbolTable::declare_str_var(const std::string &name, Type type)
+void GlobalSymbolTable::declare_str_var(const std::string &name, const Type &type)
 {
 	auto it = functions.find(current_func);
 	if (it == functions.end())

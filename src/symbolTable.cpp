@@ -13,7 +13,7 @@ void Symbol::set_is_temp(bool it) { is_temporary = it; }
 
 bool Symbol::has_static_sd() { return storage_duration == StorageDuration::Static; }
 
-FuncSymbol::FuncSymbol(std::string n, int ac, std::vector<Type> &at, Type rt) : Symbol(n, 0, rt), arg_count(ac), arg_types(at), return_type(rt) {}
+FuncSymbol::FuncSymbol(const std::string &n, int ac, std::vector<Type> &at, const Type &rt) : Symbol(n, 0, rt), arg_count(ac), arg_types(at), return_type(rt) {}
 
 SymbolTable::SymbolTable() {}
 
@@ -30,7 +30,7 @@ void SymbolTable::exit_scope()
     scopes.pop();
 }
 
-std::tuple<bool, std::string> SymbolTable::declare_var(const std::string &name, Type type, bool is_static)
+std::tuple<bool, std::string> SymbolTable::declare_var(const std::string &name, const Type &type, bool is_static)
 {
     if (scopes.empty())
         throw std::runtime_error("Semantic Error: No scope available");
@@ -85,7 +85,7 @@ Symbol *SymbolTable::get_symbol(const std::string &name)
     return it != var_symbols.end() ? it->second.get() : nullptr;
 }
 
-void SymbolTable::declare_temp_var(const std::string &name, Type type)
+void SymbolTable::declare_temp_var(const std::string &name, const Type &type)
 {
     adjust_stack(type);
     std::shared_ptr<Symbol> new_temp_var = std::make_shared<Symbol>(name, stack_size * -1, type);
@@ -94,14 +94,14 @@ void SymbolTable::declare_temp_var(const std::string &name, Type type)
     var_count += 1;
 }
 
-void SymbolTable::declare_const_var(const std::string &name, Type type)
+void SymbolTable::declare_const_var(const std::string &name, const Type &type)
 {
     std::shared_ptr<Symbol> new_const_var = std::make_shared<Symbol>(name, 0, type);
     new_const_var->is_literal8 = true;
     var_symbols[name] = new_const_var;
 }
 
-void SymbolTable::declare_str_var(const std::string &name, Type type)
+void SymbolTable::declare_str_var(const std::string &name, const Type &type)
 {
     var_symbols[name] = std::make_shared<Symbol>(name, 0, type);
 }
@@ -141,7 +141,7 @@ int SymbolTable::get_stack_size()
     return align_to(stack_size, DEFAULT_ALIGNMENT);
 }
 
-void SymbolTable::adjust_stack(Type &type)
+void SymbolTable::adjust_stack(const Type &type)
 {
     stack_size = align_to(stack_size, type.get_size());
     stack_size += type.get_size();

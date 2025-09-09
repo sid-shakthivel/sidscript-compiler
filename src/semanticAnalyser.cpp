@@ -25,7 +25,7 @@ SemanticAnalyser::SemanticAnalyser(std::shared_ptr<GlobalSymbolTable> gst) : gst
     REGISTER_HANDLER(NodeType::NODE_COMPOUND_INIT, analyse_compound_literal_init);
 }
 
-void SemanticAnalyser::analyse(std::shared_ptr<ProgramNode> program)
+void SemanticAnalyser::analyse(std::shared_ptr<ProgramNode> &program)
 {
     for (auto &decl : program->decls)
         analyse_node(decl.get());
@@ -120,7 +120,7 @@ void SemanticAnalyser::analyse_var_decl(ASTNode *node)
     analyse_var(var_decl_node->var.get());
 }
 
-void SemanticAnalyser::analyse_compound_literal_init(ASTNode *node, Type var_type)
+void SemanticAnalyser::analyse_compound_literal_init(ASTNode *node, const Type &var_type)
 {
     CompoundLiteral *compound_literal = (CompoundLiteral *)node;
 
@@ -390,7 +390,7 @@ void SemanticAnalyser::analyse_func_call(ASTNode *node)
       so the most inner loop is used for loop controls
 */
 
-void SemanticAnalyser::enter_loop_scope(std::string label)
+void SemanticAnalyser::enter_loop_scope(const std::string &label)
 {
     loop_scopes.emplace(label);
 }

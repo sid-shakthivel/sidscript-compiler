@@ -22,29 +22,29 @@ std::unordered_map<BinOpType, int> precedence_map = {
     {BinOpType::MOD, 40},
 };
 
-Parser::Parser(Lexer *l) : lexer(l), current_token(TOKEN_EOF, "", 1, 0)
+Parser::Parser(Lexer &l) : lexer(l), current_token(TOKEN_EOF, "", 1, 0)
 {
     advance();
 }
 
-bool Parser::match(TokenType type)
+bool Parser::match(const TokenType &type)
 {
     return current_token.type == type;
 }
 
-bool Parser::match(std::vector<TokenType> &tokens)
+bool Parser::match(const std::vector<TokenType> &tokens)
 {
     return std::find(tokens.begin(), tokens.end(), current_token.type) != tokens.end();
 }
 
 void Parser::advance()
 {
-    current_token = lexer->get_next_token();
+    current_token = lexer.get_next_token();
 }
 
 void Parser::retreat(int iterations)
 {
-    current_token = lexer->rewind(iterations);
+    current_token = lexer.rewind(iterations);
 }
 
 void Parser::error(const std::string &message)
@@ -52,25 +52,25 @@ void Parser::error(const std::string &message)
     throw std::runtime_error("Parser Error: " + message + " but found " + current_token.text + " on line " + std::to_string(current_token.line));
 }
 
-void Parser::expect(TokenType token_type)
+void Parser::expect(const TokenType &token_type)
 {
     if (current_token.type != token_type)
-        error("Expected " + lexer->token_to_string(token_type));
+        error("Expected " + lexer.token_to_string(token_type));
 }
 
-void Parser::expect(std::vector<TokenType> &tokens)
+void Parser::expect(const std::vector<TokenType> &tokens)
 {
     if (!match(tokens))
-        error("Expected (multiple) " + lexer->token_to_string(tokens[0]));
+        error("Expected (multiple) " + lexer.token_to_string(tokens[0]));
 }
 
-void Parser::expect_and_advance(TokenType token_type)
+void Parser::expect_and_advance(const TokenType &token_type)
 {
     expect(token_type);
     advance();
 }
 
-void Parser::expect_and_advance(std::vector<TokenType> &tokens)
+void Parser::expect_and_advance(const std::vector<TokenType> &tokens)
 {
     expect(tokens);
     advance();
@@ -129,7 +129,7 @@ std::unique_ptr<ASTNode> Parser::parse_struct_decl()
     return std::make_unique<StructDeclNode>(struct_name, std::move(members));
 }
 
-std::unique_ptr<FuncNode> Parser::parse_func_decl(TokenType specifier)
+std::unique_ptr<FuncNode> Parser::parse_func_decl(const TokenType &specifier)
 {
     expect_and_advance(TOKEN_FN);
 
@@ -349,7 +349,7 @@ std::unique_ptr<ASTNode> Parser::parse_loop_control()
 }
 
 // Specifier is static/extern
-std::unique_ptr<VarDeclNode> Parser::parse_var_decl(TokenType specifier)
+std::unique_ptr<VarDeclNode> Parser::parse_var_decl(const TokenType &specifier)
 {
     Type var_type = parse_type();
 
@@ -403,7 +403,7 @@ Type Parser::parse_type()
     return determine_type(types);
 }
 
-Type Parser::determine_type(std::vector<TokenType> &types)
+Type Parser::determine_type(const std::vector<TokenType> &types)
 {
     BaseType base_type = BaseType::INT;
     bool is_unsigned = false;
@@ -698,12 +698,12 @@ void Parser::parse_args_list(std::unique_ptr<FuncCallNode> &func_call)
     }
 }
 
-int Parser::get_precedence(TokenType op)
+int Parser::get_precedence(const TokenType &op)
 {
     return precedence_map.at(get_bin_op_type(op));
 }
 
-std::unique_ptr<ASTNode> Parser::parse_lvalue(Specifier specifier)
+std::unique_ptr<ASTNode> Parser::parse_lvalue(const Specifier &specifier)
 {
     expect(TOKEN_IDENTIFIER);
     std::string var_name = current_token.text;

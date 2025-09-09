@@ -385,7 +385,7 @@ void Lexer::print_stack()
     }
 }
 
-std::string Lexer::token_to_string(TokenType token_type)
+std::string Lexer::token_to_string(const TokenType &token_type)
 {
     for (const auto &pair : string_to_token)
         if (pair.second == token_type)
