@@ -149,14 +149,14 @@ void DoubleLiteral::print(int tabs)
     std::cout << std::string(tabs, ' ') << "Literal (Double): " + std::to_string(value) << std::endl;
 }
 
-CompoundLiteral::CompoundLiteral(Type t) : ASTNode(NodeType::NODE_COMPOUND_INIT), type(t) {}
+AggregateLiteral::AggregateLiteral(Type t) : ASTNode(NodeType::NODE_AGGREGATE_INIT), type(t) {}
 
-void CompoundLiteral::add_element(std::unique_ptr<ASTNode> e)
+void AggregateLiteral::add_element(std::unique_ptr<ASTNode> e)
 {
     values.push_back(std::move(e));
 }
 
-void CompoundLiteral::print(int tabs)
+void AggregateLiteral::print(int tabs)
 {
     std::cout << std::string(tabs, ' ') << "CompoundInit:" << std::endl;
     for (const auto &elem : values)
@@ -294,6 +294,8 @@ void PostfixNode::print(int tabs)
 
     std::cout << std::string(tabs, ' ') << "Postfix: " << std::endl;
     std::cout << std::string(tabs + 1, ' ') << "Type: " << get_postfix_op_string(op) << std::endl;
+    std::cout << std::string(tabs + 1, ' ') << "Field: " << field_name << std::endl;
+    std::cout << std::string(tabs + 1, ' ') << "StructName: " << struct_name << std::endl;
     value->print(tabs + 1);
 }
 
@@ -455,8 +457,10 @@ void ArrayAccessNode::print(int tabs)
 {
     std::cout << std::string(tabs, ' ') << "ArrayAccess: " << std::endl;
     std::cout << std::string(tabs + 1, ' ') << "Type: " << type.to_string() << std::endl;
-    array->print(tabs + 1);
-    index->print(tabs + 1);
+    std::cout << std::string(tabs + 1, ' ') << "Array: " << std::endl;
+    array->print(tabs + 2);
+    std::cout << std::string(tabs + 1, ' ') << "Index: " << std::endl;
+    index->print(tabs + 2);
 }
 
 SizeOfNode::SizeOfNode(Type t) : ASTNode(NodeType::NODE_SIZE_OF), type(t) {}

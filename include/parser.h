@@ -47,7 +47,7 @@ private:
     std::unique_ptr<ASTNode> parse_for_init();
     std::unique_ptr<ASTNode> parse_loop_control();
     void parse_args_list(std::unique_ptr<FuncCallNode> &func_call);
-    std::unique_ptr<CompoundLiteral> parse_compound_literal(const Type &array_type = Type(BaseType::VOID));
+    std::unique_ptr<AggregateLiteral> parse_aggregate_literal(const Type &type = Type(BaseType::VOID));
     std::unique_ptr<ASTNode> parse_cast();
     std::unique_ptr<ASTNode> parse_unary_operation();
     std::unique_ptr<ASTNode> parse_number_literal();

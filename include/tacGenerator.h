@@ -54,7 +54,7 @@ enum class TACOp
     ADDR_OF,
     PRINTF,
     STRUCT_INIT,
-    MEMBER_ACCESS,
+    STRUCT_MEMBER_ACCESS,
     MEMBER_ASSIGN,
 };
 
@@ -72,8 +72,7 @@ struct TACInstruction
     BinOpType cmp_op; // Optional argument
     std::string arg3; // Another optional argument
 
-    TACInstruction(TACOp op, const std::string &arg1 = "",
-                   const std::string &arg2 = "", const std::string &result = "", Type type = Type(BaseType::VOID))
+    TACInstruction(TACOp op, const std::string &arg1 = "", const std::string &arg2 = "", const std::string &result = "", Type type = Type(BaseType::VOID))
         : op(op), arg1(arg1), arg2(arg2), result(result), cmp_op(BinOpType::EQUAL), type(type), arg3{""} {}
 };
 

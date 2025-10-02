@@ -22,7 +22,7 @@ SemanticAnalyser::SemanticAnalyser(std::shared_ptr<GlobalSymbolTable> gst) : gst
     REGISTER_HANDLER(NodeType::NODE_VAR, analyse_var);
     REGISTER_HANDLER(NodeType::NODE_POSTFIX, analyse_postfix);
     REGISTER_HANDLER(NodeType::NODE_STRUCT_DECL, analyse_struct_decl);
-    REGISTER_HANDLER(NodeType::NODE_COMPOUND_INIT, analyse_compound_literal_init);
+    REGISTER_HANDLER(NodeType::NODE_AGGREGATE_INIT, analyse_aggregate_literal);
 }
 
 void SemanticAnalyser::analyse(std::shared_ptr<ProgramNode> &program)
@@ -110,7 +110,7 @@ void SemanticAnalyser::analyse_var_decl(ASTNode *node)
                 error("Too many characters in string initialisation of " + var_decl_node->var->name);
         }
         else if (var_type.is_array() || var_type.is_struct())
-            if (var_decl_node->value->node_type != NodeType::NODE_COMPOUND_INIT)
+            if (var_decl_node->value->node_type != NodeType::NODE_AGGREGATE_INIT)
                 error("Compound initialisation of " + var_decl_node->var->name + " requires compound literal");
 
         validate_type_assignment(var_type, var_decl_node->value, var_decl_node->var->name);
@@ -120,11 +120,11 @@ void SemanticAnalyser::analyse_var_decl(ASTNode *node)
     analyse_var(var_decl_node->var.get());
 }
 
-void SemanticAnalyser::analyse_compound_literal_init(ASTNode *node, const Type &var_type)
+void SemanticAnalyser::analyse_aggregate_literal(ASTNode *node, const Type &var_type)
 {
-    CompoundLiteral *compound_literal = (CompoundLiteral *)node;
+    AggregateLiteral *aggregate_literal = (AggregateLiteral *)node;
 
-    Type type_to_cmp = var_type.has_base_type(BaseType::VOID) ? compound_literal->type : var_type;
+    Type type_to_cmp = var_type.has_base_type(BaseType::VOID) ? aggregate_literal->type : var_type;
 
     if (type_to_cmp.is_array())
     {
@@ -132,10 +132,10 @@ void SemanticAnalyser::analyse_compound_literal_init(ASTNode *node, const Type &
             This is used when declaring an array
             - int arr[3] = {1, 2, 3};
         */
-        if (compound_literal->values.size() > type_to_cmp.get_size())
+        if (aggregate_literal->values.size() > type_to_cmp.get_size())
             error("Too many elements in array initialisation");
 
-        for (auto &element : compound_literal->values)
+        for (auto &element : aggregate_literal->values)
         {
             analyse_node(element.get());
 
@@ -150,19 +150,19 @@ void SemanticAnalyser::analyse_compound_literal_init(ASTNode *node, const Type &
         if (struct_table.find(struct_name) == struct_table.end())
             error("Struct '" + struct_name + "' not defined");
 
-        std::map<std::string, Type> struct_fields = struct_table[struct_name];
+        std::unordered_map<std::string, Type> struct_fields = struct_table[struct_name];
 
-        if (struct_fields.size() != compound_literal->values.size())
+        if (struct_fields.size() != aggregate_literal->values.size())
             error("Struct '" + struct_name + "' has " + std::to_string(struct_fields.size()) +
-                  " fields, but " + std::to_string(compound_literal->values.size()) + " were provided");
+                  " fields, but " + std::to_string(aggregate_literal->values.size()) + " were provided");
 
         int i = 0;
         for (const auto &[field_name, field_type] : struct_fields)
         {
-            analyse_node(compound_literal->values[i].get());
+            analyse_node(aggregate_literal->values[i].get());
 
-            validate_type_assignment(field_type, compound_literal->values[i],
-                                     "in initialization of struct field '" + field_name + "'");
+            validate_type_assignment(field_type, aggregate_literal->values[i],
+                                     "in initialisation of struct field '" + field_name + "'");
             i++;
         }
     }
@@ -171,12 +171,12 @@ void SemanticAnalyser::analyse_compound_literal_init(ASTNode *node, const Type &
         /*
             This will likely be used when declaring a array within a struct
         */
-        for (auto &element : compound_literal->values)
+        for (auto &element : aggregate_literal->values)
             analyse_node(element.get());
 
-        Type arr_type = infer_type(compound_literal->values[0].get());
-        arr_type.add_array_dimension(compound_literal->values.size());
-        compound_literal->type = arr_type;
+        Type arr_type = infer_type(aggregate_literal->values[0].get());
+        arr_type.add_array_dimension(aggregate_literal->values.size());
+        aggregate_literal->type = arr_type;
     }
 }
 
@@ -196,7 +196,7 @@ void SemanticAnalyser::analyse_var_assign(ASTNode *node)
         var->type = var_type;
 
         if (var_type.is_struct())
-            analyse_compound_literal_init(var_assign_node->value.get(), var_type);
+            analyse_aggregate_literal(var_assign_node->value.get(), var_type);
         else
             validate_type_assignment(var_type, var_assign_node->value, var->name);
     }
@@ -421,7 +421,7 @@ void SemanticAnalyser::analyse_struct_decl(ASTNode *node)
     if (struct_table.find(struct_decl_node->name) != struct_table.end())
         error("Struct '" + struct_decl_node->name + "' already defined");
 
-    std::map<std::string, Type> members;
+    std::unordered_map<std::string, Type> members;
 
     for (const auto &member : struct_decl_node->members)
     {
@@ -452,9 +452,20 @@ void SemanticAnalyser::analyse_postfix(ASTNode *node)
             - struct *s s2;
             - s1.x = 5;
             - s2->x = 10;
+
+            This should set the type of the postfix node to the type of the struct member
         */
 
-        Type expr_type = infer_type(postfix_node->value.get());
+        std::cout << "In semantic analyser\n";
+
+        // Infer the type of the struct member
+        Type rtn_type = infer_type(postfix_node->value.get(), postfix_node->struct_name);
+
+        // Get the symbol for the struct variable
+        Symbol *symbol = gst->get_symbol(postfix_node->struct_name);
+
+        // Type expr_type = infer_type(postfix_node->value.get(), postfix_node->field);
+        Type expr_type = symbol->type;
 
         if (postfix_node->op == TOKEN_DOT && (!expr_type.is_struct() || expr_type.is_pointer()))
             error("Cannot access member of non-struct type");
@@ -462,15 +473,7 @@ void SemanticAnalyser::analyse_postfix(ASTNode *node)
         if (postfix_node->op == TOKEN_ARROW && (!expr_type.is_struct() || !expr_type.is_pointer()))
             error("Cannot access member of non-pointer type");
 
-        std::string struct_name = expr_type.get_struct_name();
-
-        if (struct_table.find(struct_name) == struct_table.end())
-            error("Struct '" + struct_name + "' not defined");
-
-        if (struct_table[struct_name].find(postfix_node->field) == struct_table[struct_name].end())
-            error("Struct '" + struct_name + "' has no member '" + postfix_node->field + "'");
-
-        postfix_node->type = struct_table[struct_name][postfix_node->field];
+        postfix_node->type = rtn_type;
 
         return;
     }
@@ -479,8 +482,7 @@ void SemanticAnalyser::analyse_postfix(ASTNode *node)
     postfix_node->type = infer_type(postfix_node->value.get());
 }
 
-void SemanticAnalyser::validate_type_assignment(const Type &target_type, std::unique_ptr<ASTNode> &source_expr,
-                                                const std::string &context)
+void SemanticAnalyser::validate_type_assignment(const Type &target_type, std::unique_ptr<ASTNode> &source_expr, const std::string &context)
 {
     Type source_type = infer_type(source_expr.get());
 
@@ -504,7 +506,7 @@ void SemanticAnalyser::error(const std::string &message)
     throw std::runtime_error("Semantic Error: " + message);
 }
 
-Type SemanticAnalyser::infer_type(ASTNode *node)
+Type SemanticAnalyser::infer_type(ASTNode *node, std::optional<std::string> field_name)
 {
     switch (node->node_type)
     {
@@ -514,12 +516,41 @@ Type SemanticAnalyser::infer_type(ASTNode *node)
         return ((BoolLiteral *)node)->value_type;
     case NodeType::NODE_VAR:
     {
-        auto rtn = gst->get_symbol(((VarNode *)node)->name);
+        VarNode *var_node = (VarNode *)node;
 
-        if (rtn == nullptr)
-            error("Variable '" + ((VarNode *)node)->name + "' not defined");
+        if (field_name.has_value())
+        {
+            /*
+                First get the struct symbol for the struct variable
+                Then check whether the struct has the appropriate field
+                If it does -> return the type of the field (using the struct table)
+            */
+            Symbol *struct_symbol = gst->get_symbol(field_name.value());
 
-        return rtn->type;
+            if (struct_symbol == nullptr)
+                error("Variable '" + field_name.value() + "' not defined");
+
+            std::string struct_name = struct_symbol->type.get_struct_name();
+
+            if (struct_table.find(struct_name) == struct_table.end())
+                error("Struct '" + struct_name + "' not defined");
+
+            std::unordered_map<std::string, Type> struct_fields = struct_table[struct_name];
+
+            if (struct_fields.find(var_node->name) == struct_fields.end())
+                error("Struct '" + struct_name + "' has no field '" + var_node->name + "'");
+
+            return struct_fields[var_node->name];
+        }
+        else
+        {
+            auto rtn = gst->get_symbol(var_node->name);
+
+            if (rtn == nullptr)
+                error("Variable '" + var_node->name + "' not defined");
+
+            return rtn->type;
+        }
     }
     case NodeType::NODE_FUNC_CALL:
     {
@@ -619,31 +650,67 @@ Type SemanticAnalyser::infer_type(ASTNode *node)
 
         return ((PostfixNode *)node)->type;
     }
-    case NodeType::NODE_COMPOUND_INIT:
+    case NodeType::NODE_AGGREGATE_INIT:
     {
-        return ((CompoundLiteral *)node)->type;
+        return ((AggregateLiteral *)node)->type;
     }
     case NodeType::NODE_ARRAY_ACCESS:
     {
         ArrayAccessNode *array_access_node = (ArrayAccessNode *)node;
-        Symbol *array_symbol = gst->get_symbol(array_access_node->array->name);
 
-        // Check if the index is a constant
-        if (auto index_literal = dynamic_cast<IntegerLiteral *>(array_access_node->index.get()))
+        /*
+            Note that an array_access node can be one of two things (both must be accomodated for):
+            - Just a regular variable i.e. arr[1]
+            - A struct member i.e. struct.arr[1] / struct->arr[1]
+        */
+        if (field_name.has_value())
         {
-            if (index_literal->value < 0 || index_literal->value >= array_symbol->type.get_size())
+            // First get the struct symbol using the struct name
+            Symbol *struct_symbol = gst->get_symbol(field_name.value());
+
+            std::string struct_name = struct_symbol->type.get_struct_name();
+
+            /*
+                Now check whether the 'field' for the struct matches properly
+            */
+            if (struct_table.find(struct_name) == struct_table.end())
+                error("Struct '" + struct_name + "' not defined");
+
+            std::unordered_map<std::string, Type> struct_fields = struct_table[struct_name];
+
+            if (struct_fields.find(array_access_node->array->name) == struct_fields.end())
+                error("Struct '" + struct_name + "' has no field '" + array_access_node->array->name + "'");
+
+            Type type = struct_fields[array_access_node->array->name];
+
+            array_access_node->type = type;
+            array_access_node->array->type = type;
+
+            return type.get_base_type();
+        }
+        else
+        {
+            Symbol *array_symbol = gst->get_symbol(array_access_node->array->name);
+
+            // Check if the index is a constant
+            if (auto index_literal = dynamic_cast<IntegerLiteral *>(array_access_node->index.get()))
             {
-                error("Array index " +
-                      std::to_string(index_literal->value) +
-                      " out of bounds for array '" + array_access_node->array->name +
-                      "' of size " + std::to_string(array_symbol->type.get_size()));
+                if (index_literal->value < 0 || index_literal->value >= array_symbol->type.get_size())
+                {
+                    error("Array index " +
+                          std::to_string(index_literal->value) +
+                          " out of bounds for array '" + array_access_node->array->name +
+                          "' of size " + std::to_string(array_symbol->type.get_size()));
+                }
             }
+
+            array_access_node->type = array_symbol->type;
+            array_access_node->array->type = array_symbol->type;
+
+            return array_symbol->type.get_base_type();
         }
 
-        array_access_node->type = array_symbol->type;
-        array_access_node->array->type = array_symbol->type;
-
-        return array_symbol->type.get_base_type();
+        return ((ArrayAccessNode *)node)->type;
     }
     case NodeType::NODE_SIZE_OF:
     {
@@ -689,8 +756,6 @@ Type SemanticAnalyser::infer_type(ASTNode *node)
 
 bool SemanticAnalyser::try_promote_literal(std::unique_ptr<ASTNode> &expr, const Type &target)
 {
-    std::cout << "i am here for target " << target.to_string() << "\n";
-
     switch (target.get_base_type())
     {
     case BaseType::DOUBLE:

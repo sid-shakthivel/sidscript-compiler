@@ -16,12 +16,12 @@ public:
 
     void analyse(std::shared_ptr<ProgramNode> &program);
 
-    Type infer_type(ASTNode *node);
+    Type infer_type(ASTNode *node, std::optional<std::string> struct_name = std::nullopt);
 
 private:
     std::unordered_map<NodeType, std::function<void(ASTNode *)>> handlers;
     std::shared_ptr<GlobalSymbolTable> gst;
-    std::map<std::string, std::map<std::string, Type>> struct_table;
+    std::unordered_map<std::string, std::unordered_map<std::string, Type>> struct_table;
 
     unsigned int loop_label_counter = 0;
     std::string gen_new_loop_label();
@@ -45,7 +45,7 @@ private:
     void analyse_func_call(ASTNode *node);
     void analyse_cast(ASTNode *node);
     void analyse_struct_decl(ASTNode *node);
-    void analyse_compound_literal_init(ASTNode *node, const Type &var_type = Type(BaseType::VOID));
+    void analyse_aggregate_literal(ASTNode *node, const Type &type = Type(BaseType::VOID));
     void analyse_postfix(ASTNode *node);
 
     bool try_promote_literal(std::unique_ptr<ASTNode> &expr, const Type &target);

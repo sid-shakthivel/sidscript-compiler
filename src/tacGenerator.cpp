@@ -216,7 +216,10 @@ void TacGenerator::generate_tac_var_decl(ASTNode *element)
         return;
     }
 
-    // Only carry on assigning if initialised to a value
+    /*
+        Only carry on assigning if initialised to a value
+        This check is only performed after checking if a variable is global/static as they can be initialised without a value
+    */
     if (!var_decl->value)
         return;
 
@@ -265,20 +268,20 @@ void TacGenerator::generate_tac_var_assign(ASTNode *element)
     {
         PostfixNode *postfix = dynamic_cast<PostfixNode *>(var_assign->var.get());
 
-        if (postfix->op == TokenType::TOKEN_DOT || postfix->op == TokenType::TOKEN_ARROW)
+        if (!(postfix->op == TokenType::TOKEN_DOT || postfix->op == TokenType::TOKEN_ARROW))
+            error("Cannot assign to postfix expression");
+
+        std::string base = generate_tac_expr(postfix->value.get());
+        std::string result = generate_tac_expr(var_assign->value.get());
+
+        if (postfix->op == TokenType::TOKEN_ARROW)
         {
-            std::string base = generate_tac_expr(postfix->value.get());
-            std::string result = generate_tac_expr(var_assign->value.get());
-
-            if (postfix->op == TokenType::TOKEN_ARROW)
-            {
-                std::string deref = gen_new_temp_var();
-                instructions.emplace_back(TACOp::DEREF, base, "", deref);
-                base = deref;
-            }
-
-            instructions.emplace_back(TACOp::MEMBER_ASSIGN, base, postfix->field, result, sem_analyser->infer_type(var_assign->value.get()));
+            std::string deref = gen_new_temp_var();
+            instructions.emplace_back(TACOp::DEREF, base, "", deref);
+            base = deref;
         }
+
+        instructions.emplace_back(TACOp::ASSIGN, base, postfix->struct_name, result, sem_analyser->infer_type(var_assign->value.get()));
     }
 }
 
@@ -416,7 +419,7 @@ std::string TacGenerator::generate_tac_expr(ASTNode *expr)
     if (!expr)
         return "";
 
-    if (expr->node_type == NodeType::NODE_COMPOUND_INIT)
+    if (expr->node_type == NodeType::NODE_AGGREGATE_INIT)
         return "";
 
     if (expr_handlers.find(expr->node_type) != expr_handlers.end())
@@ -439,20 +442,18 @@ void TacGenerator::generate_tac_var_array_assign(VarNode *var_node, Symbol *var_
     }
     else
     {
-        CompoundLiteral *array_init = dynamic_cast<CompoundLiteral *>(value);
+        AggregateLiteral *array_init = dynamic_cast<AggregateLiteral *>(value);
         for (size_t i = 0; i < array_size; i++)
             elements.emplace_back(generate_tac_expr(array_init->values[i].get()));
     }
 
     // Assign provided values
     for (size_t i = 0; i < elements.size() && i < (size_t)array_size; i++)
-        instructions.emplace_back(TACOp::ASSIGN, var_node->name,
-                                  std::to_string(i), elements[i], Type(base_type));
+        instructions.emplace_back(TACOp::ASSIGN, var_node->name, std::to_string(i), elements[i], Type(base_type));
 
     // Fill remaining space (if any) with zeros
     for (size_t i = elements.size(); i < (size_t)array_size; i++)
-        instructions.emplace_back(TACOp::ASSIGN, var_node->name,
-                                  std::to_string(i), "0", Type(base_type));
+        instructions.emplace_back(TACOp::ASSIGN, var_node->name, std::to_string(i), "0", Type(base_type));
 }
 
 void TacGenerator::generate_tac_cmp(ASTNode *condition, const std::string &label_success,
@@ -538,7 +539,7 @@ void TacGenerator::generate_tac_cmp(ASTNode *condition, const std::string &label
 
 void TacGenerator::generate_tac_struct_assign(VarNode *var, ASTNode *value)
 {
-    CompoundLiteral *compound_init = dynamic_cast<CompoundLiteral *>(value);
+    AggregateLiteral *compound_init = dynamic_cast<AggregateLiteral *>(value);
 
     instructions.emplace_back(TACOp::STRUCT_INIT, var->name, "", "", var->type);
 
@@ -546,13 +547,33 @@ void TacGenerator::generate_tac_struct_assign(VarNode *var, ASTNode *value)
     for (const auto &value : compound_init->values)
     {
         std::string result = generate_tac_expr(value.get());
-        instructions.emplace_back(TACOp::MEMBER_ASSIGN,
-                                  var->name,
-                                  var->type.get_field_name(field_index),
-                                  result,
-                                  sem_analyser->infer_type(value.get()));
-        field_index++;
+        std::string field_name = var->type.get_field_name(field_index);
+        int offset = var->type.get_field_offset(field_name);
+        Type result_type = sem_analyser->infer_type(value.get());
+
+        if (result_type.is_array())
+        {
+            if (value.get()->node_type == NodeType::NODE_AGGREGATE_INIT)
+            {
+                AggregateLiteral *aggregate_init = dynamic_cast<AggregateLiteral *>(value.get());
+                for (size_t i = 0; i < aggregate_init->values.size(); i++)
+                {
+                    result = generate_tac_expr(aggregate_init->values[i].get());
+                    int arr_offset = offset + i * result_type.get_base_size();
+                    instructions.emplace_back(TACOp::ASSIGN, var->name, std::to_string(arr_offset), result, aggregate_init->type.get_base_type());
+                }
+            }
+            field_index++;
+        }
+
+        else
+        {
+            instructions.emplace_back(TACOp::ASSIGN, var->name, std::to_string(offset), result, result_type);
+            field_index++;
+        }
     }
+
+    // instructions.emplace_back(TACOp::ASSIGN, var->name, var->type.get_field_name(field_index), result, sem_analyser->infer_type(value.get()));
 }
 
 std::string TacGenerator::generate_tac_expr_var(ASTNode *expr)
@@ -642,19 +663,19 @@ std::string TacGenerator::generate_tac_expr_postfix(ASTNode *expr)
 
     if (postfix->op == TokenType::TOKEN_DOT || postfix->op == TokenType::TOKEN_ARROW)
     {
-        std::string base = generate_tac_expr(postfix->value.get());
+        // std::string base = generate_tac_expr(postfix->value.get());
         std::string temp = gen_new_temp_var();
 
         if (postfix->op == TokenType::TOKEN_ARROW)
         {
             std::string deref = gen_new_temp_var();
-            instructions.emplace_back(TACOp::DEREF, base, "", deref);
-            base = deref;
+            instructions.emplace_back(TACOp::DEREF, postfix->struct_name, "", deref);
+            postfix->struct_name = deref;
         }
 
         gst->declare_temp_var(temp, postfix->type);
 
-        instructions.emplace_back(TACOp::MEMBER_ACCESS, base, postfix->field, temp, postfix->type);
+        instructions.emplace_back(TACOp::STRUCT_MEMBER_ACCESS, postfix->struct_name, postfix->field_name, temp, postfix->type);
         return temp;
     }
 
@@ -670,6 +691,7 @@ std::string TacGenerator::generate_tac_expr_postfix(ASTNode *expr)
 
 std::string TacGenerator::generate_tac_expr_array_access(ASTNode *expr)
 {
+    std::cout << "i bet its here\n";
     ArrayAccessNode *array_access = (ArrayAccessNode *)expr;
     std::string base = generate_tac_expr(array_access->array.get());
     std::string index = generate_tac_expr(array_access->index.get());
@@ -750,10 +772,11 @@ std::string TacGenerator::generate_tac_expr_size_of(ASTNode *expr)
     std::string temp_var = gen_new_temp_var();
     gst->declare_temp_var(temp_var, BaseType::INT);
 
-    if (sizeof_node->var)
-        instructions.emplace_back(TACOp::ASSIGN, temp_var, "", std::to_string(sizeof_node->var->type.get_size()), BaseType::INT);
-    else
-        instructions.emplace_back(TACOp::ASSIGN, temp_var, "", std::to_string(sizeof_node->type.get_size()), BaseType::INT);
+    /*
+        If the variable exists, get the size of it
+        Otherwise get the size of the type
+    */
+    instructions.emplace_back(TACOp::ASSIGN, temp_var, "", sizeof_node->var ? std::to_string(sizeof_node->var->type.get_size()) : std::to_string(sizeof_node->type.get_size()), BaseType::INT);
 
     return temp_var;
 }
@@ -869,8 +892,8 @@ std::string TacGenerator::gen_tac_str(const TACInstruction &instr)
             return "ADDR_OF";
         case TACOp::STRUCT_INIT:
             return "STRUCT_INIT";
-        case TACOp::MEMBER_ACCESS:
-            return "MEMBER_ACCESS";
+        case TACOp::STRUCT_MEMBER_ACCESS:
+            return "STRUCT_MEMBER_ACCESS";
         case TACOp::MEMBER_ASSIGN:
             return "MEMBER_ASSIGN";
         default:

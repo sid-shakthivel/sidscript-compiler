@@ -82,6 +82,41 @@ size_t Type::get_array_size() const
     return total_size;
 }
 
+size_t Type::get_base_size() const
+{
+    size_t base_size;
+
+    if (is_pointer())
+        return 8;
+
+    switch (base_type)
+    {
+    case BaseType::BOOL:
+        base_size = 1;
+        break;
+    case BaseType::CHAR:
+        base_size = 1;
+        break;
+    case BaseType::INT:
+    case BaseType::UINT:
+        base_size = 4;
+        break;
+    case BaseType::LONG:
+    case BaseType::ULONG:
+    case BaseType::DOUBLE:
+        base_size = 8;
+        break;
+    case BaseType::VOID:
+        base_size = 0;
+        break;
+    case BaseType::STRUCT:
+        base_size = 0;
+        break;
+    }
+
+    return base_size;
+}
+
 bool Type::is_size_8() const
 {
     return get_size() == 8;
@@ -131,7 +166,7 @@ std::string Type::to_string() const
         result = "bool";
         break;
     case BaseType::STRUCT:
-        result = "struct " + (struct_name.has_value() ? struct_name.value() : "unknown") + " with " + std::to_string(struct_fields.size()) + " fields";
+        result = "struct " + (struct_name.has_value() ? struct_name.value() : "unknown");
         break;
     }
 
@@ -256,7 +291,22 @@ bool Type::is_integral() const
 
 void Type::add_field(const std::string &name, const Type &type)
 {
-    int current_offset = struct_fields.empty() ? 0 : struct_fields.rbegin()->second.second + struct_fields.rbegin()->second.first.get_size();
+    int current_offset = 0;
+
+    if (!struct_fields.empty())
+    {
+        // Find the last field’s offset + size
+        for (const auto &kv : struct_fields)
+        {
+            int offset = kv.second.second;
+            int size = kv.second.first.get_size();
+            int end = offset + size;
+            if (end > current_offset)
+            {
+                current_offset = end;
+            }
+        }
+    }
 
     // Align the field based on its size
     size_t alignment = type.get_size();

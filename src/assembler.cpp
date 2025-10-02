@@ -69,7 +69,7 @@ Assembler::Assembler(std::shared_ptr<GlobalSymbolTable> &gst, const std::string 
 	REGISTER_HANDLER(DEREF, emit_deref);
 	REGISTER_HANDLER(STRUCT_INIT, emit_struct_init);
 	REGISTER_HANDLER(MEMBER_ASSIGN, emit_member_assign);
-	REGISTER_HANDLER(MEMBER_ACCESS, emit_member_access);
+	REGISTER_HANDLER(STRUCT_MEMBER_ACCESS, emit_member_access);
 	REGISTER_HANDLER(NOT, emit_not);
 	REGISTER_HANDLER(AND, emit_logical_and);
 	REGISTER_HANDLER(OR, emit_logical_or);
@@ -157,11 +157,19 @@ void Assembler::emit_store(const std::string &operand, const char *reg, Type typ
 		return;
 	}
 
+	if (sym->type.is_struct())
+	{
+		// int field_offset = sym->type.get_field_offset(arg2);
+		int field_offset = std::stoi(arg2);
+		int stack_offset = sym->stack_offset - field_offset;
+
+		fprintf(file, "\t%s\t%s, %d(%%rbp)\n", mov.c_str(), reg_name.c_str(), stack_offset);
+
+		return;
+	}
+
 	// Case: dst is a variable (of any sort i.e. static, local, etc)
-	fprintf(file, "\t%s\t%s, %s\n",
-			mov.c_str(),
-			reg_name.c_str(),
-			format_mem_operand(operand).c_str());
+	fprintf(file, "\t%s\t%s, %s\n", mov.c_str(), reg_name.c_str(), format_mem_operand(operand).c_str());
 }
 
 void Assembler::compare_and_store_result(const std::string &operand_a, const std::string &operand_b, const std::string &result, const char *reg, const std::string &op, const Type &type)
@@ -354,8 +362,7 @@ void Assembler::emit_cmp_op(const TACInstruction &instruction, const std::string
 		return;
 	}
 
-	compare_and_store_result(instruction.arg1, instruction.arg2, instruction.result,
-							 "%r10", actual_op, instruction.type);
+	compare_and_store_result(instruction.arg1, instruction.arg2, instruction.result, "%r10", actual_op, instruction.type);
 }
 
 void Assembler::emit_if(const TACInstruction &instruction)
@@ -739,10 +746,7 @@ void Assembler::emit_member_access(const TACInstruction &instruction)
 	std::string reg = select_reg_name("%r10", instruction.type);
 
 	// Load from struct field
-	fprintf(file, "\t%s\t%d(%%rbp), %s\n",
-			mov.c_str(),
-			struct_sym->stack_offset - field_offset,
-			reg.c_str());
+	fprintf(file, "\t%s\t%d(%%rbp), %s\n", mov.c_str(), struct_sym->stack_offset - field_offset, reg.c_str());
 
 	// Store to destination
 	emit_store(instruction.result, "%r10", instruction.type);

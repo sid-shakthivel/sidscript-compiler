@@ -40,7 +40,7 @@ enum class NodeType
 {
     NODE_NUMBER,
     NODE_BOOL,
-    NODE_COMPOUND_INIT,
+    NODE_AGGREGATE_INIT,
     NODE_RETURN,
     NODE_FUNCTION,
     NODE_PROGRAM,
@@ -69,7 +69,7 @@ inline std::string node_type_to_string(NodeType type)
     {
     case NodeType::NODE_NUMBER:
         return "NUMBER";
-    case NodeType::NODE_COMPOUND_INIT:
+    case NodeType::NODE_AGGREGATE_INIT:
         return "COMPOUND_INIT";
     case NodeType::NODE_RETURN:
         return "RETURN";
@@ -201,7 +201,7 @@ public:
     void print(int tabs) override;
 };
 
-class CompoundLiteral : public ASTNode
+class AggregateLiteral : public ASTNode
 {
 public:
     std::vector<std::unique_ptr<ASTNode>> values;
@@ -209,7 +209,7 @@ public:
 
     void add_element(std::unique_ptr<ASTNode> element);
 
-    CompoundLiteral(Type t);
+    AggregateLiteral(Type t);
     void print(int tabs) override;
 };
 
@@ -314,7 +314,8 @@ public:
     std::unique_ptr<ASTNode> value;
     Type type = Type(BaseType::VOID);
 
-    std::string field;
+    std::string struct_name;
+    std::string field_name;
 
     PostfixNode(TokenType o, std::unique_ptr<ASTNode> v);
     void print(int tabs) override;

@@ -27,7 +27,7 @@ private:
     int ptr_level = 0;
     std::vector<int> array_sizes;
     std::optional<std::string> struct_name;
-    std::map<std::string, std::pair<Type, int>> struct_fields;
+    std::unordered_map<std::string, std::pair<Type, int>> struct_fields;
 
 public:
     Type() : base_type(BaseType::VOID), ptr_level(0) {}
@@ -53,6 +53,7 @@ public:
     size_t get_size() const;
     size_t get_array_size() const;
     bool is_size_8() const;
+    size_t get_base_size() const;
 
     std::string get_struct_name() const;
 

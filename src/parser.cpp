@@ -379,7 +379,7 @@ std::unique_ptr<VarDeclNode> Parser::parse_var_decl(const TokenType &specifier)
         std::unique_ptr<ASTNode> init_expr;
 
         if ((match(TOKEN_LBRACE) && var_type.is_array()) || (match(TOKEN_LBRACE) && var_type.is_struct()))
-            init_expr = parse_compound_literal(var_type);
+            init_expr = parse_aggregate_literal(var_type);
         else
             init_expr = parse_expr();
 
@@ -592,7 +592,7 @@ std::unique_ptr<ASTNode> Parser::parse_factor()
     }
     else if (match(TOKEN_LBRACE))
     {
-        auto rtn = parse_compound_literal();
+        auto rtn = parse_aggregate_literal();
         retreat();
         return rtn;
     }
@@ -654,11 +654,11 @@ std::unique_ptr<ASTNode> Parser::parse_unary_operation()
     return std::make_unique<UnaryNode>(get_unary_op_type(op), std::move(expr));
 }
 
-std::unique_ptr<CompoundLiteral> Parser::parse_compound_literal(const Type &array_type)
+std::unique_ptr<AggregateLiteral> Parser::parse_aggregate_literal(const Type &array_type)
 {
     expect_and_advance(TOKEN_LBRACE);
 
-    auto init_node = std::make_unique<CompoundLiteral>(array_type);
+    auto init_node = std::make_unique<AggregateLiteral>(array_type);
 
     if (!match(TOKEN_RBRACE))
     {
@@ -723,9 +723,16 @@ std::unique_ptr<ASTNode> Parser::parse_lvalue(const Specifier &specifier)
         TokenType op = current_token.type;
         advance();
         expect(TOKEN_IDENTIFIER);
-        std::unique_ptr<PostfixNode> postfix = std::make_unique<PostfixNode>(op, std::move(var));
-        postfix->field = current_token.text;
-        advance();
+
+        std::string field_name = current_token.text;
+
+        std::unique_ptr<ASTNode> test = parse_factor();
+
+        std::unique_ptr<PostfixNode> postfix = std::make_unique<PostfixNode>(op, std::move(test));
+        postfix->struct_name = var_name;
+        postfix->field_name = field_name;
+
+        // advance();
         return postfix;
     }
     else
