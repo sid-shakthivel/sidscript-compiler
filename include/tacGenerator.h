@@ -54,7 +54,6 @@ enum class TACOp
     ADDR_OF,
     PRINTF,
     STRUCT_INIT,
-    STRUCT_MEMBER_ACCESS,
     MEMBER_ASSIGN,
 };
 

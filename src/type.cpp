@@ -69,7 +69,7 @@ size_t Type::get_size() const
     return base_size;
 }
 
-size_t Type::get_array_size() const
+size_t Type::get_array_length() const
 {
     if (!is_array())
         return 0;

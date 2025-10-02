@@ -456,8 +456,6 @@ void SemanticAnalyser::analyse_postfix(ASTNode *node)
             This should set the type of the postfix node to the type of the struct member
         */
 
-        std::cout << "In semantic analyser\n";
-
         // Infer the type of the struct member
         Type rtn_type = infer_type(postfix_node->value.get(), postfix_node->struct_name);
 
@@ -686,21 +684,32 @@ Type SemanticAnalyser::infer_type(ASTNode *node, std::optional<std::string> fiel
             array_access_node->type = type;
             array_access_node->array->type = type;
 
+            if (auto index_literal = dynamic_cast<IntegerLiteral *>(array_access_node->index.get()))
+            {
+                if (index_literal->value < 0 || index_literal->value >= type.get_array_length())
+                {
+                    error("Array index " +
+                          std::to_string(index_literal->value) +
+                          " out of bounds for '" + array_access_node->array->name + "' within struct '" + field_name.value() +
+                          "' of length " + std::to_string(type.get_array_length()));
+                }
+            }
+
             return type.get_base_type();
         }
         else
         {
             Symbol *array_symbol = gst->get_symbol(array_access_node->array->name);
 
-            // Check if the index is a constant
+            // Check if the index is a constant + in range
             if (auto index_literal = dynamic_cast<IntegerLiteral *>(array_access_node->index.get()))
             {
-                if (index_literal->value < 0 || index_literal->value >= array_symbol->type.get_size())
+                if (index_literal->value < 0 || index_literal->value >= array_symbol->type.get_array_length())
                 {
                     error("Array index " +
                           std::to_string(index_literal->value) +
                           " out of bounds for array '" + array_access_node->array->name +
-                          "' of size " + std::to_string(array_symbol->type.get_size()));
+                          "' of length " + std::to_string(array_symbol->type.get_array_length()));
                 }
             }
 

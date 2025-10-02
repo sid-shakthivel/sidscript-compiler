@@ -6,7 +6,6 @@ struct Test {
 
 fn main() -> int
 {
-    struct Test example = {18, 14, {1, 2, 3}};
-    return example.arr[5435];
+    struct Test example = {18, 14, {3, 6, 10}};
+    return example.arr[2];
 }
-

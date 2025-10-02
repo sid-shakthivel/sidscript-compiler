@@ -69,7 +69,6 @@ Assembler::Assembler(std::shared_ptr<GlobalSymbolTable> &gst, const std::string 
 	REGISTER_HANDLER(DEREF, emit_deref);
 	REGISTER_HANDLER(STRUCT_INIT, emit_struct_init);
 	REGISTER_HANDLER(MEMBER_ASSIGN, emit_member_assign);
-	REGISTER_HANDLER(STRUCT_MEMBER_ACCESS, emit_member_access);
 	REGISTER_HANDLER(NOT, emit_not);
 	REGISTER_HANDLER(AND, emit_logical_and);
 	REGISTER_HANDLER(OR, emit_logical_or);
@@ -107,6 +106,13 @@ void Assembler::emit_load(const std::string &operand, const char *reg, Type type
 	if (sym->type.has_base_type(BaseType::CHAR) && (sym->type.is_pointer() || sym->type.is_array()))
 	{
 		fprintf(file, "\tleaq\t_%s(%%rip), %s\n", operand.c_str(), reg);
+		return;
+	}
+
+	if (sym->type.is_struct())
+	{
+		fprintf(file, "\tmovslq\t%s, %s\n", format_mem_operand(arg2).c_str(), "%r10");
+		fprintf(file, "\tmovl\t(%%rbp, %%r10), %s\n", reg_name.c_str());
 		return;
 	}
 
@@ -698,7 +704,7 @@ void Assembler::emit_member_assign(const TACInstruction &instruction)
 		else if (value_sym->type.is_array())
 		{
 			// Handle array field assignment
-			int array_size = value_sym->type.get_array_size();
+			int array_size = value_sym->type.get_array_length();
 			for (int i = 0; i < array_size; i++)
 			{
 				fprintf(file, "\t%s\t%zu(%%rbp), %s\n",
@@ -731,26 +737,6 @@ void Assembler::emit_member_assign(const TACInstruction &instruction)
 				instruction.result.c_str(),
 				stack_offset);
 	}
-	fprintf(file, "\n");
-}
-
-void Assembler::emit_member_access(const TACInstruction &instruction)
-{
-	emit_comment_instr(instruction);
-
-	Symbol *struct_sym = gst->get_symbol(instruction.arg1);
-
-	int field_offset = struct_sym->type.get_field_offset(instruction.arg2);
-
-	std::string mov = select_mov_instr(instruction.type);
-	std::string reg = select_reg_name("%r10", instruction.type);
-
-	// Load from struct field
-	fprintf(file, "\t%s\t%d(%%rbp), %s\n", mov.c_str(), struct_sym->stack_offset - field_offset, reg.c_str());
-
-	// Store to destination
-	emit_store(instruction.result, "%r10", instruction.type);
-
 	fprintf(file, "\n");
 }
 

@@ -51,7 +51,7 @@ public:
     void print();
 
     size_t get_size() const;
-    size_t get_array_size() const;
+    size_t get_array_length() const;
     bool is_size_8() const;
     size_t get_base_size() const;
 

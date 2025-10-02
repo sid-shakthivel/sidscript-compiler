@@ -431,7 +431,7 @@ std::string TacGenerator::generate_tac_expr(ASTNode *expr)
 void TacGenerator::generate_tac_var_array_assign(VarNode *var_node, Symbol *var_symbol, ASTNode *value)
 {
     std::vector<std::string> elements;
-    int array_size = var_node->type.get_array_size();
+    int array_size = var_node->type.get_array_length();
     Type base_type = var_node->type.get_base_type();
 
     if (base_type == BaseType::CHAR)
@@ -559,7 +559,7 @@ void TacGenerator::generate_tac_struct_assign(VarNode *var, ASTNode *value)
                 for (size_t i = 0; i < aggregate_init->values.size(); i++)
                 {
                     result = generate_tac_expr(aggregate_init->values[i].get());
-                    int arr_offset = offset + i * result_type.get_base_size();
+                    int arr_offset = offset - (i * result_type.get_base_size());
                     instructions.emplace_back(TACOp::ASSIGN, var->name, std::to_string(arr_offset), result, aggregate_init->type.get_base_type());
                 }
             }
@@ -572,8 +572,6 @@ void TacGenerator::generate_tac_struct_assign(VarNode *var, ASTNode *value)
             field_index++;
         }
     }
-
-    // instructions.emplace_back(TACOp::ASSIGN, var->name, var->type.get_field_name(field_index), result, sem_analyser->infer_type(value.get()));
 }
 
 std::string TacGenerator::generate_tac_expr_var(ASTNode *expr)
@@ -663,8 +661,19 @@ std::string TacGenerator::generate_tac_expr_postfix(ASTNode *expr)
 
     if (postfix->op == TokenType::TOKEN_DOT || postfix->op == TokenType::TOKEN_ARROW)
     {
-        // std::string base = generate_tac_expr(postfix->value.get());
         std::string temp = gen_new_temp_var();
+
+        /*
+            Pass down the correct offset to use for struct member access
+            To do this begin by getting the struct symbol first
+        */
+
+        Symbol *struct_symbol = gst->get_symbol(postfix->struct_name);
+        int offset = struct_symbol->type.get_field_offset(postfix->field_name);
+
+        /*
+            If the value is a array access node, we need to get that and add it onto the offset
+        */
 
         if (postfix->op == TokenType::TOKEN_ARROW)
         {
@@ -675,7 +684,36 @@ std::string TacGenerator::generate_tac_expr_postfix(ASTNode *expr)
 
         gst->declare_temp_var(temp, postfix->type);
 
-        instructions.emplace_back(TACOp::STRUCT_MEMBER_ACCESS, postfix->struct_name, postfix->field_name, temp, postfix->type);
+        TACInstruction instruction(TACOp::ASSIGN, temp, std::to_string(offset), postfix->struct_name, postfix->type);
+
+        if (postfix->value.get()->node_type == NodeType::NODE_ARRAY_ACCESS)
+        {
+            ArrayAccessNode *array_access = (ArrayAccessNode *)postfix->value.get();
+            std::string array_index = generate_tac_expr(array_access->index.get());
+
+            int element_size = postfix->type.get_size();
+
+            std::string scaled_index = gen_new_temp_var();
+            gst->declare_temp_var(scaled_index, Type(BaseType::INT));
+            instructions.emplace_back(TACOp::MUL, array_index, std::to_string(element_size), scaled_index, Type(BaseType::INT));
+
+            std::string temp_field_offset = gen_new_temp_var();
+            gst->declare_temp_var(temp_field_offset, Type(BaseType::INT));
+
+            instructions.emplace_back(TACOp::SUB, std::to_string(offset), scaled_index, temp_field_offset, postfix->type);
+
+            instruction.arg2 = temp_field_offset;
+        }
+
+        std::string temp_offset = gen_new_temp_var();
+        gst->declare_temp_var(temp_offset, Type(BaseType::INT));
+
+        instructions.emplace_back(TACOp::SUB, std::to_string(struct_symbol->stack_offset), instruction.arg2, temp_offset, postfix->type);
+
+        instruction.arg2 = temp_offset;
+
+        instructions.emplace_back(instruction);
+
         return temp;
     }
 
@@ -691,7 +729,6 @@ std::string TacGenerator::generate_tac_expr_postfix(ASTNode *expr)
 
 std::string TacGenerator::generate_tac_expr_array_access(ASTNode *expr)
 {
-    std::cout << "i bet its here\n";
     ArrayAccessNode *array_access = (ArrayAccessNode *)expr;
     std::string base = generate_tac_expr(array_access->array.get());
     std::string index = generate_tac_expr(array_access->index.get());
@@ -892,8 +929,6 @@ std::string TacGenerator::gen_tac_str(const TACInstruction &instr)
             return "ADDR_OF";
         case TACOp::STRUCT_INIT:
             return "STRUCT_INIT";
-        case TACOp::STRUCT_MEMBER_ACCESS:
-            return "STRUCT_MEMBER_ACCESS";
         case TACOp::MEMBER_ASSIGN:
             return "MEMBER_ASSIGN";
         default:
