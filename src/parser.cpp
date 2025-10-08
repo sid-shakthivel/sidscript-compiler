@@ -49,7 +49,7 @@ void Parser::retreat(int iterations)
 
 void Parser::error(const std::string &message)
 {
-    throw std::runtime_error("Parser Error: " + message + " but found " + current_token.text + " on line " + std::to_string(current_token.line));
+    throw std::runtime_error("Parser Error: " + message + " but found '" + current_token.text + "' on line " + std::to_string(current_token.line));
 }
 
 void Parser::expect(const TokenType &token_type)
@@ -577,6 +577,7 @@ std::unique_ptr<ASTNode> Parser::parse_factor()
     else if (match(TOKEN_IDENTIFIER))
     {
         std::string identifier = current_token.text;
+
         std::unique_ptr<ASTNode> potential_var = parse_lvalue();
 
         if (match(TOKEN_LPAREN))
@@ -732,7 +733,7 @@ std::unique_ptr<ASTNode> Parser::parse_lvalue(const Specifier &specifier)
         postfix->struct_name = var_name;
         postfix->field_name = field_name;
 
-        // advance();
+        advance();
         return postfix;
     }
     else

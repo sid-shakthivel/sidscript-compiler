@@ -68,7 +68,6 @@ Assembler::Assembler(std::shared_ptr<GlobalSymbolTable> &gst, const std::string 
 	REGISTER_HANDLER(ADDR_OF, emit_addr_of);
 	REGISTER_HANDLER(DEREF, emit_deref);
 	REGISTER_HANDLER(STRUCT_INIT, emit_struct_init);
-	REGISTER_HANDLER(MEMBER_ASSIGN, emit_member_assign);
 	REGISTER_HANDLER(NOT, emit_not);
 	REGISTER_HANDLER(AND, emit_logical_and);
 	REGISTER_HANDLER(OR, emit_logical_or);
@@ -165,11 +164,18 @@ void Assembler::emit_store(const std::string &operand, const char *reg, Type typ
 
 	if (sym->type.is_struct())
 	{
-		// int field_offset = sym->type.get_field_offset(arg2);
-		int field_offset = std::stoi(arg2);
-		int stack_offset = sym->stack_offset - field_offset;
+		Symbol *field_sym = gst->get_symbol(arg2);
 
-		fprintf(file, "\t%s\t%s, %d(%%rbp)\n", mov.c_str(), reg_name.c_str(), stack_offset);
+		// If not sym, then number
+		if (!field_sym)
+		{
+			fprintf(file, "\tmovl\t%s, %d(%%rbp)\n", reg_name.c_str(), std::stoi(arg2));
+		}
+		else
+		{
+			fprintf(file, "\tmovslq\t%s, %%r11\n", format_mem_operand(arg2).c_str());
+			fprintf(file, "\tmovl\t%s, (%%rbp, %%r11)\n", reg_name.c_str());
+		}
 
 		return;
 	}
@@ -662,81 +668,6 @@ void Assembler::emit_struct_init(const TACInstruction &instruction)
 {
 	// No assembly needed - struct space is already allocated on stack
 	emit_comment_instr(instruction);
-	fprintf(file, "\n");
-}
-
-void Assembler::emit_member_assign(const TACInstruction &instruction)
-{
-	emit_comment_instr(instruction);
-
-	Symbol *struct_sym = gst->get_symbol(instruction.arg1);
-	Symbol *value_sym = gst->get_symbol(instruction.result);
-
-	// Calculate field offset from struct base
-	int field_offset;
-	if (instruction.arg2.find_first_not_of("0123456789") == std::string::npos)
-	{
-		// Array element access within a field
-		int base_offset = struct_sym->type.get_field_offset(instruction.arg3);
-		int elem_offset = std::stoi(instruction.arg2) * instruction.type.get_size();
-		field_offset = base_offset + elem_offset;
-	}
-	else
-	{
-		// Named field offset
-		field_offset = struct_sym->type.get_field_offset(instruction.arg2);
-	}
-
-	// Calculate actual stack offset
-	int stack_offset = struct_sym->stack_offset - field_offset;
-
-	std::string mov_text = select_mov_instr(instruction.type.get_base_type());
-	std::string reg_name = select_reg_name("%r10", instruction.type.get_base_type());
-
-	// Load value into temporary register and then store to struct field
-	if (value_sym != nullptr)
-	{
-		if (value_sym->is_literal8)
-		{
-			fprintf(file, "\tmovsd\t_%s(%%rip), %%xmm0\n", value_sym->name.c_str());
-			fprintf(file, "\tmovsd\t%%xmm0, %d(%%rbp)\n", stack_offset);
-		}
-		else if (value_sym->type.is_array())
-		{
-			// Handle array field assignment
-			int array_size = value_sym->type.get_array_length();
-			for (int i = 0; i < array_size; i++)
-			{
-				fprintf(file, "\t%s\t%zu(%%rbp), %s\n",
-						mov_text.c_str(),
-						value_sym->stack_offset + i * instruction.type.get_size(),
-						reg_name.c_str());
-				fprintf(file, "\t%s\t%s, %zu(%%rbp)\n",
-						mov_text.c_str(),
-						reg_name.c_str(),
-						stack_offset + i * instruction.type.get_size());
-			}
-		}
-		else
-		{
-			fprintf(file, "\t%s\t%d(%%rbp), %s\n",
-					mov_text.c_str(),
-					value_sym->stack_offset,
-					reg_name.c_str());
-			fprintf(file, "\t%s\t%s, %d(%%rbp)\n",
-					mov_text.c_str(),
-					reg_name.c_str(),
-					stack_offset);
-		}
-	}
-	else
-	{
-		// Immediate value
-		fprintf(file, "\t%s\t$%s, %d(%%rbp)\n",
-				mov_text.c_str(),
-				instruction.result.c_str(),
-				stack_offset);
-	}
 	fprintf(file, "\n");
 }
 

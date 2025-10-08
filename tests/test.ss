@@ -7,5 +7,6 @@ struct Test {
 fn main() -> int
 {
     struct Test example = {18, 14, {3, 6, 10}};
-    return example.arr[2];
+    example.arr[0] = 42;
+    return example.arr[0];
 }

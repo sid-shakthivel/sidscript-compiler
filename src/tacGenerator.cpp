@@ -271,17 +271,48 @@ void TacGenerator::generate_tac_var_assign(ASTNode *element)
         if (!(postfix->op == TokenType::TOKEN_DOT || postfix->op == TokenType::TOKEN_ARROW))
             error("Cannot assign to postfix expression");
 
-        std::string base = generate_tac_expr(postfix->value.get());
         std::string result = generate_tac_expr(var_assign->value.get());
 
         if (postfix->op == TokenType::TOKEN_ARROW)
         {
+            std::string base = generate_tac_expr(postfix->value.get());
             std::string deref = gen_new_temp_var();
             instructions.emplace_back(TACOp::DEREF, base, "", deref);
             base = deref;
         }
 
-        instructions.emplace_back(TACOp::ASSIGN, base, postfix->struct_name, result, sem_analyser->infer_type(var_assign->value.get()));
+        Symbol *struct_symbol = gst->get_symbol(postfix->struct_name);
+        int offset = struct_symbol->type.get_field_offset(postfix->field_name);
+
+        TACInstruction instruction(TACOp::ASSIGN, postfix->struct_name, std::to_string(offset), result, sem_analyser->infer_type(var_assign->value.get()));
+
+        if (postfix->value.get()->node_type == NodeType::NODE_ARRAY_ACCESS)
+        {
+            ArrayAccessNode *array_access = (ArrayAccessNode *)postfix->value.get();
+            std::string array_index = generate_tac_expr(array_access->index.get());
+
+            int element_size = postfix->type.get_size();
+
+            std::string scaled_index = gen_new_temp_var();
+            gst->declare_temp_var(scaled_index, Type(BaseType::INT));
+            instructions.emplace_back(TACOp::MUL, array_index, std::to_string(element_size), scaled_index, Type(BaseType::INT));
+
+            std::string temp_field_offset = gen_new_temp_var();
+            gst->declare_temp_var(temp_field_offset, Type(BaseType::INT));
+
+            instructions.emplace_back(TACOp::ADD, std::to_string(offset), scaled_index, temp_field_offset, postfix->type);
+
+            instruction.arg2 = temp_field_offset;
+        }
+
+        std::string final_offset = gen_new_temp_var();
+        gst->declare_temp_var(final_offset, Type(BaseType::INT));
+
+        instructions.emplace_back(TACOp::ADD, std::to_string(struct_symbol->stack_offset), instruction.arg2, final_offset, postfix->type);
+
+        instruction.arg2 = final_offset;
+
+        instructions.emplace_back(instruction);
     }
 }
 
@@ -543,6 +574,8 @@ void TacGenerator::generate_tac_struct_assign(VarNode *var, ASTNode *value)
 
     instructions.emplace_back(TACOp::STRUCT_INIT, var->name, "", "", var->type);
 
+    Symbol *struct_sym = gst->get_symbol(var->name);
+
     size_t field_index = 0;
     for (const auto &value : compound_init->values)
     {
@@ -559,8 +592,10 @@ void TacGenerator::generate_tac_struct_assign(VarNode *var, ASTNode *value)
                 for (size_t i = 0; i < aggregate_init->values.size(); i++)
                 {
                     result = generate_tac_expr(aggregate_init->values[i].get());
-                    int arr_offset = offset - (i * result_type.get_base_size());
-                    instructions.emplace_back(TACOp::ASSIGN, var->name, std::to_string(arr_offset), result, aggregate_init->type.get_base_type());
+                    int arr_offset = offset + (i * result_type.get_base_size());
+                    int final_offset = struct_sym->stack_offset + arr_offset;
+
+                    instructions.emplace_back(TACOp::ASSIGN, var->name, std::to_string(final_offset), result, aggregate_init->type.get_base_type());
                 }
             }
             field_index++;
@@ -568,7 +603,8 @@ void TacGenerator::generate_tac_struct_assign(VarNode *var, ASTNode *value)
 
         else
         {
-            instructions.emplace_back(TACOp::ASSIGN, var->name, std::to_string(offset), result, result_type);
+            int final_offset = struct_sym->stack_offset + offset;
+            instructions.emplace_back(TACOp::ASSIGN, var->name, std::to_string(final_offset), result, result_type);
             field_index++;
         }
     }
@@ -700,7 +736,7 @@ std::string TacGenerator::generate_tac_expr_postfix(ASTNode *expr)
             std::string temp_field_offset = gen_new_temp_var();
             gst->declare_temp_var(temp_field_offset, Type(BaseType::INT));
 
-            instructions.emplace_back(TACOp::SUB, std::to_string(offset), scaled_index, temp_field_offset, postfix->type);
+            instructions.emplace_back(TACOp::ADD, std::to_string(offset), scaled_index, temp_field_offset, postfix->type);
 
             instruction.arg2 = temp_field_offset;
         }
@@ -708,7 +744,7 @@ std::string TacGenerator::generate_tac_expr_postfix(ASTNode *expr)
         std::string temp_offset = gen_new_temp_var();
         gst->declare_temp_var(temp_offset, Type(BaseType::INT));
 
-        instructions.emplace_back(TACOp::SUB, std::to_string(struct_symbol->stack_offset), instruction.arg2, temp_offset, postfix->type);
+        instructions.emplace_back(TACOp::ADD, std::to_string(struct_symbol->stack_offset), instruction.arg2, temp_offset, postfix->type);
 
         instruction.arg2 = temp_offset;
 
@@ -929,8 +965,6 @@ std::string TacGenerator::gen_tac_str(const TACInstruction &instr)
             return "ADDR_OF";
         case TACOp::STRUCT_INIT:
             return "STRUCT_INIT";
-        case TACOp::MEMBER_ASSIGN:
-            return "MEMBER_ASSIGN";
         default:
             return "UNKNOWN";
         }
