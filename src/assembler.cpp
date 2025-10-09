@@ -110,8 +110,25 @@ void Assembler::emit_load(const std::string &operand, const char *reg, Type type
 
 	if (sym->type.is_struct())
 	{
-		fprintf(file, "\tmovslq\t%s, %s\n", format_mem_operand(arg2).c_str(), "%r10");
-		fprintf(file, "\tmovl\t(%%rbp, %%r10), %s\n", reg_name.c_str());
+		/*
+			The following code is used to load a struct field into a register
+			arg2 could either be:
+			- A number (stack offset)
+			- A variable (which contains the value of the appopriate stack offset)
+		*/
+
+		Symbol *field_sym = gst->get_symbol(arg2);
+
+		if (!field_sym)
+		{
+			fprintf(file, "\tmovl\t%d(%%rbp), %s\n", std::stoi(arg2), reg_name.c_str());
+		}
+		else
+		{
+			fprintf(file, "\tmovslq\t%s, %s\n", format_mem_operand(arg2).c_str(), "%r10");
+			fprintf(file, "\tmovl\t(%%rbp, %%r10), %s\n", reg_name.c_str());
+		}
+
 		return;
 	}
 

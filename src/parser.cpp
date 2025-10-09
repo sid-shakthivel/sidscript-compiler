@@ -491,7 +491,6 @@ std::unique_ptr<VarAssignNode> Parser::parse_var_assign()
 
 std::unique_ptr<ASTNode> Parser::parse_expr(int min_presedence)
 {
-    // std::cout << "parsing expr on line " << current_token.line << std::endl;
     std::unique_ptr<ASTNode> left = parse_factor();
 
     advance();

@@ -143,5 +143,7 @@ private:
     void generate_tac_struct_assign(VarNode *var, ASTNode *value);
     std::string get_const_label(double value);
 
+    std::tuple<std::string, std::string> compute_struct_access_offset(PostfixNode *postfix);
+
     void error(const std::string &message);
 };

@@ -273,46 +273,9 @@ void TacGenerator::generate_tac_var_assign(ASTNode *element)
 
         std::string result = generate_tac_expr(var_assign->value.get());
 
-        if (postfix->op == TokenType::TOKEN_ARROW)
-        {
-            std::string base = generate_tac_expr(postfix->value.get());
-            std::string deref = gen_new_temp_var();
-            instructions.emplace_back(TACOp::DEREF, base, "", deref);
-            base = deref;
-        }
+        auto [struct_base, final_offset] = compute_struct_access_offset(postfix);
 
-        Symbol *struct_symbol = gst->get_symbol(postfix->struct_name);
-        int offset = struct_symbol->type.get_field_offset(postfix->field_name);
-
-        TACInstruction instruction(TACOp::ASSIGN, postfix->struct_name, std::to_string(offset), result, sem_analyser->infer_type(var_assign->value.get()));
-
-        if (postfix->value.get()->node_type == NodeType::NODE_ARRAY_ACCESS)
-        {
-            ArrayAccessNode *array_access = (ArrayAccessNode *)postfix->value.get();
-            std::string array_index = generate_tac_expr(array_access->index.get());
-
-            int element_size = postfix->type.get_size();
-
-            std::string scaled_index = gen_new_temp_var();
-            gst->declare_temp_var(scaled_index, Type(BaseType::INT));
-            instructions.emplace_back(TACOp::MUL, array_index, std::to_string(element_size), scaled_index, Type(BaseType::INT));
-
-            std::string temp_field_offset = gen_new_temp_var();
-            gst->declare_temp_var(temp_field_offset, Type(BaseType::INT));
-
-            instructions.emplace_back(TACOp::ADD, std::to_string(offset), scaled_index, temp_field_offset, postfix->type);
-
-            instruction.arg2 = temp_field_offset;
-        }
-
-        std::string final_offset = gen_new_temp_var();
-        gst->declare_temp_var(final_offset, Type(BaseType::INT));
-
-        instructions.emplace_back(TACOp::ADD, std::to_string(struct_symbol->stack_offset), instruction.arg2, final_offset, postfix->type);
-
-        instruction.arg2 = final_offset;
-
-        instructions.emplace_back(instruction);
+        instructions.emplace_back(TACOp::ASSIGN, struct_base, final_offset, result, sem_analyser->infer_type(var_assign->value.get()));
     }
 }
 
@@ -698,58 +661,12 @@ std::string TacGenerator::generate_tac_expr_postfix(ASTNode *expr)
     if (postfix->op == TokenType::TOKEN_DOT || postfix->op == TokenType::TOKEN_ARROW)
     {
         std::string temp = gen_new_temp_var();
-
-        /*
-            Pass down the correct offset to use for struct member access
-            To do this begin by getting the struct symbol first
-        */
-
-        Symbol *struct_symbol = gst->get_symbol(postfix->struct_name);
-        int offset = struct_symbol->type.get_field_offset(postfix->field_name);
-
-        /*
-            If the value is a array access node, we need to get that and add it onto the offset
-        */
-
-        if (postfix->op == TokenType::TOKEN_ARROW)
-        {
-            std::string deref = gen_new_temp_var();
-            instructions.emplace_back(TACOp::DEREF, postfix->struct_name, "", deref);
-            postfix->struct_name = deref;
-        }
-
         gst->declare_temp_var(temp, postfix->type);
 
-        TACInstruction instruction(TACOp::ASSIGN, temp, std::to_string(offset), postfix->struct_name, postfix->type);
+        auto [struct_base, final_offset] = compute_struct_access_offset(postfix);
 
-        if (postfix->value.get()->node_type == NodeType::NODE_ARRAY_ACCESS)
-        {
-            ArrayAccessNode *array_access = (ArrayAccessNode *)postfix->value.get();
-            std::string array_index = generate_tac_expr(array_access->index.get());
-
-            int element_size = postfix->type.get_size();
-
-            std::string scaled_index = gen_new_temp_var();
-            gst->declare_temp_var(scaled_index, Type(BaseType::INT));
-            instructions.emplace_back(TACOp::MUL, array_index, std::to_string(element_size), scaled_index, Type(BaseType::INT));
-
-            std::string temp_field_offset = gen_new_temp_var();
-            gst->declare_temp_var(temp_field_offset, Type(BaseType::INT));
-
-            instructions.emplace_back(TACOp::ADD, std::to_string(offset), scaled_index, temp_field_offset, postfix->type);
-
-            instruction.arg2 = temp_field_offset;
-        }
-
-        std::string temp_offset = gen_new_temp_var();
-        gst->declare_temp_var(temp_offset, Type(BaseType::INT));
-
-        instructions.emplace_back(TACOp::ADD, std::to_string(struct_symbol->stack_offset), instruction.arg2, temp_offset, postfix->type);
-
-        instruction.arg2 = temp_offset;
-
-        instructions.emplace_back(instruction);
-
+        instructions.emplace_back(TACOp::ASSIGN, temp, final_offset,
+                                  struct_base, postfix->type);
         return temp;
     }
 
@@ -871,6 +788,100 @@ std::string TacGenerator::get_const_label(double value)
     const_labels.insert({value, const_val});
 
     return const_val;
+}
+
+std::tuple<std::string, std::string> TacGenerator::compute_struct_access_offset(PostfixNode *postfix)
+{
+    /*
+        This is a helper function to compute struct member access offset
+        To correctly identify the slot in memory of a field
+    */
+
+    std::string struct_base;
+    std::string final_field_offset;
+
+    // Handle pointer dereference if required
+    if (postfix->op == TokenType::TOKEN_ARROW)
+    {
+        std::string deref = gen_new_temp_var();
+        instructions.emplace_back(TACOp::DEREF, postfix->struct_name, "", deref);
+        struct_base = deref;
+    }
+    else
+        struct_base = postfix->struct_name;
+
+    Symbol *struct_symbol = gst->get_symbol(postfix->struct_name);
+    int field_offset = struct_symbol->type.get_field_offset(postfix->field_name);
+    final_field_offset = std::to_string(field_offset);
+
+    /*
+        If the value is an array access node, this adds a bit more complexity
+        The index could be a number or it could be a variable i.e.
+        - example.arr[0]
+        - example.arr[i]
+        Therefore we need to come up with a mechanism to get the correct offset
+        This is done by first getting the index  value and scaling it by the size of the base type
+        Then we add this to the field offset
+    */
+    if (postfix->value.get()->node_type == NodeType::NODE_ARRAY_ACCESS)
+    {
+        ArrayAccessNode *array_access = (ArrayAccessNode *)postfix->value.get();
+
+        std::string index = generate_tac_expr(array_access->index.get());
+
+        bool is_number = !index.empty() &&
+                         std::all_of(index.begin(), index.end(), ::isdigit);
+
+        /*
+            If it's a number, then we can scale it by the size of the type here
+            Instead of emitting assembly as it reduces code size
+        */
+
+        int arr_element_type_size = postfix->type.get_size();
+
+        if (is_number)
+        {
+            int scaled_index = std::stoi(index) * arr_element_type_size;
+            final_field_offset = std::to_string(field_offset + scaled_index);
+        }
+        else
+        {
+            std::string scaled_index = gen_new_temp_var();
+            gst->declare_temp_var(scaled_index, Type(BaseType::INT));
+
+            instructions.emplace_back(TACOp::MUL, index, std::to_string(arr_element_type_size), scaled_index, Type(BaseType::INT));
+
+            std::string arr_field_offset = gen_new_temp_var();
+            gst->declare_temp_var(arr_field_offset, Type(BaseType::INT));
+
+            instructions.emplace_back(TACOp::ADD, std::to_string(field_offset), scaled_index, arr_field_offset, postfix->type);
+
+            final_field_offset = arr_field_offset;
+        }
+    }
+
+    /*
+        So far we've calculated the field offset assuming the struct is at memory address 0
+        We now need to add the struct base address
+
+        Again, if we have a number, no need to emit assembly
+    */
+
+    bool is_number = !final_field_offset.empty() &&
+                     std::all_of(final_field_offset.begin(), final_field_offset.end(), ::isdigit);
+
+    if (is_number)
+    {
+        final_field_offset = std::to_string(std::stoi(final_field_offset) + struct_symbol->stack_offset);
+        return {struct_base, final_field_offset};
+    }
+
+    std::string final_offset = gen_new_temp_var();
+    gst->declare_temp_var(final_offset, Type(BaseType::INT));
+
+    instructions.emplace_back(TACOp::ADD, std::to_string(struct_symbol->stack_offset), final_field_offset, final_offset, postfix->type);
+
+    return {struct_base, final_offset};
 }
 
 void TacGenerator::print_all_tac()
