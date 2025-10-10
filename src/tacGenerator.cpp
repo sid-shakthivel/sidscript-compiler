@@ -164,7 +164,7 @@ void TacGenerator::generate_tac_func(ASTNode *element)
 
     for (int i = 0; i < func->params.size(); i++)
         if (i < 6)
-            instructions.emplace_back(TACOp::MOV_TO_REG, func->get_param_name(i), x64_registers[i], "", func_symbol->arg_types[i]);
+            instructions.emplace_back(TACOp::MOV_BETWEEN_REG, func->get_param_name(i), x64_registers[i], "store", func_symbol->arg_types[i]);
 
     for (auto &element : func->elements)
         generate_tac(element.get());
@@ -708,7 +708,7 @@ std::string TacGenerator::generate_tac_expr_func_call(ASTNode *expr)
         */
 
         if (i < 6)
-            instructions.emplace_back(TACOp::MOV_TO_REG, x64_registers[i], arg_result, "", arg_type);
+            instructions.emplace_back(TACOp::MOV_BETWEEN_REG, arg_result, x64_registers[i], "load", arg_type);
         else
             instructions.emplace_back(TACOp::PUSH, arg_result, "", "", arg_type);
     }
@@ -735,7 +735,7 @@ std::string TacGenerator::generate_tac_expr_func_call(ASTNode *expr)
     std::string temp_var = gen_new_temp_var();
     Type return_type = gst->get_func_symbol(func->name)->return_type;
     gst->declare_temp_var(temp_var, return_type);
-    instructions.emplace_back(TACOp::MOV_TO_REG, temp_var, "%eax", "", return_type);
+    instructions.emplace_back(TACOp::MOV_BETWEEN_REG, temp_var, "%eax", "store", return_type);
 
     return temp_var;
 }
@@ -952,7 +952,7 @@ std::string TacGenerator::gen_tac_str(const TACInstruction &instr)
             return "PUSH";
         case TACOp::CALL:
             return "CALL";
-        case TACOp::MOV_TO_REG:
+        case TACOp::MOV_BETWEEN_REG:
             return "MOV_TO_REG";
         case TACOp::INCREMENT:
             return "INCREMENT";

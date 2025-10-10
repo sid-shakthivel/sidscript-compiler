@@ -38,7 +38,10 @@ void SemanticAnalyser::analyse_func(ASTNode *node)
     // Find and create new function symbol using params
     std::vector<Type> arg_types;
     for (auto &param : func_node->params)
-        arg_types.push_back(infer_type(dynamic_cast<VarDeclNode *>(param.get())->var.get()));
+    {
+        VarDeclNode *test = dynamic_cast<VarDeclNode *>(param.get());
+        arg_types.push_back(test->var->type);
+    }
 
     std::unique_ptr<FuncSymbol> func_symbol = std::make_unique<FuncSymbol>(func_node->name, func_node->params.size(), arg_types, func_node->return_type);
     std::shared_ptr<SymbolTable> symbol_table = std::make_unique<SymbolTable>();
@@ -484,11 +487,13 @@ void SemanticAnalyser::validate_type_assignment(const Type &target_type, std::un
 {
     Type source_type = infer_type(source_expr.get());
 
-    // if (target_type.can_assign_from(source_type))
-    // return;
-
     if (target_type == source_type)
         return;
+
+    // Allow array-to-pointer decay
+    if (target_type.is_pointer() && source_type.is_array())
+        if (target_type.get_base_type() == source_type.get_base_type())
+            return;
 
     // Try literal-only, exact rewrite
     if (target_type.can_assign_from(source_type) && try_promote_literal(source_expr, target_type))

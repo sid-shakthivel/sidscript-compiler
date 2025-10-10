@@ -41,7 +41,7 @@ enum class TACOp
     NOP,
     INCREMENT,
     DECREMENT,
-    MOV_TO_REG,
+    MOV_BETWEEN_REG,
     PUSH,
     CALL,
     ENTER_BSS,

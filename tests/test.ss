@@ -1,12 +1,9 @@
-struct Test {
-    int a;
-    int c;
-    int arr[3];
-};
+fn test(int a, double b, char *str) -> int
+{
+    return a;
+}
 
 fn main() -> int
 {
-    struct Test example = {18, 14, {3, 6, 10}};
-    example.arr[0] = 42;
-    return example.arr[0];
+    return test(8, 2.0, "Hey");
 }

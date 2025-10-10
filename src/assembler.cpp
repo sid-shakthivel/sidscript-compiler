@@ -57,7 +57,7 @@ Assembler::Assembler(std::shared_ptr<GlobalSymbolTable> &gst, const std::string 
 	REGISTER_HANDLER(GOTO, emit_goto);
 	REGISTER_HANDLER(LABEL, emit_label);
 	REGISTER_HANDLER(CALL, emit_call);
-	REGISTER_HANDLER(MOV_TO_REG, emit_mov_to_reg);
+	REGISTER_HANDLER(MOV_BETWEEN_REG, emit_mov_between_reg);
 	REGISTER_HANDLER(NOP, emit_nop);
 	REGISTER_HANDLER(ENTER_TEXT, emit_section);
 	REGISTER_HANDLER(ENTER_BSS, emit_section);
@@ -115,6 +115,9 @@ void Assembler::emit_load(const std::string &operand, const char *reg, Type type
 			arg2 could either be:
 			- A number (stack offset)
 			- A variable (which contains the value of the appopriate stack offset)
+
+			Note that since variables will be within the symbol table, if there isn't a variable
+			it must be a number
 		*/
 
 		Symbol *field_sym = gst->get_symbol(arg2);
@@ -125,6 +128,10 @@ void Assembler::emit_load(const std::string &operand, const char *reg, Type type
 		}
 		else
 		{
+			/*
+				This moves and sign extends arg2 into the register
+				It then will move the value on the stack at the offset of arg2 into the register
+			*/
 			fprintf(file, "\tmovslq\t%s, %s\n", format_mem_operand(arg2).c_str(), "%r10");
 			fprintf(file, "\tmovl\t(%%rbp, %%r10), %s\n", reg_name.c_str());
 		}
@@ -181,9 +188,15 @@ void Assembler::emit_store(const std::string &operand, const char *reg, Type typ
 
 	if (sym->type.is_struct())
 	{
+		/*
+			The following code is used to load a struct field into a register
+			arg2 could either be:
+			- A number (stack offset)
+			- A variable (which contains the value of the appopriate stack offset)
+		*/
+
 		Symbol *field_sym = gst->get_symbol(arg2);
 
-		// If not sym, then number
 		if (!field_sym)
 		{
 			fprintf(file, "\tmovl\t%s, %d(%%rbp)\n", reg_name.c_str(), std::stoi(arg2));
@@ -426,11 +439,16 @@ void Assembler::emit_call(const TACInstruction &instruction)
 }
 
 // This may not work
-void Assembler::emit_mov_to_reg(const TACInstruction &instruction)
+void Assembler::emit_mov_between_reg(const TACInstruction &instruction)
 {
 	// MOV_TO_REG %rsi, 5 (int)
 	emit_comment_instr(instruction);
-	emit_load(instruction.arg2, instruction.arg1.c_str(), instruction.type);
+
+	if (instruction.result == "load")
+		emit_load(instruction.arg1, instruction.arg2.c_str(), instruction.type);
+	else if (instruction.result == "store")
+		emit_store(instruction.arg1, instruction.arg2.c_str(), instruction.type);
+
 	fprintf(file, "\n");
 }
 
@@ -804,6 +822,9 @@ std::string Assembler::select_reg_name(const char *base_reg, const Type &type)
 
 	if (strcmp(base_reg, "%rsi") == 0 && type.get_size() == 4)
 		return "%esi";
+
+	if (strcmp(base_reg, "%rdi") == 0 && type.get_size() == 4)
+		return "%edi";
 
 	std::string reg_name = base_reg;
 

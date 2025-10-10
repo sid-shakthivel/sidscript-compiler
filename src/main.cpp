@@ -34,6 +34,8 @@ int main()
 
     std::shared_ptr<ProgramNode> program = parser.parse();
 
+    program->print();
+
     std::shared_ptr<GlobalSymbolTable> gst = std::make_shared<GlobalSymbolTable>();
 
     std::shared_ptr<SemanticAnalyser> sem_analyser = std::make_shared<SemanticAnalyser>(gst);
@@ -42,8 +44,6 @@ int main()
     TacGenerator tacGenerator(gst, sem_analyser);
 
     tacGenerator.generate_all_tac(program);
-
-    // program->print();
 
     gst->print();
 

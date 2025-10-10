@@ -43,7 +43,7 @@ private:
     void emit_goto(const TACInstruction &instruction);
     void emit_label(const TACInstruction &instruction);
     void emit_call(const TACInstruction &instruction);
-    void emit_mov_to_reg(const TACInstruction &instruction);
+    void emit_mov_between_reg(const TACInstruction &instruction);
     void emit_nop(const TACInstruction &instruction);
     void emit_section(const TACInstruction &instruction);
     void emit_unary_op(const TACInstruction &instruction, const std::string &op);
