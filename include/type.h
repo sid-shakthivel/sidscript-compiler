@@ -45,6 +45,8 @@ public:
     bool has_base_type(const BaseType &other) const;
     int get_ptr_depth() const;
 
+    void set_ptr_depth(int ptr_depth);
+
     bool is_signed() const;
 
     std::string to_string() const;

@@ -108,7 +108,7 @@ void Assembler::emit_load(const std::string &operand, const char *reg, Type type
 		return;
 	}
 
-	if (sym->type.is_struct())
+	if (sym->type.is_struct() && !sym->type.is_pointer())
 	{
 		/*
 			The following code is used to load a struct field into a register
@@ -181,12 +181,31 @@ void Assembler::emit_store(const std::string &operand, const char *reg, Type typ
 	// Case: dst is an array (e.g., arr[i] = ...)
 	if (sym->type.is_array())
 	{
-		int stack_offset = sym->stack_offset + std::stod(arg2) * type.get_size();
-		fprintf(file, "\t%s\t%s, %d(%%rbp)\n", mov.c_str(), reg_name.c_str(), stack_offset);
+		/*
+			Case: array-to-pointer decay (get address of array start)
+			This is used specifically when passing an array to a function i.e.
+
+			fn test(int hey[]) -> int { return 5; }
+			fn main() -> int
+			{
+				int arr[3];
+				test(arr);
+				return 9;
+			}
+		*/
+		if (arg2.empty())
+		{
+			fprintf(file, "\tleaq\t%d(%%rbp), %s\n", sym->stack_offset, reg_name.c_str());
+		}
+		else
+		{
+			int stack_offset = sym->stack_offset + std::stod(arg2) * type.get_size();
+			fprintf(file, "\t%s\t%s, %d(%%rbp)\n", mov.c_str(), reg_name.c_str(), stack_offset);
+		}
 		return;
 	}
 
-	if (sym->type.is_struct())
+	if (sym->type.is_struct() && !sym->type.is_pointer())
 	{
 		/*
 			The following code is used to load a struct field into a register

@@ -39,8 +39,14 @@ void SemanticAnalyser::analyse_func(ASTNode *node)
     std::vector<Type> arg_types;
     for (auto &param : func_node->params)
     {
-        VarDeclNode *test = dynamic_cast<VarDeclNode *>(param.get());
-        arg_types.push_back(test->var->type);
+        VarDeclNode *param_var_decl_node = dynamic_cast<VarDeclNode *>(param.get());
+        Type param_type = param_var_decl_node->var->type;
+
+        // Don't allow structs to be passed by value
+        if (param_type.is_struct() && !param_type.is_pointer())
+            error("Struct parameter " + param_var_decl_node->var->name + " must be passed by reference");
+
+        arg_types.push_back(param_var_decl_node->var->type);
     }
 
     std::unique_ptr<FuncSymbol> func_symbol = std::make_unique<FuncSymbol>(func_node->name, func_node->params.size(), arg_types, func_node->return_type);
@@ -336,10 +342,26 @@ void SemanticAnalyser::analyse_unary(ASTNode *node)
         if (unary_node->value->node_type != NodeType::NODE_VAR)
             error("Can only take address of variables");
 
+    // if (unary_node->op == UnaryOpType::ADDR_OF)
+    //     unary_node->type = Type(expr_type.get_base_type(), expr_type.get_ptr_depth() + 1);
+    // else if (unary_node->op == UnaryOpType::DEREF)
+    //     unary_node->type = Type(expr_type.get_base_type(), expr_type.get_ptr_depth() - 1);
+    // else
+    //     unary_node->type = expr_type;
+
     if (unary_node->op == UnaryOpType::ADDR_OF)
-        unary_node->type = Type(expr_type.get_base_type(), expr_type.get_ptr_depth() + 1);
+    {
+        Type test = expr_type;
+        test.set_ptr_depth(test.get_ptr_depth() + 1);
+        unary_node->type = test;
+        // unary_node->type = Type(expr_type.get_base_type(), expr_type.get_ptr_depth() + 1);
+    }
     else if (unary_node->op == UnaryOpType::DEREF)
-        unary_node->type = Type(expr_type.get_base_type(), expr_type.get_ptr_depth() - 1);
+    {
+        Type test = expr_type;
+        test.set_ptr_depth(test.get_ptr_depth() - 1);
+        unary_node->type = test;
+    }
     else
         unary_node->type = expr_type;
 }
@@ -374,8 +396,7 @@ void SemanticAnalyser::analyse_func_call(ASTNode *node)
         error("Function '" + fc_node->name + "' not defined");
 
     if (func->arg_count != fc_node->args.size())
-        error("Function '" + fc_node->name + "' has " + std::to_string(func->arg_count) +
-              " arguments, but " + std::to_string(fc_node->args.size()) + " were provided");
+        error("Function '" + fc_node->name + "' has " + std::to_string(func->arg_count) + " arguments, but " + std::to_string(fc_node->args.size()) + " were provided");
 
     for (int i = 0; i < fc_node->args.size(); i++)
     {
@@ -495,13 +516,16 @@ void SemanticAnalyser::validate_type_assignment(const Type &target_type, std::un
         if (target_type.get_base_type() == source_type.get_base_type())
             return;
 
+    // Allow array[x] to array[] decay
+    if (target_type.is_array() && target_type.get_array_length() == -1 && source_type.is_array())
+        return;
+
     // Try literal-only, exact rewrite
     if (target_type.can_assign_from(source_type) && try_promote_literal(source_expr, target_type))
         return;
 
     // If still incompatible, fail
-    error("Cannot assign " + source_type.to_string() +
-          " to " + target_type.to_string() + " in " + context);
+    error("Cannot assign " + source_type.to_string() + " to " + target_type.to_string() + " in " + context);
 }
 
 void SemanticAnalyser::error(const std::string &message)
@@ -626,17 +650,19 @@ Type SemanticAnalyser::infer_type(ASTNode *node, std::optional<std::string> fiel
     {
         UnaryNode *un_node = dynamic_cast<UnaryNode *>(node);
 
-        Type type = infer_type(un_node->value.get());
+        return un_node->type;
 
-        if (type.has_base_type(BaseType::DOUBLE) && un_node->op == UnaryOpType::COMPLEMENT)
-            error("Cannot take bitwise complement of a double");
+        // Type type = infer_type(un_node->value.get());
 
-        if (un_node->op == UnaryOpType::ADDR_OF)
-            type = Type(type.get_base_type(), type.get_ptr_depth() + 1);
-        else if (un_node->op == UnaryOpType::DEREF)
-            type = Type(type.get_base_type(), type.get_ptr_depth() - 1);
+        // if (type.has_base_type(BaseType::DOUBLE) && un_node->op == UnaryOpType::COMPLEMENT)
+        //     error("Cannot take bitwise complement of a double");
 
-        return type;
+        // if (un_node->op == UnaryOpType::ADDR_OF)
+        //     type = Type(type.get_base_type(), type.get_ptr_depth() + 1);
+        // else if (un_node->op == UnaryOpType::DEREF)
+        //     type = Type(type.get_base_type(), type.get_ptr_depth() - 1);
+
+        // return type;
     }
     case NodeType::NODE_CAST:
     {

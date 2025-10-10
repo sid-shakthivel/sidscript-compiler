@@ -37,7 +37,8 @@ private:
     std::vector<std::unique_ptr<ASTNode>> parse_block();
     void parse_param_list(std::unique_ptr<FuncNode> &func);
     std::unique_ptr<RtnNode> parse_rtn();
-    std::unique_ptr<VarDeclNode> parse_var_decl(const TokenType &specifier = TOKEN_EOF);
+    std::unique_ptr<VarNode> parse_var_declarator(const TokenType &specifier = TOKEN_EOF);
+    std::unique_ptr<VarDeclNode> parse_var_decl(const TokenType &specifier = TOKEN_EOF); 
     std::unique_ptr<VarAssignNode> parse_var_assign();
     std::unique_ptr<ASTNode> parse_factor();
     std::unique_ptr<ASTNode> parse_expr(int min_precedence = 0);

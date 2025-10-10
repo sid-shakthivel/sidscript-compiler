@@ -164,13 +164,8 @@ void Parser::parse_param_list(std::unique_ptr<FuncNode> &func)
 
     while (!match(TOKEN_RPAREN))
     {
-        Type param_type = parse_type();
+        std::unique_ptr<VarNode> var = parse_var_declarator();
 
-        expect(TOKEN_IDENTIFIER);
-        std::string param_name = current_token.text;
-        advance();
-
-        std::unique_ptr<VarNode> var = std::make_unique<VarNode>(param_name, param_type);
         func->params.emplace_back(std::make_unique<VarDeclNode>(std::move(var), nullptr));
 
         if (!match(TOKEN_RPAREN))
@@ -348,8 +343,8 @@ std::unique_ptr<ASTNode> Parser::parse_loop_control()
     return std::make_unique<LoopControl>(token_type, "");
 }
 
-// Specifier is static/extern
-std::unique_ptr<VarDeclNode> Parser::parse_var_decl(const TokenType &specifier)
+// Parses name, type, array dims, etc for declaration
+std::unique_ptr<VarNode> Parser::parse_var_declarator(const TokenType &specifier)
 {
     Type var_type = parse_type();
 
@@ -360,6 +355,14 @@ std::unique_ptr<VarDeclNode> Parser::parse_var_decl(const TokenType &specifier)
     while (match(TOKEN_LSBRACE))
     {
         advance();
+
+        if (match(TOKEN_RSBRACE))
+        {
+            var_type.add_array_dimension(-1);
+            expect_and_advance(TOKEN_RSBRACE);
+            break;
+        }
+
         std::unique_ptr<ASTNode> size_expr = parse_expr();
         if (auto num = dynamic_cast<IntegerLiteral *>(size_expr.get()))
             var_type.add_array_dimension(num->value);
@@ -368,8 +371,15 @@ std::unique_ptr<VarDeclNode> Parser::parse_var_decl(const TokenType &specifier)
         expect_and_advance(TOKEN_RSBRACE);
     }
 
-    std::unique_ptr<VarNode> var = std::make_unique<VarNode>(var_name, var_type, get_specifier(specifier));
+    return std::make_unique<VarNode>(var_name, var_type, get_specifier(specifier));
+}
 
+// Uses method above to capture type of variable
+// Specifier is static/extern
+std::unique_ptr<VarDeclNode> Parser::parse_var_decl(const TokenType &specifier)
+{
+    std::unique_ptr<VarNode> var = parse_var_declarator(specifier);
+    Type var_type = var->type;
     std::vector<TokenType> excepted_tokens = std::vector<TokenType>{TOKEN_ASSIGN, TOKEN_SEMICOLON};
     expect(excepted_tokens);
 
@@ -424,6 +434,18 @@ Type Parser::determine_type(const std::vector<TokenType> &types)
     {
         std::string struct_name = current_token.text;
         advance();
+
+        /*
+            Check for any pointer symbols following the struct name
+            This is done here for cases like
+            Struct Test *example
+        */
+        while (match(TOKEN_STAR))
+        {
+            ptr_level++;
+            advance();
+        }
+
         return Type(struct_name, ptr_level);
     }
 

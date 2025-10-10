@@ -272,7 +272,8 @@ void UnaryNode::print(int tabs)
     };
 
     std::cout << std::string(tabs, ' ') << "Unary: " << std::endl;
-    std::cout << std::string(tabs + 1, ' ') << "Type: " << get_unary_op_string(op) << std::endl;
+    std::cout << std::string(tabs + 1, ' ') << "Type(Unary): " << get_unary_op_string(op) << std::endl;
+    std::cout << std::string(tabs + 1, ' ') << "Type: " << type.to_string() << std::endl;
     value->print(tabs + 1);
 }
 

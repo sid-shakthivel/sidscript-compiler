@@ -127,6 +127,11 @@ int Type::get_ptr_depth() const
     return ptr_level;
 }
 
+void Type::set_ptr_depth(int ptr_depth)
+{
+    ptr_level = ptr_depth;
+}
+
 std::string Type::get_struct_name() const
 {
     if (!struct_name.has_value())

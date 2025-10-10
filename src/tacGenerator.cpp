@@ -196,7 +196,7 @@ void TacGenerator::generate_tac_var_decl(ASTNode *element)
     VarDeclNode *var_decl = (VarDeclNode *)element;
     Symbol *var_symbol = gst->get_symbol(var_decl->var->name);
 
-    if (var_decl->var->type.is_array())
+    if (var_decl->var->type.is_array() && var_decl->value != nullptr)
         return generate_tac_var_array_assign(var_decl->var.get(), var_symbol, var_decl->value.get());
 
     std::string result = generate_tac_expr(var_decl->value.get());
@@ -953,7 +953,7 @@ std::string TacGenerator::gen_tac_str(const TACInstruction &instr)
         case TACOp::CALL:
             return "CALL";
         case TACOp::MOV_BETWEEN_REG:
-            return "MOV_TO_REG";
+            return "MOV_BETWEEN_REG";
         case TACOp::INCREMENT:
             return "INCREMENT";
         case TACOp::DECREMENT:
