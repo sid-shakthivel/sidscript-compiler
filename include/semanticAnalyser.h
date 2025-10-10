@@ -52,5 +52,5 @@ private:
 
     void validate_type_assignment(const Type &target_type, std::unique_ptr<ASTNode> &source_expr, const std::string &context);
 
-    void error(const std::string &message);
+    void error(const std::string &message, const SourceLocation &loc);
 };

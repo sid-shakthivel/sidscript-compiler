@@ -126,7 +126,10 @@ std::unique_ptr<ASTNode> Parser::parse_struct_decl()
 
     expect(TOKEN_SEMICOLON);
 
-    return std::make_unique<StructDeclNode>(struct_name, std::move(members));
+    return std::make_unique<StructDeclNode>(
+        struct_name,
+        std::move(members),
+        SourceLocation{current_token.line, current_token.index});
 }
 
 std::unique_ptr<FuncNode> Parser::parse_func_decl(const TokenType &specifier)
@@ -166,7 +169,7 @@ void Parser::parse_param_list(std::unique_ptr<FuncNode> &func)
     {
         std::unique_ptr<VarNode> var = parse_var_declarator();
 
-        func->params.emplace_back(std::make_unique<VarDeclNode>(std::move(var), nullptr));
+        func->params.emplace_back(std::make_unique<VarDeclNode>(std::move(var), nullptr, SourceLocation{current_token.line, current_token.index}));
 
         if (!match(TOKEN_RPAREN))
             expect_and_advance(TOKEN_COMMA);
@@ -248,13 +251,13 @@ std::unique_ptr<RtnNode> Parser::parse_rtn()
     advance();
 
     if (match(TOKEN_SEMICOLON))
-        return std::make_unique<RtnNode>(nullptr);
+        return std::make_unique<RtnNode>(nullptr, SourceLocation{current_token.line, current_token.index});
 
     std::unique_ptr<ASTNode> expr = parse_expr();
 
     expect(TOKEN_SEMICOLON);
 
-    return std::make_unique<RtnNode>(std::move(expr));
+    return std::make_unique<RtnNode>(std::move(expr), SourceLocation{current_token.line, current_token.index});
 }
 
 std::unique_ptr<IfNode> Parser::parse_if_stmt()
@@ -280,7 +283,7 @@ std::unique_ptr<IfNode> Parser::parse_if_stmt()
     else
         retreat();
 
-    return std::make_unique<IfNode>(std::move(expr), std::move(then_elements), std::move(else_elements));
+    return std::make_unique<IfNode>(std::move(expr), std::move(then_elements), std::move(else_elements), SourceLocation{current_token.line, current_token.index});
 }
 
 std::unique_ptr<WhileNode> Parser::parse_while_stmt()
@@ -295,7 +298,7 @@ std::unique_ptr<WhileNode> Parser::parse_while_stmt()
 
     std::vector<std::unique_ptr<ASTNode>> elements = parse_block();
 
-    return std::make_unique<WhileNode>(std::move(expr), std::move(elements));
+    return std::make_unique<WhileNode>(std::move(expr), std::move(elements), SourceLocation{current_token.line, current_token.index});
 }
 
 std::unique_ptr<ForNode> Parser::parse_for_stmt()
@@ -319,7 +322,7 @@ std::unique_ptr<ForNode> Parser::parse_for_stmt()
 
     std::vector<std::unique_ptr<ASTNode>> elements = parse_block();
 
-    return std::make_unique<ForNode>(std::move(init), std::move(condition), std::move(post), std::move(elements));
+    return std::make_unique<ForNode>(std::move(init), std::move(condition), std::move(post), std::move(elements), SourceLocation{current_token.line, current_token.index});
 }
 
 std::unique_ptr<ASTNode> Parser::parse_for_init()
@@ -340,7 +343,7 @@ std::unique_ptr<ASTNode> Parser::parse_loop_control()
 
     expect(TOKEN_SEMICOLON);
 
-    return std::make_unique<LoopControl>(token_type, "");
+    return std::make_unique<LoopControl>(token_type, "", SourceLocation{current_token.line, current_token.index});
 }
 
 // Parses name, type, array dims, etc for declaration
@@ -371,7 +374,7 @@ std::unique_ptr<VarNode> Parser::parse_var_declarator(const TokenType &specifier
         expect_and_advance(TOKEN_RSBRACE);
     }
 
-    return std::make_unique<VarNode>(var_name, var_type, get_specifier(specifier));
+    return std::make_unique<VarNode>(var_name, var_type, get_specifier(specifier), SourceLocation{current_token.line, current_token.index});
 }
 
 // Uses method above to capture type of variable
@@ -394,10 +397,10 @@ std::unique_ptr<VarDeclNode> Parser::parse_var_decl(const TokenType &specifier)
             init_expr = parse_expr();
 
         expect(TOKEN_SEMICOLON);
-        return std::make_unique<VarDeclNode>(std::move(var), std::move(init_expr));
+        return std::make_unique<VarDeclNode>(std::move(var), std::move(init_expr), SourceLocation{current_token.line, current_token.index});
     }
 
-    return std::make_unique<VarDeclNode>(std::move(var), nullptr);
+    return std::make_unique<VarDeclNode>(std::move(var), nullptr, SourceLocation{current_token.line, current_token.index});
 }
 
 Type Parser::parse_type()
@@ -494,7 +497,7 @@ std::unique_ptr<VarAssignNode> Parser::parse_var_assign()
 
     if (assign_type == TOKEN_ASSIGN)
     {
-        return std::make_unique<VarAssignNode>(std::move(target), std::move(expr));
+        return std::make_unique<VarAssignNode>(std::move(target), std::move(expr), SourceLocation{current_token.line, current_token.index});
     }
     else
     {
@@ -504,10 +507,10 @@ std::unique_ptr<VarAssignNode> Parser::parse_var_assign()
         if (auto var_node = dynamic_cast<VarNode *>(target.get()))
             target_clone = std::make_unique<VarNode>(*var_node);
         else if (auto array_access = dynamic_cast<ArrayAccessNode *>(target.get()))
-            target_clone = std::make_unique<ArrayAccessNode>(*array_access);
+            target_clone = std::make_unique<ArrayAccessNode>(*array_access, SourceLocation{current_token.line, current_token.index});
 
-        auto right = std::make_unique<BinaryNode>(bin_op_type, std::move(target_clone), std::move(expr));
-        return std::make_unique<VarAssignNode>(std::move(target), std::move(right));
+        auto right = std::make_unique<BinaryNode>(bin_op_type, std::move(target_clone), std::move(expr), SourceLocation{current_token.line, current_token.index});
+        return std::make_unique<VarAssignNode>(std::move(target), std::move(right), SourceLocation{current_token.line, current_token.index});
     }
 }
 
@@ -522,7 +525,7 @@ std::unique_ptr<ASTNode> Parser::parse_expr(int min_presedence)
         if (dynamic_cast<VarNode *>(left.get()) == nullptr)
             error("Postfix operator requires a variable");
 
-        left = std::make_unique<PostfixNode>(current_token.type, std::move(left));
+        left = std::make_unique<PostfixNode>(current_token.type, std::move(left), SourceLocation{current_token.line, current_token.index});
 
         advance();
     }
@@ -535,7 +538,7 @@ std::unique_ptr<ASTNode> Parser::parse_expr(int min_presedence)
 
         std::unique_ptr<ASTNode> right = parse_expr(get_precedence(op) + 1);
 
-        left = std::make_unique<BinaryNode>(get_bin_op_type(op), std::move(left), std::move(right));
+        left = std::make_unique<BinaryNode>(get_bin_op_type(op), std::move(left), std::move(right), SourceLocation{current_token.line, current_token.index});
     }
 
     return left;
@@ -551,7 +554,7 @@ std::unique_ptr<ASTNode> Parser::parse_factor()
     {
         try
         {
-            return std::make_unique<DoubleLiteral>(std::stod(current_token.text));
+            return std::make_unique<DoubleLiteral>(std::stod(current_token.text), SourceLocation{current_token.line, current_token.index});
         }
         catch (const std::exception &e)
         {
@@ -560,17 +563,17 @@ std::unique_ptr<ASTNode> Parser::parse_factor()
     }
     else if (match(TOKEN_TRUE) || match(TOKEN_FALSE))
     {
-        return std::make_unique<BoolLiteral>(current_token.type == TOKEN_TRUE);
+        return std::make_unique<BoolLiteral>(current_token.type == TOKEN_TRUE, SourceLocation{current_token.line, current_token.index});
     }
     else if (match(TOKEN_CHAR))
     {
-        return std::make_unique<CharLiteral>(current_token.text[0], Type(BaseType::CHAR));
+        return std::make_unique<CharLiteral>(current_token.text[0], Type(BaseType::CHAR), SourceLocation{current_token.line, current_token.index});
     }
     else if (match(TOKEN_STRING))
     {
         Type string_type(BaseType::CHAR);
         string_type.add_array_dimension(current_token.text.length());
-        return std::make_unique<StringLiteral>(current_token.text, string_type);
+        return std::make_unique<StringLiteral>(current_token.text, string_type, SourceLocation{current_token.line, current_token.index});
     }
     else if (match(un_op_tokens))
     {
@@ -603,7 +606,7 @@ std::unique_ptr<ASTNode> Parser::parse_factor()
 
         if (match(TOKEN_LPAREN))
         {
-            std::unique_ptr<FuncCallNode> func_call = std::make_unique<FuncCallNode>(identifier);
+            std::unique_ptr<FuncCallNode> func_call = std::make_unique<FuncCallNode>(identifier, SourceLocation{current_token.line, current_token.index});
             parse_args_list(func_call);
             expect(TOKEN_RPAREN);
             return func_call;
@@ -642,20 +645,20 @@ std::unique_ptr<ASTNode> Parser::parse_number_literal()
                        num_text.end());
 
         if (is_unsigned && is_long)
-            return std::make_unique<ULongLiteral>(std::stoull(num_text));
+            return std::make_unique<ULongLiteral>(std::stoull(num_text), SourceLocation{current_token.line, current_token.index});
         else if (is_unsigned)
-            return std::make_unique<UIntegerLiteral>(std::stoul(num_text));
+            return std::make_unique<UIntegerLiteral>(std::stoul(num_text), SourceLocation{current_token.line, current_token.index});
         else if (is_long)
-            return std::make_unique<LongLiteral>(std::stoll(num_text));
+            return std::make_unique<LongLiteral>(std::stoll(num_text), SourceLocation{current_token.line, current_token.index});
 
         // Attempt to fit in smallest type possible
         try
         {
-            return std::make_unique<IntegerLiteral>(std::stoi(num_text));
+            return std::make_unique<IntegerLiteral>(std::stoi(num_text), SourceLocation{current_token.line, current_token.index});
         }
         catch (const std::out_of_range &)
         {
-            return std::make_unique<LongLiteral>(std::stoll(num_text));
+            return std::make_unique<LongLiteral>(std::stoll(num_text), SourceLocation{current_token.line, current_token.index});
         }
     }
     catch (const std::exception &)
@@ -673,14 +676,14 @@ std::unique_ptr<ASTNode> Parser::parse_unary_operation()
 
     auto expr = parse_factor();
 
-    return std::make_unique<UnaryNode>(get_unary_op_type(op), std::move(expr));
+    return std::make_unique<UnaryNode>(get_unary_op_type(op), std::move(expr), SourceLocation{current_token.line, current_token.index});
 }
 
 std::unique_ptr<AggregateLiteral> Parser::parse_aggregate_literal(const Type &array_type)
 {
     expect_and_advance(TOKEN_LBRACE);
 
-    auto init_node = std::make_unique<AggregateLiteral>(array_type);
+    auto init_node = std::make_unique<AggregateLiteral>(array_type, SourceLocation{current_token.line, current_token.index});
 
     if (!match(TOKEN_RBRACE))
     {
@@ -729,7 +732,7 @@ std::unique_ptr<ASTNode> Parser::parse_lvalue(const Specifier &specifier)
 {
     expect(TOKEN_IDENTIFIER);
     std::string var_name = current_token.text;
-    std::unique_ptr<VarNode> var = std::make_unique<VarNode>(var_name);
+    std::unique_ptr<VarNode> var = std::make_unique<VarNode>(var_name, SourceLocation{current_token.line, current_token.index});
     advance();
 
     if (match(TOKEN_LSBRACE))
@@ -738,7 +741,7 @@ std::unique_ptr<ASTNode> Parser::parse_lvalue(const Specifier &specifier)
         auto index = parse_expr();
         expect_and_advance(TOKEN_RSBRACE);
 
-        return std::make_unique<ArrayAccessNode>(std::move(var), std::move(index));
+        return std::make_unique<ArrayAccessNode>(std::move(var), std::move(index), SourceLocation{current_token.line, current_token.index});
     }
     else if (match(TOKEN_DOT) || match(TOKEN_ARROW))
     {
@@ -750,7 +753,7 @@ std::unique_ptr<ASTNode> Parser::parse_lvalue(const Specifier &specifier)
 
         std::unique_ptr<ASTNode> test = parse_factor();
 
-        std::unique_ptr<PostfixNode> postfix = std::make_unique<PostfixNode>(op, std::move(test));
+        std::unique_ptr<PostfixNode> postfix = std::make_unique<PostfixNode>(op, std::move(test), SourceLocation{current_token.line, current_token.index});
         postfix->struct_name = var_name;
         postfix->field_name = field_name;
 
@@ -774,7 +777,7 @@ std::unique_ptr<ASTNode> Parser::parse_cast()
     if (!factor)
         error("Expected expression after cast");
 
-    return std::make_unique<CastNode>(std::move(factor), type);
+    return std::make_unique<CastNode>(std::move(factor), type, Type(BaseType::VOID), SourceLocation{current_token.line, current_token.index});
 }
 
 std::unique_ptr<ASTNode> Parser::parse_sizeof()
@@ -788,10 +791,10 @@ std::unique_ptr<ASTNode> Parser::parse_sizeof()
     {
         std::string var_name = current_token.text;
         advance();
-        sizeof_node = std::make_unique<SizeOfNode>(std::make_unique<VarNode>(var_name));
+        sizeof_node = std::make_unique<SizeOfNode>(std::make_unique<VarNode>(var_name, SourceLocation{current_token.line, current_token.index}), SourceLocation{current_token.line, current_token.index});
     }
     else
-        sizeof_node = std::make_unique<SizeOfNode>(parse_type());
+        sizeof_node = std::make_unique<SizeOfNode>(parse_type(), SourceLocation{current_token.line, current_token.index});
 
     expect(TOKEN_RPAREN);
 

@@ -145,5 +145,5 @@ private:
 
     std::tuple<std::string, std::string> compute_struct_access_offset(PostfixNode *postfix);
 
-    void error(const std::string &message);
+    void error(const std::string &message, const SourceLocation &loc);
 };

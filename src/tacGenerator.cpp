@@ -148,7 +148,7 @@ void TacGenerator::generate_tac(ASTNode *node)
     // error("No handler for node type " + node_type_to_string(node->node_type));
 }
 
-void TacGenerator::error(const std::string &message)
+void TacGenerator::error(const std::string &message, const SourceLocation &loc)
 {
     throw std::runtime_error("Tac Generator Error: " + message);
 }
@@ -269,7 +269,7 @@ void TacGenerator::generate_tac_var_assign(ASTNode *element)
         PostfixNode *postfix = dynamic_cast<PostfixNode *>(var_assign->var.get());
 
         if (!(postfix->op == TokenType::TOKEN_DOT || postfix->op == TokenType::TOKEN_ARROW))
-            error("Cannot assign to postfix expression");
+            error("Cannot assign to this postfix expression", postfix->loc);
 
         std::string result = generate_tac_expr(var_assign->value.get());
 
@@ -419,7 +419,7 @@ std::string TacGenerator::generate_tac_expr(ASTNode *expr)
     if (expr_handlers.find(expr->node_type) != expr_handlers.end())
         return expr_handlers[expr->node_type](expr);
     else
-        error("Tac Generation: Invalid expression of type " + node_type_to_string(expr->node_type) + " encountered");
+        error("Tac Generation: Invalid expression of type " + node_type_to_string(expr->node_type) + " encountered", expr->loc);
 }
 
 void TacGenerator::generate_tac_var_array_assign(VarNode *var_node, Symbol *var_symbol, ASTNode *value)
@@ -526,7 +526,7 @@ void TacGenerator::generate_tac_cmp(ASTNode *condition, const std::string &label
     }
     default:
     {
-        error("Invalid condition type");
+        error("Invalid condition type", condition->loc);
     }
     }
 }
@@ -628,7 +628,7 @@ std::string TacGenerator::generate_tac_expr_unary(ASTNode *expr)
     if (unary->type.has_base_type(BaseType::DOUBLE))
     {
         if (unary->type.is_pointer())
-            error("Cannot take the address of a double yet?");
+            error("Cannot take the address of a double yet?", unary->loc);
 
         instructions.emplace_back(convert_UnaryOpType_to_TACOp(unary->op), result, get_const_label(9223372036854775808), temp_var, unary->type);
 

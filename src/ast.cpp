@@ -99,9 +99,9 @@ Type get_type_from_str(const std::string &t)
         return Type(BaseType::DOUBLE);
 }
 
-NumericLiteral::NumericLiteral(NodeType t) : ASTNode(t) {}
+NumericLiteral::NumericLiteral(NodeType t, SourceLocation loc) : ASTNode(t, loc) {}
 
-IntegerLiteral::IntegerLiteral(int v) : NumericLiteral(NodeType::NODE_NUMBER), value(v)
+IntegerLiteral::IntegerLiteral(int v, SourceLocation loc) : NumericLiteral(NodeType::NODE_NUMBER, loc), value(v)
 {
     value_type = Type(BaseType::INT);
 }
@@ -111,7 +111,7 @@ void IntegerLiteral::print(int tabs)
     std::cout << std::string(tabs, ' ') << "Literal (Int): " + std::to_string(value) << std::endl;
 }
 
-LongLiteral::LongLiteral(long v) : NumericLiteral(NodeType::NODE_NUMBER), value(v)
+LongLiteral::LongLiteral(long v, SourceLocation loc) : NumericLiteral(NodeType::NODE_NUMBER, loc), value(v)
 {
     value_type = Type(BaseType::LONG);
 }
@@ -121,7 +121,7 @@ void LongLiteral::print(int tabs)
     std::cout << std::string(tabs, ' ') << "Literal (Long): " + std::to_string(value) << std::endl;
 }
 
-UIntegerLiteral::UIntegerLiteral(unsigned int v) : NumericLiteral(NodeType::NODE_NUMBER), value(v)
+UIntegerLiteral::UIntegerLiteral(unsigned int v, SourceLocation loc) : NumericLiteral(NodeType::NODE_NUMBER, loc), value(v)
 {
     value_type = Type(BaseType::UINT);
 }
@@ -131,7 +131,7 @@ void UIntegerLiteral::print(int tabs)
     std::cout << std::string(tabs, ' ') << "Literal (UInt): " + std::to_string(value) << std::endl;
 }
 
-ULongLiteral::ULongLiteral(unsigned long v) : NumericLiteral(NodeType::NODE_NUMBER), value(v)
+ULongLiteral::ULongLiteral(unsigned long v, SourceLocation loc) : NumericLiteral(NodeType::NODE_NUMBER, loc), value(v)
 {
     value_type = Type(BaseType::UINT);
 }
@@ -141,7 +141,7 @@ void ULongLiteral::print(int tabs)
     std::cout << std::string(tabs, ' ') << "Literal (ULong): " + std::to_string(value) << std::endl;
 }
 
-DoubleLiteral::DoubleLiteral(double v) : NumericLiteral(NodeType::NODE_NUMBER), value(v)
+DoubleLiteral::DoubleLiteral(double v, SourceLocation loc) : NumericLiteral(NodeType::NODE_NUMBER, loc), value(v)
 {
     value_type = Type(BaseType::DOUBLE);
 }
@@ -151,7 +151,7 @@ void DoubleLiteral::print(int tabs)
     std::cout << std::string(tabs, ' ') << "Literal (Double): " + std::to_string(value) << std::endl;
 }
 
-AggregateLiteral::AggregateLiteral(Type t) : ASTNode(NodeType::NODE_AGGREGATE_INIT), type(t) {}
+AggregateLiteral::AggregateLiteral(Type t, SourceLocation loc) : ASTNode(NodeType::NODE_AGGREGATE_INIT, loc), type(t) {}
 
 void AggregateLiteral::add_element(std::unique_ptr<ASTNode> e)
 {
@@ -165,27 +165,27 @@ void AggregateLiteral::print(int tabs)
         elem->print(tabs + 1);
 }
 
-CharLiteral::CharLiteral(char v, Type t) : ASTNode(NodeType::NODE_CHAR), value(v), value_type(t) {}
+CharLiteral::CharLiteral(char v, Type t, SourceLocation loc) : ASTNode(NodeType::NODE_CHAR, loc), value(v), value_type(t) {}
 
 void CharLiteral::print(int tabs)
 {
     std::cout << std::string(tabs, ' ') << "Char: " << value << std::endl;
 }
 
-StringLiteral::StringLiteral(const std::string &v, Type t) : ASTNode(NodeType::NODE_STRING), value(v), value_type(t) {}
+StringLiteral::StringLiteral(const std::string &v, Type t, SourceLocation loc) : ASTNode(NodeType::NODE_STRING, loc), value(v), value_type(t) {}
 
 void StringLiteral::print(int tabs)
 {
     std::cout << std::string(tabs, ' ') << "String: " << value << std::endl;
 }
 
-BoolLiteral::BoolLiteral(bool v) : ASTNode(NodeType::NODE_BOOL), value(v) {}
+BoolLiteral::BoolLiteral(bool v, SourceLocation loc) : ASTNode(NodeType::NODE_BOOL, loc), value(v) {}
 void BoolLiteral::print(int tabs)
 {
     std::cout << std::string(tabs, ' ') << "Bool: " << value << std::endl;
 }
 
-CastNode::CastNode(std::unique_ptr<ASTNode> e, Type t1, Type t2) : ASTNode(NodeType::NODE_CAST), expr(std::move(e)), target_type(t1), src_type(t2) {}
+CastNode::CastNode(std::unique_ptr<ASTNode> e, Type t1, Type t2, SourceLocation loc) : ASTNode(NodeType::NODE_CAST, loc), expr(std::move(e)), target_type(t1), src_type(t2) {}
 
 void CastNode::print(int tabs)
 {
@@ -194,7 +194,7 @@ void CastNode::print(int tabs)
     expr->print(tabs + 1);
 }
 
-RtnNode::RtnNode(std::unique_ptr<ASTNode> v) : ASTNode(NodeType::NODE_RETURN), value(std::move(v)) {}
+RtnNode::RtnNode(std::unique_ptr<ASTNode> v, SourceLocation loc) : ASTNode(NodeType::NODE_RETURN, loc), value(std::move(v)) {}
 
 void RtnNode::print(int tabs)
 {
@@ -205,7 +205,7 @@ void RtnNode::print(int tabs)
         std::cout << std::string(tabs + 1, ' ') << "No Value" << std::endl;
 }
 
-FuncNode::FuncNode(const std::string &n, Specifier s) : ASTNode(NodeType::NODE_FUNCTION), name(n), specifier(s) {}
+FuncNode::FuncNode(const std::string &n, Specifier s, SourceLocation loc) : ASTNode(NodeType::NODE_FUNCTION, loc), name(n), specifier(s) {}
 
 void FuncNode::print(int tabs)
 {
@@ -235,7 +235,7 @@ std::string FuncNode::get_param_name(int i)
     return dynamic_cast<VarDeclNode *>(params[i].get())->var->name;
 }
 
-FuncCallNode::FuncCallNode(const std::string &n) : ASTNode(NodeType::NODE_FUNC_CALL), name(n) {}
+FuncCallNode::FuncCallNode(const std::string &n, SourceLocation loc) : ASTNode(NodeType::NODE_FUNC_CALL, loc), name(n) {}
 
 void FuncCallNode::print(int tabs)
 {
@@ -253,7 +253,7 @@ void ProgramNode::print(int tabs)
         decl->print(tabs + 1);
 }
 
-UnaryNode::UnaryNode(UnaryOpType o, std::unique_ptr<ASTNode> v) : ASTNode(NodeType::NODE_UNARY), op(o), value(std::move(v)) {}
+UnaryNode::UnaryNode(UnaryOpType o, std::unique_ptr<ASTNode> v, SourceLocation loc) : ASTNode(NodeType::NODE_UNARY, loc), op(o), value(std::move(v)) {}
 
 void UnaryNode::print(int tabs)
 {
@@ -281,7 +281,7 @@ void UnaryNode::print(int tabs)
     value->print(tabs + 1);
 }
 
-PostfixNode::PostfixNode(TokenType o, std::unique_ptr<ASTNode> v) : ASTNode(NodeType::NODE_POSTFIX), op(o), value(std::move(v)) {}
+PostfixNode::PostfixNode(TokenType o, std::unique_ptr<ASTNode> v, SourceLocation loc) : ASTNode(NodeType::NODE_POSTFIX, loc), op(o), value(std::move(v)) {}
 
 void PostfixNode::print(int tabs)
 {
@@ -304,7 +304,7 @@ void PostfixNode::print(int tabs)
     value->print(tabs + 1);
 }
 
-BinaryNode::BinaryNode(BinOpType o, std::unique_ptr<ASTNode> l, std::unique_ptr<ASTNode> r) : ASTNode(NodeType::NODE_BINARY), op(o), left(std::move(l)), right(std::move(r)) {}
+BinaryNode::BinaryNode(BinOpType o, std::unique_ptr<ASTNode> l, std::unique_ptr<ASTNode> r, SourceLocation loc) : ASTNode(NodeType::NODE_BINARY, loc), op(o), left(std::move(l)), right(std::move(r)) {}
 
 void BinaryNode::print(int tabs)
 {
@@ -348,9 +348,9 @@ void BinaryNode::print(int tabs)
     right->print(tabs + 1);
 }
 
-VarNode::VarNode(const std::string &n) : ASTNode(NodeType::NODE_VAR), name(n) {}
+VarNode::VarNode(const std::string &n, SourceLocation loc) : ASTNode(NodeType::NODE_VAR, loc), name(n) {}
 
-VarNode::VarNode(const std::string &n, Type t, Specifier s) : ASTNode(NodeType::NODE_VAR), name(n), type(t), specifier(s) {}
+VarNode::VarNode(const std::string &n, Type t, Specifier s, SourceLocation loc) : ASTNode(NodeType::NODE_VAR, loc), name(n), type(t), specifier(s) {}
 
 void VarNode::print(int tabs)
 {
@@ -366,7 +366,7 @@ void VarNode::print(int tabs)
         std::cout << std::string(tabs + 1, ' ') << "Specifier: CONST" << std::endl;
 }
 
-VarAssignNode::VarAssignNode(std::unique_ptr<ASTNode> v, std::unique_ptr<ASTNode> val) : ASTNode(NodeType::NODE_VAR_ASSIGN), var(std::move(v)), value(std::move(val)) {}
+VarAssignNode::VarAssignNode(std::unique_ptr<ASTNode> v, std::unique_ptr<ASTNode> val, SourceLocation loc) : ASTNode(NodeType::NODE_VAR_ASSIGN, loc), var(std::move(v)), value(std::move(val)) {}
 
 void VarAssignNode::print(int tabs)
 {
@@ -375,7 +375,7 @@ void VarAssignNode::print(int tabs)
     value->print(tabs + 1);
 }
 
-VarDeclNode::VarDeclNode(std::unique_ptr<VarNode> v, std::unique_ptr<ASTNode> val) : ASTNode(NodeType::NODE_VAR_DECL), var(std::move(v)), value(std::move(val)) {}
+VarDeclNode::VarDeclNode(std::unique_ptr<VarNode> v, std::unique_ptr<ASTNode> val, SourceLocation loc) : ASTNode(NodeType::NODE_VAR_DECL, loc), var(std::move(v)), value(std::move(val)) {}
 
 void VarDeclNode::print(int tabs)
 {
@@ -385,7 +385,7 @@ void VarDeclNode::print(int tabs)
         value->print(tabs + 1);
 }
 
-StructDeclNode::StructDeclNode(const std::string &n, std::vector<std::unique_ptr<ASTNode>> m) : ASTNode(NodeType::NODE_STRUCT_DECL), name(n), members(std::move(m)) {}
+StructDeclNode::StructDeclNode(const std::string &n, std::vector<std::unique_ptr<ASTNode>> m, SourceLocation loc) : ASTNode(NodeType::NODE_STRUCT_DECL, loc), name(n), members(std::move(m)) {}
 
 void StructDeclNode::print(int tabs)
 {
@@ -394,7 +394,7 @@ void StructDeclNode::print(int tabs)
         member->print(tabs + 1);
 }
 
-IfNode::IfNode(std::unique_ptr<ASTNode> c, std::vector<std::unique_ptr<ASTNode>> t, std::vector<std::unique_ptr<ASTNode>> e) : ASTNode(NodeType::NODE_IF), condition(std::move(c)), then_elements(std::move(t)), else_elements(std::move(e)) {}
+IfNode::IfNode(std::unique_ptr<ASTNode> c, std::vector<std::unique_ptr<ASTNode>> t, std::vector<std::unique_ptr<ASTNode>> e, SourceLocation loc) : ASTNode(NodeType::NODE_IF, loc), condition(std::move(c)), then_elements(std::move(t)), else_elements(std::move(e)) {}
 
 void IfNode::print(int tabs)
 {
@@ -410,7 +410,7 @@ void IfNode::print(int tabs)
         statement->print(tabs + 2);
 }
 
-WhileNode::WhileNode(std::unique_ptr<ASTNode> c, std::vector<std::unique_ptr<ASTNode>> e) : ASTNode(NodeType::NODE_WHILE), condition(std::move(c)), elements(std::move(e)) {}
+WhileNode::WhileNode(std::unique_ptr<ASTNode> c, std::vector<std::unique_ptr<ASTNode>> e, SourceLocation loc) : ASTNode(NodeType::NODE_WHILE, loc), condition(std::move(c)), elements(std::move(e)) {}
 
 void WhileNode::print(int tabs)
 {
@@ -421,7 +421,7 @@ void WhileNode::print(int tabs)
         element->print(tabs + 2);
 }
 
-ForNode::ForNode(std::unique_ptr<ASTNode> i, std::unique_ptr<BinaryNode> c, std::unique_ptr<ASTNode> p, std::vector<std::unique_ptr<ASTNode>> e) : ASTNode(NodeType::NODE_FOR), init(std::move(i)), condition(std::move(c)), post(std::move(p)), elements(std::move(e)) {}
+ForNode::ForNode(std::unique_ptr<ASTNode> i, std::unique_ptr<BinaryNode> c, std::unique_ptr<ASTNode> p, std::vector<std::unique_ptr<ASTNode>> e, SourceLocation loc) : ASTNode(NodeType::NODE_FOR, loc), init(std::move(i)), condition(std::move(c)), post(std::move(p)), elements(std::move(e)) {}
 
 void ForNode::print(int tabs)
 {
@@ -434,7 +434,7 @@ void ForNode::print(int tabs)
         element->print(tabs + 2);
 }
 
-LoopControl::LoopControl(TokenType t, std::string l) : ASTNode(NodeType::NODE_LOOP_CONTROL), type(t) {}
+LoopControl::LoopControl(TokenType t, std::string l, SourceLocation loc) : ASTNode(NodeType::NODE_LOOP_CONTROL, loc), type(t) {}
 
 void LoopControl::print(int tabs)
 {
@@ -442,23 +442,9 @@ void LoopControl::print(int tabs)
     std::cout << std::string(tabs, ' ') << typeText << label << std::endl;
 }
 
-// DerefNode::DerefNode(std::unique_ptr<ASTNode> v) : ASTNode(NodeType::NODE_DEREF), expr(std::move(v)) {}
+ArrayAccessNode::ArrayAccessNode(std::unique_ptr<VarNode> arr, std::unique_ptr<ASTNode> idx, SourceLocation loc) : ASTNode(NodeType::NODE_ARRAY_ACCESS, loc), array(std::move(arr)), index(std::move(idx)) {}
 
-// void DerefNode::print(int tabs)
-// {
-//     std::cout << std::string(tabs, ' ') << "PointerDeref: " << std::endl;
-//     expr->print(tabs + 1);
-// }
-
-// AddrOfNode::AddrOfNode(std::unique_ptr<ASTNode> v) : ASTNode(NodeType::NODE_ADDR_OF), expr(std::move(v)) {}
-
-// void AddrOfNode::print(int tabs)
-// {
-//     std::cout << std::string(tabs, ' ') << "AddrOf: " << std::endl;
-//     expr->print(tabs + 1);
-// }
-
-ArrayAccessNode::ArrayAccessNode(std::unique_ptr<VarNode> arr, std::unique_ptr<ASTNode> idx) : ASTNode(NodeType::NODE_ARRAY_ACCESS), array(std::move(arr)), index(std::move(idx)) {}
+// ArrayAccessNode(const ArrayAccessNode &other, SourceLocation loc) : ASTNode(NodeType::NODE_ARRAY_ACCESS, loc), array(std::make_unique<VarNode>(*other.array)), index(other.index ? other.index->clone() : nullptr) {}
 
 void ArrayAccessNode::print(int tabs)
 {
@@ -470,9 +456,9 @@ void ArrayAccessNode::print(int tabs)
     index->print(tabs + 2);
 }
 
-SizeOfNode::SizeOfNode(Type t) : ASTNode(NodeType::NODE_SIZE_OF), type(t) {}
+SizeOfNode::SizeOfNode(Type t, SourceLocation loc) : ASTNode(NodeType::NODE_SIZE_OF, loc), type(t) {}
 
-SizeOfNode::SizeOfNode(std::unique_ptr<VarNode> v) : ASTNode(NodeType::NODE_SIZE_OF), var(std::move(v)) {}
+SizeOfNode::SizeOfNode(std::unique_ptr<VarNode> v, SourceLocation loc) : ASTNode(NodeType::NODE_SIZE_OF, loc), var(std::move(v)) {}
 
 void SizeOfNode::print(int tabs)
 {

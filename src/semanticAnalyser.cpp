@@ -44,7 +44,7 @@ void SemanticAnalyser::analyse_func(ASTNode *node)
 
         // Don't allow structs to be passed by value
         if (param_type.is_struct() && !param_type.is_pointer())
-            error("Struct parameter " + param_var_decl_node->var->name + " must be passed by reference");
+            error("Struct parameter " + param_var_decl_node->var->name + " must be passed by reference", param_var_decl_node->loc);
 
         arg_types.push_back(param_var_decl_node->var->type);
     }
@@ -67,7 +67,7 @@ void SemanticAnalyser::analyse_func(ASTNode *node)
     // Ensure return is present at end of function
     if (!func_node->return_type.has_base_type(BaseType::VOID))
         if (func_node->elements.back()->node_type != NodeType::NODE_RETURN)
-            error("Return statement missing from function " + func_node->name);
+            error("Return statement missing from function " + func_node->name, func_node->loc);
 
     gst->leave_func_scope();
 }
@@ -89,7 +89,7 @@ void SemanticAnalyser::analyse_var_decl(ASTNode *node)
     if (gst->is_global_scope())
         if (var_decl_node->value != nullptr)
             if (var_decl_node->value->node_type == NodeType::NODE_BINARY || var_decl_node->value->node_type == NodeType::NODE_UNARY)
-                error("Global variable " + var_decl_node->var->name + " must have constant value");
+                error("Global variable " + var_decl_node->var->name + " must have constant value", var_decl_node->loc);
 
     // Add each field from the struct to the type of the variable
     if (var_decl_node->var->type.is_struct())
@@ -110,17 +110,17 @@ void SemanticAnalyser::analyse_var_decl(ASTNode *node)
         if (var_type.is_array() && var_type.has_base_type(BaseType::CHAR))
         {
             if (var_decl_node->value->node_type != NodeType::NODE_STRING)
-                error("String initialisation of " + var_decl_node->var->name + " requires string literal");
+                error("String initialisation of " + var_decl_node->var->name + " requires string literal", var_decl_node->loc);
 
             StringLiteral *string_literal = dynamic_cast<StringLiteral *>(var_decl_node->value.get());
 
             // +1 due to null terminator
             if (string_literal->value.size() + 1 > var_type.get_size())
-                error("Too many characters in string initialisation of " + var_decl_node->var->name);
+                error("Too many characters in string initialisation of " + var_decl_node->var->name, var_decl_node->loc);
         }
         else if (var_type.is_array() || var_type.is_struct())
             if (var_decl_node->value->node_type != NodeType::NODE_AGGREGATE_INIT)
-                error("Compound initialisation of " + var_decl_node->var->name + " requires compound literal");
+                error("Compound initialisation of " + var_decl_node->var->name + " requires compound literal", var_decl_node->loc);
 
         validate_type_assignment(var_type, var_decl_node->value, var_decl_node->var->name);
     }
@@ -142,14 +142,14 @@ void SemanticAnalyser::analyse_aggregate_literal(ASTNode *node, const Type &var_
             - int arr[3] = {1, 2, 3};
         */
         if (aggregate_literal->values.size() > type_to_cmp.get_size())
-            error("Too many elements in array initialisation");
+            error("Too many elements in array initialisation", aggregate_literal->loc);
 
         for (auto &element : aggregate_literal->values)
         {
             analyse_node(element.get());
 
             if (!infer_type(element.get()).has_base_type(type_to_cmp.get_base_type()))
-                error("Type in array initialisation of some variable doesn't match");
+                error("Type in array initialisation of some variable doesn't match", aggregate_literal->loc);
         }
     }
     else if (type_to_cmp.is_struct())
@@ -157,13 +157,14 @@ void SemanticAnalyser::analyse_aggregate_literal(ASTNode *node, const Type &var_
         std::string struct_name = type_to_cmp.get_struct_name();
 
         if (struct_table.find(struct_name) == struct_table.end())
-            error("Struct '" + struct_name + "' not defined");
+            error("Struct '" + struct_name + "' not defined", aggregate_literal->loc);
 
         std::unordered_map<std::string, Type> struct_fields = struct_table[struct_name];
 
         if (struct_fields.size() != aggregate_literal->values.size())
             error("Struct '" + struct_name + "' has " + std::to_string(struct_fields.size()) +
-                  " fields, but " + std::to_string(aggregate_literal->values.size()) + " were provided");
+                      " fields, but " + std::to_string(aggregate_literal->values.size()) + " were provided",
+                  aggregate_literal->loc);
 
         int i = 0;
         for (const auto &[field_name, field_type] : struct_fields)
@@ -209,7 +210,7 @@ void SemanticAnalyser::analyse_var_assign(ASTNode *node)
         var->type = var_type;
 
         if (var_symbol->is_const)
-            error("Cannot assign to const variable '" + var->name + "'");
+            error("Cannot assign to const variable '" + var->name + "'", var_assign_node->loc);
 
         if (var_type.is_struct())
             analyse_aggregate_literal(var_assign_node->value.get(), var_type);
@@ -222,22 +223,23 @@ void SemanticAnalyser::analyse_var_assign(ASTNode *node)
 
         Symbol *symbol = gst->get_symbol(array_access->array->name);
 
-        if (symbol->is_const)
-            error("Cannot assign to const variable '" + array_access->array->name + "'");
-
         if (symbol == nullptr)
-            error("Array '" + array_access->array->name + "' not defined");
+            error("Array '" + array_access->array->name + "' not defined", var_assign_node->loc);
+
         if (!symbol->type.is_array())
-            error("Array '" + array_access->array->name + "' is not an array");
+            error("Array '" + array_access->array->name + "' is not an array", var_assign_node->loc);
+
+        if (symbol->is_const)
+            error("Cannot assign to const variable '" + array_access->array->name + "'", var_assign_node->loc);
 
         Type value_type = infer_type(var_assign_node->value.get());
 
         if (symbol->type.has_base_type(BaseType::CHAR) && !symbol->type.is_pointer())
             if (var_assign_node->value->node_type == NodeType::NODE_STRING)
-                error("Cannot assign string literal to single char element in array '" + array_access->array->name + "'");
+                error("Cannot assign string literal to single char element in array '" + array_access->array->name + "'", var_assign_node->loc);
 
         if (!(Type(symbol->type.get_base_type())).can_assign_from(value_type)) // Check whether the .get_base_type() is even needed here
-            error("Cannot assign " + value_type.to_string() + " to array element of type " + Type(symbol->type.get_base_type()).to_string() + " in array '" + array_access->array->name + "'");
+            error("Cannot assign " + value_type.to_string() + " to array element of type " + Type(symbol->type.get_base_type()).to_string() + " in array '" + array_access->array->name + "'", var_assign_node->loc);
     }
     else if (var_assign_node->var->node_type == NodeType::NODE_POSTFIX)
     {
@@ -258,12 +260,12 @@ void SemanticAnalyser::analyse_rtn(ASTNode *node)
     if (expected_rtn_type.is_void())
     {
         if (rtn_node->value != nullptr)
-            error("Function '" + func->name + "' has void return type but return statement provides a value");
+            error("Function '" + func->name + "' has void return type but return statement provides a value", rtn_node->loc);
     }
     else
     {
         if (rtn_node->value == nullptr)
-            error("Function '" + func->name + "' must return a value of type " + expected_rtn_type.to_string());
+            error("Function '" + func->name + "' must return a value of type " + expected_rtn_type.to_string(), rtn_node->loc);
         else
         {
             analyse_node(rtn_node->value.get());
@@ -350,7 +352,7 @@ void SemanticAnalyser::analyse_unary(ASTNode *node)
 
     if (unary_node->op == UnaryOpType::ADDR_OF || unary_node->op == UnaryOpType::DEREF)
         if (unary_node->value->node_type != NodeType::NODE_VAR)
-            error("Can only take address of variables");
+            error("Can only take address of variables", unary_node->loc);
 
     // if (unary_node->op == UnaryOpType::ADDR_OF)
     //     unary_node->type = Type(expr_type.get_base_type(), expr_type.get_ptr_depth() + 1);
@@ -403,10 +405,10 @@ void SemanticAnalyser::analyse_func_call(ASTNode *node)
         return;
 
     if (func == nullptr)
-        error("Function '" + fc_node->name + "' not defined");
+        error("Function '" + fc_node->name + "' not defined", fc_node->loc);
 
     if (func->arg_count != fc_node->args.size())
-        error("Function '" + fc_node->name + "' has " + std::to_string(func->arg_count) + " arguments, but " + std::to_string(fc_node->args.size()) + " were provided");
+        error("Function '" + fc_node->name + "' has " + std::to_string(func->arg_count) + " arguments, but " + std::to_string(fc_node->args.size()) + " were provided", fc_node->loc);
 
     for (int i = 0; i < fc_node->args.size(); i++)
     {
@@ -432,7 +434,7 @@ void SemanticAnalyser::enter_loop_scope(const std::string &label)
 void SemanticAnalyser::exit_loop_scope()
 {
     if (loop_scopes.empty())
-        error("No scope to exit when attempting to exit loop scope");
+        error("No scope to exit when attempting to exit loop scope", {0, 0});
 
     loop_scopes.pop();
 }
@@ -443,7 +445,7 @@ void SemanticAnalyser::analyse_cast(ASTNode *node)
     Type src_type = infer_type((ASTNode *)(cast_node->expr.get()));
 
     if (!src_type.can_convert_to(cast_node->target_type))
-        error("Cannot cast " + src_type.to_string() + " to " + cast_node->target_type.to_string());
+        error("Cannot cast " + src_type.to_string() + " to " + cast_node->target_type.to_string(), cast_node->loc);
 
     cast_node->src_type = src_type;
 }
@@ -453,7 +455,7 @@ void SemanticAnalyser::analyse_struct_decl(ASTNode *node)
     StructDeclNode *struct_decl_node = (StructDeclNode *)node;
 
     if (struct_table.find(struct_decl_node->name) != struct_table.end())
-        error("Struct '" + struct_decl_node->name + "' already defined");
+        error("Struct '" + struct_decl_node->name + "' already defined", struct_decl_node->loc);
 
     std::unordered_map<std::string, Type> members;
 
@@ -463,10 +465,10 @@ void SemanticAnalyser::analyse_struct_decl(ASTNode *node)
         Type member_type = member_decl->var->type;
 
         if (members.find(member_decl->var->name) != members.end())
-            error("Duplicate member '" + member_decl->var->name + "' in struct '" + struct_decl_node->name + "'");
+            error("Duplicate member '" + member_decl->var->name + "' in struct '" + struct_decl_node->name + "'", member_decl->loc);
 
         if (member_type.is_struct() && !member_type.is_pointer() && struct_decl_node->name == member_type.get_struct_name())
-            error("Struct member '" + member_decl->var->name + "' cannot be a struct of itself");
+            error("Struct member '" + member_decl->var->name + "' cannot be a struct of itself", member_decl->loc);
 
         members[member_decl->var->name] = member_decl->var->type;
     }
@@ -500,10 +502,10 @@ void SemanticAnalyser::analyse_postfix(ASTNode *node)
         Type expr_type = symbol->type;
 
         if (postfix_node->op == TOKEN_DOT && (!expr_type.is_struct() || expr_type.is_pointer()))
-            error("Cannot access member of non-struct type");
+            error("Cannot access member of non-struct type", postfix_node->loc);
 
         if (postfix_node->op == TOKEN_ARROW && (!expr_type.is_struct() || !expr_type.is_pointer()))
-            error("Cannot access member of non-pointer type");
+            error("Cannot access member of non-pointer type", postfix_node->loc);
 
         postfix_node->type = rtn_type;
 
@@ -535,12 +537,12 @@ void SemanticAnalyser::validate_type_assignment(const Type &target_type, std::un
         return;
 
     // If still incompatible, fail
-    error("Cannot assign " + source_type.to_string() + " to " + target_type.to_string() + " in " + context);
+    error("Cannot assign " + source_type.to_string() + " to " + target_type.to_string() + " in " + context, source_expr->loc);
 }
 
-void SemanticAnalyser::error(const std::string &message)
+void SemanticAnalyser::error(const std::string &message, const SourceLocation &loc)
 {
-    throw std::runtime_error("Semantic Error: " + message);
+    throw std::runtime_error("Semantic Error: " + message + " on line " + std::to_string(loc.line));
 }
 
 Type SemanticAnalyser::infer_type(ASTNode *node, std::optional<std::string> field_name)
@@ -565,17 +567,17 @@ Type SemanticAnalyser::infer_type(ASTNode *node, std::optional<std::string> fiel
             Symbol *struct_symbol = gst->get_symbol(field_name.value());
 
             if (struct_symbol == nullptr)
-                error("Variable '" + field_name.value() + "' not defined");
+                error("Variable '" + field_name.value() + "' not defined", var_node->loc);
 
             std::string struct_name = struct_symbol->type.get_struct_name();
 
             if (struct_table.find(struct_name) == struct_table.end())
-                error("Struct '" + struct_name + "' not defined");
+                error("Struct '" + struct_name + "' not defined", var_node->loc);
 
             std::unordered_map<std::string, Type> struct_fields = struct_table[struct_name];
 
             if (struct_fields.find(var_node->name) == struct_fields.end())
-                error("Struct '" + struct_name + "' has no field '" + var_node->name + "'");
+                error("Struct '" + struct_name + "' has no field '" + var_node->name + "'", var_node->loc);
 
             return struct_fields[var_node->name];
         }
@@ -584,7 +586,7 @@ Type SemanticAnalyser::infer_type(ASTNode *node, std::optional<std::string> fiel
             auto rtn = gst->get_symbol(var_node->name);
 
             if (rtn == nullptr)
-                error("Variable '" + var_node->name + "' not defined");
+                error("Variable '" + var_node->name + "' not defined", var_node->loc);
 
             return rtn->type;
         }
@@ -609,11 +611,12 @@ Type SemanticAnalyser::infer_type(ASTNode *node, std::optional<std::string> fiel
         {
             if (left.is_pointer() && right.is_integral())
             {
-                // here for now
                 auto scale_node = std::make_unique<BinaryNode>(
                     BinOpType::MUL,
                     std::move(bin_node->right),
-                    std::make_unique<IntegerLiteral>(Type(left.get_base_type()).get_size()));
+                    std::make_unique<IntegerLiteral>(Type(left.get_base_type()).get_size(), bin_node->loc),
+                    bin_node->loc);
+
                 scale_node->type = left;
                 bin_node->right = std::move(scale_node);
                 bin_node->type = left;
@@ -624,7 +627,9 @@ Type SemanticAnalyser::infer_type(ASTNode *node, std::optional<std::string> fiel
                 auto scale_node = std::make_unique<BinaryNode>(
                     BinOpType::MUL,
                     std::move(bin_node->left),
-                    std::make_unique<IntegerLiteral>(Type(right.get_base_type()).get_size()));
+                    std::make_unique<IntegerLiteral>(Type(right.get_base_type()).get_size(), bin_node->loc),
+                    bin_node->loc);
+
                 scale_node->type = left;
                 bin_node->left = std::move(scale_node);
                 bin_node->type = right;
@@ -653,8 +658,7 @@ Type SemanticAnalyser::infer_type(ASTNode *node, std::optional<std::string> fiel
             return left;
         }
 
-        error("Cannot perform operation between " +
-              left.to_string() + " and " + right.to_string());
+        error("Cannot perform operation between " + left.to_string() + " and " + right.to_string(), bin_node->loc);
     }
     case NodeType::NODE_UNARY:
     {
@@ -713,12 +717,12 @@ Type SemanticAnalyser::infer_type(ASTNode *node, std::optional<std::string> fiel
                 Now check whether the 'field' for the struct matches properly
             */
             if (struct_table.find(struct_name) == struct_table.end())
-                error("Struct '" + struct_name + "' not defined");
+                error("Struct '" + struct_name + "' not defined", array_access_node->loc);
 
             std::unordered_map<std::string, Type> struct_fields = struct_table[struct_name];
 
             if (struct_fields.find(array_access_node->array->name) == struct_fields.end())
-                error("Struct '" + struct_name + "' has no field '" + array_access_node->array->name + "'");
+                error("Struct '" + struct_name + "' has no field '" + array_access_node->array->name + "'", array_access_node->loc);
 
             Type type = struct_fields[array_access_node->array->name];
 
@@ -730,9 +734,10 @@ Type SemanticAnalyser::infer_type(ASTNode *node, std::optional<std::string> fiel
                 if (index_literal->value < 0 || index_literal->value >= type.get_array_length())
                 {
                     error("Array index " +
-                          std::to_string(index_literal->value) +
-                          " out of bounds for '" + array_access_node->array->name + "' within struct '" + field_name.value() +
-                          "' of length " + std::to_string(type.get_array_length()));
+                              std::to_string(index_literal->value) +
+                              " out of bounds for '" + array_access_node->array->name + "' within struct '" + field_name.value() +
+                              "' of length " + std::to_string(type.get_array_length()),
+                          array_access_node->loc);
                 }
             }
 
@@ -748,9 +753,10 @@ Type SemanticAnalyser::infer_type(ASTNode *node, std::optional<std::string> fiel
                 if (index_literal->value < 0 || index_literal->value >= array_symbol->type.get_array_length())
                 {
                     error("Array index " +
-                          std::to_string(index_literal->value) +
-                          " out of bounds for array '" + array_access_node->array->name +
-                          "' of length " + std::to_string(array_symbol->type.get_array_length()));
+                              std::to_string(index_literal->value) +
+                              " out of bounds for array '" + array_access_node->array->name +
+                              "' of length " + std::to_string(array_symbol->type.get_array_length()),
+                          array_access_node->loc);
                 }
             }
 
@@ -779,7 +785,7 @@ Type SemanticAnalyser::infer_type(ASTNode *node, std::optional<std::string> fiel
         if (size_of_node->type.is_struct())
         {
             if (struct_table[size_of_node->type.get_struct_name()].empty())
-                error("Struct '" + size_of_node->type.get_struct_name() + "' not defined");
+                error("Struct '" + size_of_node->type.get_struct_name() + "' not defined", size_of_node->loc);
 
             for (auto &member : struct_table[size_of_node->type.get_struct_name()])
                 size_of_node->type.add_field(member.first, member.second);
@@ -794,13 +800,13 @@ Type SemanticAnalyser::infer_type(ASTNode *node, std::optional<std::string> fiel
             auto rtn = gst->get_symbol(var_node->name);
 
             if (rtn == nullptr)
-                error("Variable '" + ((VarNode *)node)->name + "' not defined");
+                error("Variable '" + ((VarNode *)node)->name + "' not defined", size_of_node->loc);
         }
 
         return Type(BaseType::INT);
     }
     default:
-        error("Cannot infer type of node of type ");
+        error("Cannot infer type of node of type ", node->loc);
     }
 }
 
@@ -814,7 +820,7 @@ bool SemanticAnalyser::try_promote_literal(std::unique_ptr<ASTNode> &expr, const
         {
             if (std::llabs((long long)i->value) <= (1LL << 53))
             {
-                expr = std::make_unique<DoubleLiteral>(static_cast<double>(i->value));
+                expr = std::make_unique<DoubleLiteral>(static_cast<double>(i->value), expr->loc);
                 return true;
             }
             return false;
@@ -823,7 +829,7 @@ bool SemanticAnalyser::try_promote_literal(std::unique_ptr<ASTNode> &expr, const
         {
             if (std::llabs(l->value) <= (1LL << 53))
             {
-                expr = std::make_unique<DoubleLiteral>(static_cast<double>(l->value));
+                expr = std::make_unique<DoubleLiteral>(static_cast<double>(l->value), expr->loc);
                 return true;
             }
             return false;
@@ -832,7 +838,7 @@ bool SemanticAnalyser::try_promote_literal(std::unique_ptr<ASTNode> &expr, const
         {
             if ((unsigned long long)ui->value <= (1ULL << 53))
             {
-                expr = std::make_unique<DoubleLiteral>(static_cast<double>(ui->value));
+                expr = std::make_unique<DoubleLiteral>(static_cast<double>(ui->value), expr->loc);
                 return true;
             }
             return false;
@@ -841,7 +847,7 @@ bool SemanticAnalyser::try_promote_literal(std::unique_ptr<ASTNode> &expr, const
         {
             if ((unsigned long long)ul->value <= (1ULL << 53))
             {
-                expr = std::make_unique<DoubleLiteral>(static_cast<double>(ul->value));
+                expr = std::make_unique<DoubleLiteral>(static_cast<double>(ul->value), expr->loc);
                 return true;
             }
             return false;
@@ -859,7 +865,7 @@ bool SemanticAnalyser::try_promote_literal(std::unique_ptr<ASTNode> &expr, const
         {
             if (l->value >= INT_MIN && l->value <= INT_MAX)
             {
-                expr = std::make_unique<IntegerLiteral>(static_cast<int>(l->value));
+                expr = std::make_unique<IntegerLiteral>(static_cast<int>(l->value), expr->loc);
                 return true;
             }
             return false;
@@ -868,7 +874,7 @@ bool SemanticAnalyser::try_promote_literal(std::unique_ptr<ASTNode> &expr, const
         {
             if (ui->value <= static_cast<unsigned int>(INT_MAX))
             {
-                expr = std::make_unique<IntegerLiteral>(static_cast<int>(ui->value));
+                expr = std::make_unique<IntegerLiteral>(static_cast<int>(ui->value), expr->loc);
                 return true;
             }
             return false;
@@ -880,7 +886,7 @@ bool SemanticAnalyser::try_promote_literal(std::unique_ptr<ASTNode> &expr, const
     {
         if (auto *i = dynamic_cast<IntegerLiteral *>(expr.get()))
         {
-            expr = std::make_unique<LongLiteral>(static_cast<long>(i->value));
+            expr = std::make_unique<LongLiteral>(static_cast<long>(i->value), expr->loc);
             return true;
         }
         if (dynamic_cast<LongLiteral *>(expr.get()))
@@ -894,7 +900,7 @@ bool SemanticAnalyser::try_promote_literal(std::unique_ptr<ASTNode> &expr, const
         {
             if (i->value >= 0)
             {
-                expr = std::make_unique<UIntegerLiteral>(static_cast<unsigned int>(i->value));
+                expr = std::make_unique<UIntegerLiteral>(static_cast<unsigned int>(i->value), expr->loc);
                 return true;
             }
             return false;
@@ -910,7 +916,7 @@ bool SemanticAnalyser::try_promote_literal(std::unique_ptr<ASTNode> &expr, const
         {
             if (i->value >= 0)
             {
-                expr = std::make_unique<ULongLiteral>(static_cast<unsigned long>(i->value));
+                expr = std::make_unique<ULongLiteral>(static_cast<unsigned long>(i->value), expr->loc);
                 return true;
             }
             return false;
@@ -919,7 +925,7 @@ bool SemanticAnalyser::try_promote_literal(std::unique_ptr<ASTNode> &expr, const
         {
             if (l->value >= 0)
             {
-                expr = std::make_unique<ULongLiteral>(static_cast<unsigned long>(l->value));
+                expr = std::make_unique<ULongLiteral>(static_cast<unsigned long>(l->value), expr->loc);
                 return true;
             }
             return false;
@@ -937,7 +943,7 @@ bool SemanticAnalyser::try_promote_literal(std::unique_ptr<ASTNode> &expr, const
                 i->value <= std::numeric_limits<char>::max())
             {
                 expr = std::make_unique<CharLiteral>(
-                    static_cast<char>(i->value), Type(BaseType::CHAR));
+                    static_cast<char>(i->value), Type(BaseType::CHAR), expr->loc);
                 return true;
             }
             return false;
@@ -951,7 +957,7 @@ bool SemanticAnalyser::try_promote_literal(std::unique_ptr<ASTNode> &expr, const
         {
             if (i->value == 0 || i->value == 1)
             {
-                expr = std::make_unique<BoolLiteral>(i->value != 0);
+                expr = std::make_unique<BoolLiteral>(i->value != 0, expr->loc);
                 return true;
             }
             return false;

@@ -132,12 +132,20 @@ BinOpType get_bin_op_type(const TokenType &t);
 Specifier get_specifier(const TokenType &t);
 Type get_type_from_str(const std::string &t);
 
+struct SourceLocation
+{
+    size_t line;
+    size_t index; // optional: useful for character offset
+    // std::string file; // useful for multiline file input (when we support that)
+};
+
 class ASTNode
 {
 public:
     NodeType node_type;
+    SourceLocation loc;
 
-    ASTNode(NodeType t) : node_type(t) {}
+    ASTNode(NodeType t, SourceLocation l = {}) : node_type(t), loc(l) {}
     virtual void print(int tabs) {};
 
     virtual ASTNode *clone() const
@@ -151,7 +159,7 @@ public:
 class NumericLiteral : public ASTNode
 {
 public:
-    NumericLiteral(NodeType t);
+    NumericLiteral(NodeType t, SourceLocation loc);
     Type value_type = Type(BaseType::VOID);
 
     virtual ~NumericLiteral() = default;
@@ -162,7 +170,7 @@ class IntegerLiteral : public NumericLiteral
 public:
     int value;
 
-    IntegerLiteral(int v);
+    IntegerLiteral(int v, SourceLocation loc);
     void print(int tabs) override;
 };
 
@@ -171,7 +179,7 @@ class LongLiteral : public NumericLiteral
 public:
     long value;
 
-    LongLiteral(long v);
+    LongLiteral(long v, SourceLocation loc);
     void print(int tabs) override;
 };
 
@@ -180,7 +188,7 @@ class UIntegerLiteral : public NumericLiteral
 public:
     unsigned int value;
 
-    UIntegerLiteral(unsigned int v);
+    UIntegerLiteral(unsigned int v, SourceLocation loc);
     void print(int tabs) override;
 };
 
@@ -189,7 +197,7 @@ class ULongLiteral : public NumericLiteral
 public:
     unsigned long value;
 
-    ULongLiteral(unsigned long v);
+    ULongLiteral(unsigned long v, SourceLocation loc);
     void print(int tabs) override;
 };
 
@@ -198,7 +206,7 @@ class DoubleLiteral : public NumericLiteral
 public:
     double value;
 
-    DoubleLiteral(double v);
+    DoubleLiteral(double v, SourceLocation loc);
     void print(int tabs) override;
 };
 
@@ -210,7 +218,7 @@ public:
 
     void add_element(std::unique_ptr<ASTNode> element);
 
-    AggregateLiteral(Type t);
+    AggregateLiteral(Type t, SourceLocation loc);
     void print(int tabs) override;
 };
 
@@ -220,7 +228,7 @@ public:
     char value;
     Type value_type = Type(BaseType::CHAR);
 
-    CharLiteral(char v, Type t);
+    CharLiteral(char v, Type t, SourceLocation loc);
     void print(int tabs) override;
 };
 
@@ -230,7 +238,7 @@ public:
     std::string value;
     Type value_type = Type(BaseType::VOID);
 
-    StringLiteral(const std::string &v, Type t);
+    StringLiteral(const std::string &v, Type t, SourceLocation loc);
     void print(int tabs) override;
 };
 
@@ -240,7 +248,7 @@ public:
     bool value;
     Type value_type = Type(BaseType::BOOL);
 
-    BoolLiteral(bool v);
+    BoolLiteral(bool v, SourceLocation loc);
     void print(int tabs) override;
 };
 
@@ -251,7 +259,7 @@ public:
     Type target_type;
     Type src_type;
 
-    CastNode(std::unique_ptr<ASTNode> e, Type t1, Type t2 = Type(BaseType::VOID));
+    CastNode(std::unique_ptr<ASTNode> e, Type t1, Type t2 = Type(BaseType::VOID), SourceLocation loc = {});
     void print(int tabs) override;
 };
 
@@ -260,7 +268,7 @@ class RtnNode : public ASTNode
 public:
     std::unique_ptr<ASTNode> value;
 
-    RtnNode(std::unique_ptr<ASTNode> v);
+    RtnNode(std::unique_ptr<ASTNode> v, SourceLocation loc);
     void print(int tabs) override;
 };
 
@@ -273,7 +281,7 @@ public:
     Type return_type = Type(BaseType::VOID);
     Specifier specifier;
 
-    FuncNode(const std::string &n, Specifier s = Specifier::NONE);
+    FuncNode(const std::string &n, Specifier s = Specifier::NONE, SourceLocation loc = {});
     void print(int tabs) override;
     std::string get_param_name(int i);
 };
@@ -284,7 +292,7 @@ public:
     std::string name;
     std::vector<std::unique_ptr<ASTNode>> args;
 
-    FuncCallNode(const std::string &n);
+    FuncCallNode(const std::string &n, SourceLocation loc);
     void print(int tabs) override;
 };
 
@@ -304,7 +312,7 @@ public:
     std::unique_ptr<ASTNode> value;
     Type type = Type(BaseType::VOID);
 
-    UnaryNode(UnaryOpType o, std::unique_ptr<ASTNode> v);
+    UnaryNode(UnaryOpType o, std::unique_ptr<ASTNode> v, SourceLocation loc);
     void print(int tabs) override;
 };
 
@@ -318,7 +326,7 @@ public:
     std::string struct_name;
     std::string field_name;
 
-    PostfixNode(TokenType o, std::unique_ptr<ASTNode> v);
+    PostfixNode(TokenType o, std::unique_ptr<ASTNode> v, SourceLocation loc);
     void print(int tabs) override;
 };
 
@@ -330,7 +338,7 @@ public:
     std::unique_ptr<ASTNode> right;
     Type type = Type(BaseType::VOID);
 
-    BinaryNode(BinOpType o, std::unique_ptr<ASTNode> l, std::unique_ptr<ASTNode> r);
+    BinaryNode(BinOpType o, std::unique_ptr<ASTNode> l, std::unique_ptr<ASTNode> r, SourceLocation loc);
     void print(int tabs) override;
 };
 
@@ -341,8 +349,8 @@ public:
     Type type = Type(BaseType::VOID);
     Specifier specifier = Specifier::NONE;
 
-    VarNode(const std::string &n, Type t, Specifier s = Specifier::NONE);
-    VarNode(const std::string &n);
+    VarNode(const std::string &n, Type t, Specifier s = Specifier::NONE, SourceLocation loc = {});
+    VarNode(const std::string &n, SourceLocation loc);
     void print(int tabs) override;
 };
 
@@ -352,7 +360,7 @@ public:
     std::unique_ptr<VarNode> var;
     std::unique_ptr<ASTNode> value;
 
-    VarDeclNode(std::unique_ptr<VarNode> v, std::unique_ptr<ASTNode> val);
+    VarDeclNode(std::unique_ptr<VarNode> v, std::unique_ptr<ASTNode> val, SourceLocation loc);
     void print(int tabs) override;
 };
 
@@ -362,7 +370,7 @@ public:
     std::string name;
     std::vector<std::unique_ptr<ASTNode>> members;
 
-    StructDeclNode(const std::string &n, std::vector<std::unique_ptr<ASTNode>> m);
+    StructDeclNode(const std::string &n, std::vector<std::unique_ptr<ASTNode>> m, SourceLocation loc);
     void print(int tabs) override;
 };
 
@@ -372,7 +380,7 @@ public:
     std::unique_ptr<ASTNode> var;
     std::unique_ptr<ASTNode> value;
 
-    VarAssignNode(std::unique_ptr<ASTNode> v, std::unique_ptr<ASTNode> val);
+    VarAssignNode(std::unique_ptr<ASTNode> v, std::unique_ptr<ASTNode> val, SourceLocation loc);
     void print(int tabs) override;
 };
 
@@ -383,7 +391,7 @@ public:
     std::vector<std::unique_ptr<ASTNode>> then_elements;
     std::vector<std::unique_ptr<ASTNode>> else_elements;
 
-    IfNode(std::unique_ptr<ASTNode> c, std::vector<std::unique_ptr<ASTNode>> t, std::vector<std::unique_ptr<ASTNode>> e);
+    IfNode(std::unique_ptr<ASTNode> c, std::vector<std::unique_ptr<ASTNode>> t, std::vector<std::unique_ptr<ASTNode>> e, SourceLocation loc);
     void print(int tabs) override;
 };
 
@@ -395,7 +403,7 @@ public:
 
     std::string label = "";
 
-    WhileNode(std::unique_ptr<ASTNode> c, std::vector<std::unique_ptr<ASTNode>> e);
+    WhileNode(std::unique_ptr<ASTNode> c, std::vector<std::unique_ptr<ASTNode>> e, SourceLocation loc);
     void print(int tabs) override;
 };
 
@@ -409,7 +417,7 @@ public:
 
     std::string label = "";
 
-    ForNode(std::unique_ptr<ASTNode> i, std::unique_ptr<BinaryNode> c, std::unique_ptr<ASTNode> p, std::vector<std::unique_ptr<ASTNode>> e);
+    ForNode(std::unique_ptr<ASTNode> i, std::unique_ptr<BinaryNode> c, std::unique_ptr<ASTNode> p, std::vector<std::unique_ptr<ASTNode>> e, SourceLocation loc);
     void print(int tabs) override;
 };
 
@@ -419,7 +427,7 @@ public:
     TokenType type;
     std::string label;
 
-    LoopControl(TokenType t, std::string l);
+    LoopControl(TokenType t, std::string l, SourceLocation loc);
     void print(int tabs) override;
 };
 
@@ -430,12 +438,14 @@ public:
     std::unique_ptr<ASTNode> index;
     Type type = Type(BaseType::VOID);
 
-    ArrayAccessNode(const ArrayAccessNode &other)
-        : ASTNode(NodeType::NODE_ARRAY_ACCESS),
+    // ArrayAccessNode(const ArrayAccessNode &other, SourceLocation loc);
+
+    ArrayAccessNode(const ArrayAccessNode &other, SourceLocation loc)
+        : ASTNode(NodeType::NODE_ARRAY_ACCESS, loc),
           array(std::make_unique<VarNode>(*other.array)),
           index(other.index ? other.index->clone() : nullptr) {}
 
-    ArrayAccessNode(std::unique_ptr<VarNode> arr, std::unique_ptr<ASTNode> idx);
+    ArrayAccessNode(std::unique_ptr<VarNode> arr, std::unique_ptr<ASTNode> idx, SourceLocation loc);
 
     void print(int tabs) override;
 };
@@ -446,7 +456,7 @@ public:
     Type type;
     std::unique_ptr<VarNode> var;
 
-    SizeOfNode(Type t);
-    SizeOfNode(std::unique_ptr<VarNode> v);
+    SizeOfNode(Type t, SourceLocation loc);
+    SizeOfNode(std::unique_ptr<VarNode> v, SourceLocation loc);
     void print(int tabs) override;
 };
