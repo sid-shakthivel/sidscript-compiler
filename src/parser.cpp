@@ -88,7 +88,7 @@ std::shared_ptr<ProgramNode> Parser::parse()
             program->decls.emplace_back(parse_struct_decl());
         else if (match(addressable_types))
             program->decls.emplace_back(parse_var_decl());
-        else if (match(TOKEN_STATIC) || match(TOKEN_EXTERN))
+        else if (match(TOKEN_STATIC) || match(TOKEN_EXTERN) || match(TOKEN_CONST))
         {
             TokenType qualifier = current_token.type;
             advance();
@@ -226,7 +226,7 @@ std::vector<std::unique_ptr<ASTNode>> Parser::parse_block()
             elements.emplace_back(parse_for_stmt());
         else if (match(TOKEN_CONTINUE) || match(TOKEN_BREAK))
             elements.emplace_back(parse_loop_control());
-        else if (match(TOKEN_STATIC) || match(TOKEN_EXTERN))
+        else if (match(TOKEN_STATIC) || match(TOKEN_EXTERN) || match(TOKEN_CONST))
         {
             TokenType specifier = current_token.type;
             advance();

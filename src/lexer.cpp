@@ -66,7 +66,9 @@ std::unordered_map<std::string, TokenType> string_to_token = {
     {"false", TOKEN_FALSE},
     {"bool", TOKEN_BOOL},
     {"identifier", TOKEN_IDENTIFIER},
-    {"sizeof", TOKEN_SIZEOF}};
+    {"sizeof", TOKEN_SIZEOF},
+    {"const", TOKEN_CONST},
+};
 
 Lexer::Lexer(const std::string &src) : source(src), index(0) {}
 
@@ -366,7 +368,6 @@ void Lexer::print_all_tokens()
     Token next_token = get_next_token();
     while (next_token.type != TOKEN_EOF)
     {
-        // std::cout << next_token.text << " " << next_token.index << " " << source[next_token.index] << std::endl;
         std::cout << next_token.text << std::endl;
         next_token = get_next_token();
     }

@@ -122,7 +122,8 @@ enum class Specifier
 {
     NONE,
     STATIC,
-    EXTERN
+    EXTERN,
+    CONST
 };
 
 UnaryOpType

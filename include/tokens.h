@@ -26,6 +26,7 @@ enum class TokenType
     SIGNED,
     DOUBLE,
     CHAR,
+    CONST,
 
     // Delimiters
     LPAREN,

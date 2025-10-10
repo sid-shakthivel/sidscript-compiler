@@ -36,12 +36,15 @@ struct Symbol
     std::string unique_name;
     Type type = Type(BaseType::VOID);
     bool is_literal8 = false;
+    bool is_const = false;
 
     Symbol(std::string n, int o, Type t);
+
     void set_linkage(Linkage l);
     void set_storage_duration(StorageDuration sd);
     void set_is_temp(bool it);
     bool has_static_sd();
+    void set_is_const(bool it);
 };
 
 struct FuncSymbol : public Symbol
@@ -61,7 +64,7 @@ public:
     void enter_scope();
     void exit_scope();
 
-    std::tuple<bool, std::string> declare_var(const std::string &name, const Type &type, bool is_static = false);
+    std::tuple<bool, std::string> declare_var(const std::string &name, const Type &type, Specifier specifier);
     void declare_temp_var(const std::string &name, const Type &type);
     void declare_const_var(const std::string &name, const Type &type);
     void declare_str_var(const std::string &name, const Type &type);

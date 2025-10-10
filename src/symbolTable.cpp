@@ -10,6 +10,7 @@ Symbol::Symbol(std::string n, int o, Type t) : name(n), stack_offset(o), type(t)
 void Symbol::set_linkage(Linkage l) { linkage = l; }
 void Symbol::set_storage_duration(StorageDuration sd) { storage_duration = sd; }
 void Symbol::set_is_temp(bool it) { is_temporary = it; }
+void Symbol::set_is_const(bool it) { is_const = it; }
 
 bool Symbol::has_static_sd() { return storage_duration == StorageDuration::Static; }
 
@@ -30,8 +31,10 @@ void SymbolTable::exit_scope()
     scopes.pop();
 }
 
-std::tuple<bool, std::string> SymbolTable::declare_var(const std::string &name, const Type &type, bool is_static)
+std::tuple<bool, std::string> SymbolTable::declare_var(const std::string &name, const Type &type, Specifier specifier)
 {
+    bool is_static = specifier == Specifier::STATIC;
+
     if (scopes.empty())
         throw std::runtime_error("Semantic Error: No scope available");
 
@@ -50,7 +53,9 @@ std::tuple<bool, std::string> SymbolTable::declare_var(const std::string &name, 
     adjust_stack(type);
 
     std::shared_ptr<Symbol> symbol = std::make_shared<Symbol>(name, stack_size * -1, type);
+
     symbol->set_storage_duration(is_static ? StorageDuration::Static : StorageDuration::Automatic);
+    symbol->set_is_const(specifier == Specifier::CONST);
 
     auto it = var_symbols.find(name);
     if (it != var_symbols.end())

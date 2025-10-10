@@ -76,6 +76,8 @@ Specifier get_specifier(const TokenType &t)
         return Specifier::STATIC;
     case TOKEN_EXTERN:
         return Specifier::EXTERN;
+    case TOKEN_CONST:
+        return Specifier::CONST;
     default:
         return Specifier::NONE;
     }
@@ -214,6 +216,8 @@ void FuncNode::print(int tabs)
         std::cout << std::string(tabs + 1, ' ') << "Specifier: STATIC" << std::endl;
     else if (specifier == Specifier::EXTERN)
         std::cout << std::string(tabs + 1, ' ') << "Specifier: EXTERN" << std::endl;
+    else if (specifier == Specifier::CONST)
+        std::cout << std::string(tabs + 1, ' ') << "Specifier: CONST" << std::endl;
 
     std::cout << std::string(tabs + 1, ' ') << "Params: " << std::endl;
 
@@ -358,6 +362,8 @@ void VarNode::print(int tabs)
         std::cout << std::string(tabs + 1, ' ') << "Specifier: STATIC" << std::endl;
     else if (specifier == Specifier::EXTERN)
         std::cout << std::string(tabs + 1, ' ') << "Specifier: EXTERN" << std::endl;
+    else if (specifier == Specifier::CONST)
+        std::cout << std::string(tabs + 1, ' ') << "Specifier: CONST" << std::endl;
 }
 
 VarAssignNode::VarAssignNode(std::unique_ptr<ASTNode> v, std::unique_ptr<ASTNode> val) : ASTNode(NodeType::NODE_VAR_ASSIGN), var(std::move(v)), value(std::move(val)) {}

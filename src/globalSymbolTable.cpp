@@ -95,6 +95,7 @@ void GlobalSymbolTable::handle_global_var_decl(VarNode *node)
 		std::unique_ptr<Symbol> symbol = std::make_unique<Symbol>(node->name, 0, node->type);
 		symbol->set_storage_duration(StorageDuration::Static);
 		symbol->set_linkage(node->specifier == Specifier::STATIC ? Linkage::Internal : Linkage::External);
+		symbol->set_is_const(node->specifier == Specifier::CONST);
 
 		global_variables[node->name] = std::move(symbol);
 		return;
@@ -139,7 +140,7 @@ void GlobalSymbolTable::handle_local_var_decl(VarNode *node)
 		Hence they need unqiue names to easily identify them
 	*/
 
-	auto [has_name_changed, new_name] = std::get<1>(it2->second)->declare_var(node->name, node->type, node->specifier == Specifier::STATIC);
+	auto [has_name_changed, new_name] = std::get<1>(it2->second)->declare_var(node->name, node->type, node->specifier);
 
 	if (has_name_changed)
 		node->name = new_name;

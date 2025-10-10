@@ -199,10 +199,17 @@ void SemanticAnalyser::analyse_var_assign(ASTNode *node)
         var->name = gst->check_var_defined(var->name);
 
         analyse_node(var_assign_node->value.get());
-        Type var_type = gst->get_symbol(var->name)->type;
+
+        Symbol *var_symbol = gst->get_symbol(var->name);
+
+        Type var_type = var_symbol->type;
+
         Type value_type = infer_type(var_assign_node->value.get());
 
         var->type = var_type;
+
+        if (var_symbol->is_const)
+            error("Cannot assign to const variable '" + var->name + "'");
 
         if (var_type.is_struct())
             analyse_aggregate_literal(var_assign_node->value.get(), var_type);
@@ -214,6 +221,9 @@ void SemanticAnalyser::analyse_var_assign(ASTNode *node)
         ArrayAccessNode *array_access = dynamic_cast<ArrayAccessNode *>(var_assign_node->var.get());
 
         Symbol *symbol = gst->get_symbol(array_access->array->name);
+
+        if (symbol->is_const)
+            error("Cannot assign to const variable '" + array_access->array->name + "'");
 
         if (symbol == nullptr)
             error("Array '" + array_access->array->name + "' not defined");
