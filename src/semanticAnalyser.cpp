@@ -663,20 +663,7 @@ Type SemanticAnalyser::infer_type(ASTNode *node, std::optional<std::string> fiel
     case NodeType::NODE_UNARY:
     {
         UnaryNode *un_node = dynamic_cast<UnaryNode *>(node);
-
         return un_node->type;
-
-        // Type type = infer_type(un_node->value.get());
-
-        // if (type.has_base_type(BaseType::DOUBLE) && un_node->op == UnaryOpType::COMPLEMENT)
-        //     error("Cannot take bitwise complement of a double");
-
-        // if (un_node->op == UnaryOpType::ADDR_OF)
-        //     type = Type(type.get_base_type(), type.get_ptr_depth() + 1);
-        // else if (un_node->op == UnaryOpType::DEREF)
-        //     type = Type(type.get_base_type(), type.get_ptr_depth() - 1);
-
-        // return type;
     }
     case NodeType::NODE_CAST:
     {
@@ -684,13 +671,6 @@ Type SemanticAnalyser::infer_type(ASTNode *node, std::optional<std::string> fiel
     }
     case NodeType::NODE_POSTFIX:
     {
-        // PostfixNode *postfix_node = (PostfixNode *)node;
-        // Type type = infer_type(postfix_node->value.get());
-        // postfix_node->type = type;
-        // return type;
-
-        // ((PostfixNode *)node)->type.print();
-
         return ((PostfixNode *)node)->type;
     }
     case NodeType::NODE_AGGREGATE_INIT:

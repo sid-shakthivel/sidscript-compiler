@@ -191,6 +191,7 @@ void CastNode::print(int tabs)
 {
     std::cout << std::string(tabs, ' ') << "Cast: " << std::endl;
     std::cout << std::string(tabs + 1, ' ') << "Target Type: " << target_type.to_string() << std::endl;
+    std::cout << std::string(tabs + 1, ' ') << "Src Type: " << src_type.to_string() << std::endl;
     expr->print(tabs + 1);
 }
 
@@ -211,6 +212,7 @@ void FuncNode::print(int tabs)
 {
     std::cout << std::string(tabs, ' ') << "Func: " << std::endl;
     std::cout << std::string(tabs + 1, ' ') << "Name: " << name << std::endl;
+    std::cout << std::string(tabs + 1, ' ') << "Return Type: " << return_type.to_string() << std::endl;
 
     if (specifier == Specifier::STATIC)
         std::cout << std::string(tabs + 1, ' ') << "Specifier: STATIC" << std::endl;

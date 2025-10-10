@@ -368,7 +368,7 @@ void Assembler::emit_return(const TACInstruction &instruction)
 
 	// Optionally load the return value into rax/eax
 	if (instruction.arg1 != "")
-		emit_load(instruction.arg1, reg.c_str(), instruction.type, instruction.arg2);
+		emit_load(instruction.arg1, "%rax", instruction.type, instruction.arg2);
 
 	fprintf(file, "\tjmp\t.L%s_end\n\n", gst->get_current_func().c_str());
 }
@@ -836,35 +836,33 @@ std::string Assembler::select_reg_name(const char *base_reg, const Type &type)
 	if (type.has_base_type(BaseType::DOUBLE))
 		return "%xmm1";
 
-	if (strcmp(base_reg, "%rax") == 0 && type.get_size() == 4)
-		return "%eax";
-
-	if (strcmp(base_reg, "%rsi") == 0 && type.get_size() == 4)
-		return "%esi";
-
-	if (strcmp(base_reg, "%rdi") == 0 && type.get_size() == 4)
-		return "%edi";
-
-	std::string reg_name = base_reg;
-
-	if (strcmp(base_reg, "%eax") == 0 && type.get_size() == 4)
-		return reg_name;
-
 	if (type.is_array())
-		return reg_name;
+		return base_reg;
 
-	switch (type.get_size())
+	auto it = register_table.find(base_reg);
+	if (it == register_table.end())
 	{
-	case 1:
-		return reg_name + "b";
-	case 4:
-		return reg_name + "d";
-	case 8:
-		return reg_name;
-	default:
-		std::cerr << "Assembler Error: Invalid size for register: " << base_reg << " with type " << type.to_string() << std::endl;
-		return reg_name + "d";
+		std::cerr << "Unknown base register: " << base_reg << std::endl;
+		return base_reg;
 	}
+
+	auto get_register_index = [base_reg](const Type &type) -> int
+	{
+		switch (type.get_size())
+		{
+		case 1:
+			return 3;
+		case 4:
+			return 1;
+		case 8:
+			return 0;
+		default:
+			std::cerr << "Assembler Error: Invalid size for register: " << base_reg << " with type " << type.to_string() << std::endl;
+			return 1;
+		}
+	};
+
+	return it->second[get_register_index(type)];
 }
 
 std::string Assembler::format_mem_operand(const std::string &sym_name)

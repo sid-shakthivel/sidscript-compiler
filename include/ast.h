@@ -438,8 +438,6 @@ public:
     std::unique_ptr<ASTNode> index;
     Type type = Type(BaseType::VOID);
 
-    // ArrayAccessNode(const ArrayAccessNode &other, SourceLocation loc);
-
     ArrayAccessNode(const ArrayAccessNode &other, SourceLocation loc)
         : ASTNode(NodeType::NODE_ARRAY_ACCESS, loc),
           array(std::make_unique<VarNode>(*other.array)),

@@ -735,7 +735,7 @@ std::string TacGenerator::generate_tac_expr_func_call(ASTNode *expr)
     std::string temp_var = gen_new_temp_var();
     Type return_type = gst->get_func_symbol(func->name)->return_type;
     gst->declare_temp_var(temp_var, return_type);
-    instructions.emplace_back(TACOp::MOV_BETWEEN_REG, temp_var, "%eax", "store", return_type);
+    instructions.emplace_back(TACOp::MOV_BETWEEN_REG, temp_var, "%rax", "store", return_type);
 
     return temp_var;
 }
