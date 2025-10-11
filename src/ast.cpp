@@ -68,19 +68,63 @@ BinOpType get_bin_op_type(const TokenType &t)
     }
 }
 
-Specifier get_specifier(const TokenType &t)
+std::vector<Specifier> parse_tokens_to_specifiers(const std::vector<TokenType> &tokens)
 {
-    switch (t)
+    auto get_register_index = [](const TokenType &t) -> Specifier
     {
-    case TOKEN_STATIC:
-        return Specifier::STATIC;
-    case TOKEN_EXTERN:
-        return Specifier::EXTERN;
-    case TOKEN_CONST:
-        return Specifier::CONST;
-    default:
-        return Specifier::NONE;
-    }
+        switch (t)
+        {
+        case TOKEN_STATIC:
+            return Specifier::STATIC;
+        case TOKEN_EXTERN:
+            return Specifier::EXTERN;
+        case TOKEN_CONST:
+            return Specifier::CONST;
+        case TOKEN_PUBLIC:
+            return Specifier::PUBLIC;
+        case TOKEN_PRIVATE:
+            return Specifier::PRIVATE;
+        default:
+            return Specifier::NONE;
+        }
+    };
+
+    std::vector<Specifier> specifiers;
+    for (auto &token : tokens)
+        specifiers.emplace_back(get_register_index(token));
+    return specifiers;
+}
+
+std::string get_str_from_specifiers(const std::vector<Specifier> &specifiers)
+{
+    auto get_str_from_specifier = [](Specifier specifier) -> std::string
+    {
+        switch (specifier)
+        {
+        case Specifier::STATIC:
+            return "static";
+        case Specifier::EXTERN:
+            return "extern";
+        case Specifier::CONST:
+            return "const";
+        case Specifier::PUBLIC:
+            return "public";
+        case Specifier::PRIVATE:
+            return "private";
+        default:
+            return "";
+        }
+    };
+
+    std::string str = "";
+    for (auto &specifier : specifiers)
+        str += get_str_from_specifier(specifier) + " ";
+    return str;
+}
+
+bool contains_specifier(const std::vector<Specifier> &specifiers, Specifier s)
+{
+    return std::find(specifiers.begin(), specifiers.end(), s) != specifiers.end();
 }
 
 Type get_type_from_str(const std::string &t)
@@ -206,20 +250,14 @@ void RtnNode::print(int tabs)
         std::cout << std::string(tabs + 1, ' ') << "No Value" << std::endl;
 }
 
-FuncNode::FuncNode(const std::string &n, Specifier s, SourceLocation loc) : ASTNode(NodeType::NODE_FUNCTION, loc), name(n), specifier(s) {}
+FuncNode::FuncNode(const std::string &n, std::vector<Specifier> s, SourceLocation loc) : ASTNode(NodeType::NODE_FUNCTION, loc), name(n), specifiers(s) {}
 
 void FuncNode::print(int tabs)
 {
     std::cout << std::string(tabs, ' ') << "Func: " << std::endl;
     std::cout << std::string(tabs + 1, ' ') << "Name: " << name << std::endl;
     std::cout << std::string(tabs + 1, ' ') << "Return Type: " << return_type.to_string() << std::endl;
-
-    if (specifier == Specifier::STATIC)
-        std::cout << std::string(tabs + 1, ' ') << "Specifier: STATIC" << std::endl;
-    else if (specifier == Specifier::EXTERN)
-        std::cout << std::string(tabs + 1, ' ') << "Specifier: EXTERN" << std::endl;
-    else if (specifier == Specifier::CONST)
-        std::cout << std::string(tabs + 1, ' ') << "Specifier: CONST" << std::endl;
+    std::cout << std::string(tabs + 1, ' ') << "Specifiers: " << get_str_from_specifiers(specifiers) << std::endl;
 
     std::cout << std::string(tabs + 1, ' ') << "Params: " << std::endl;
 
@@ -352,20 +390,13 @@ void BinaryNode::print(int tabs)
 
 VarNode::VarNode(const std::string &n, SourceLocation loc) : ASTNode(NodeType::NODE_VAR, loc), name(n) {}
 
-VarNode::VarNode(const std::string &n, Type t, Specifier s, SourceLocation loc) : ASTNode(NodeType::NODE_VAR, loc), name(n), type(t), specifier(s) {}
+VarNode::VarNode(const std::string &n, Type t, std::vector<Specifier> s, SourceLocation loc) : ASTNode(NodeType::NODE_VAR, loc), name(n), type(t), specifiers(s) {}
 
 void VarNode::print(int tabs)
 {
     std::cout << std::string(tabs, ' ') << "Var: " << name << std::endl;
-
     std::cout << std::string(tabs + 1, ' ') << "Type: " << type.to_string() << std::endl;
-
-    if (specifier == Specifier::STATIC)
-        std::cout << std::string(tabs + 1, ' ') << "Specifier: STATIC" << std::endl;
-    else if (specifier == Specifier::EXTERN)
-        std::cout << std::string(tabs + 1, ' ') << "Specifier: EXTERN" << std::endl;
-    else if (specifier == Specifier::CONST)
-        std::cout << std::string(tabs + 1, ' ') << "Specifier: CONST" << std::endl;
+    std::cout << std::string(tabs + 1, ' ') << "Specifiers: " << get_str_from_specifiers(specifiers) << std::endl;
 }
 
 VarAssignNode::VarAssignNode(std::unique_ptr<ASTNode> v, std::unique_ptr<ASTNode> val, SourceLocation loc) : ASTNode(NodeType::NODE_VAR_ASSIGN, loc), var(std::move(v)), value(std::move(val)) {}

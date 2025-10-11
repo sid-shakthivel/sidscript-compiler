@@ -72,6 +72,10 @@ enum TokenType
     TOKEN_FALSE,
     TOKEN_SIZEOF,
     TOKEN_CONST,
+    TOKEN_PUBLIC,
+    TOKEN_PRIVATE,
+    TOKEN_IMPORT,
+    TOKEN_FROM,
 };
 
 extern std::unordered_map<std::string, TokenType> string_to_token;

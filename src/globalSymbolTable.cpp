@@ -82,20 +82,19 @@ void GlobalSymbolTable::handle_global_var_decl(VarNode *node)
 			Symbol *existing_symbol = it->second.get();
 
 			// Check for linkage conflicts
-			if (existing_symbol->linkage == Linkage::Internal && node->specifier == Specifier::EXTERN)
+			if (existing_symbol->linkage == Linkage::Internal && contains_specifier(node->specifiers, Specifier::EXTERN))
 				throw std::runtime_error("Semantic Error: Variable '" + node->name + "' declared as 'extern' conflicts with a static declaration");
 
-			if (existing_symbol->linkage == Linkage::External && node->specifier == Specifier::STATIC)
+			if (existing_symbol->linkage == Linkage::External && contains_specifier(node->specifiers, Specifier::STATIC))
 				throw std::runtime_error("Semantic Error: Variable '" + node->name + "' declared as 'static' conflicts with an extern declaration");
 
 			return; // Redeclarations with compatible linkage are fine.
 		}
 
 		// Create a new global symbol
-		std::unique_ptr<Symbol> symbol = std::make_unique<Symbol>(node->name, 0, node->type);
+		std::unique_ptr<Symbol> symbol = std::make_unique<Symbol>(node->name, 0, node->type, node->specifiers);
 		symbol->set_storage_duration(StorageDuration::Static);
-		symbol->set_linkage(node->specifier == Specifier::STATIC ? Linkage::Internal : Linkage::External);
-		symbol->set_is_const(node->specifier == Specifier::CONST);
+		symbol->set_linkage(contains_specifier(node->specifiers, Specifier::STATIC) ? Linkage::Internal : Linkage::External);
 
 		global_variables[node->name] = std::move(symbol);
 		return;
@@ -108,7 +107,7 @@ void GlobalSymbolTable::handle_local_var_decl(VarNode *node)
 		If a var is not global, that means it must have block scope
 		Hence we will check whether the storage duration and linkage match or not
 	*/
-	StorageDuration sd = node->specifier == Specifier::STATIC ? StorageDuration::Static : StorageDuration::Automatic;
+	StorageDuration sd = contains_specifier(node->specifiers, Specifier::STATIC) ? StorageDuration::Static : StorageDuration::Automatic;
 
 	auto it = global_variables.find(node->name);
 	if (it != global_variables.end())
@@ -140,7 +139,7 @@ void GlobalSymbolTable::handle_local_var_decl(VarNode *node)
 		Hence they need unqiue names to easily identify them
 	*/
 
-	auto [has_name_changed, new_name] = std::get<1>(it2->second)->declare_var(node->name, node->type, node->specifier);
+	auto [has_name_changed, new_name] = std::get<1>(it2->second)->declare_var(node->name, node->type, node->specifiers);
 
 	if (has_name_changed)
 		node->name = new_name;

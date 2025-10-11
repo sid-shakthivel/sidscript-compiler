@@ -83,20 +83,25 @@ std::shared_ptr<ProgramNode> Parser::parse()
     while (current_token.type != TOKEN_EOF)
     {
         if (match(TOKEN_FN))
-            program->decls.emplace_back(parse_func_decl());
+            program->decls.emplace_back(parse_func_decl(std::nullopt));
         else if (match(TOKEN_STRUCT))
             program->decls.emplace_back(parse_struct_decl());
         else if (match(addressable_types))
-            program->decls.emplace_back(parse_var_decl());
-        else if (match(TOKEN_STATIC) || match(TOKEN_EXTERN) || match(TOKEN_CONST))
+            program->decls.emplace_back(parse_var_decl(std::nullopt));
+        else if (match(specifier_tokens))
         {
-            TokenType qualifier = current_token.type;
-            advance();
+            std::vector<TokenType> specifiers;
+
+            while (!match(specifier_tokens))
+            {
+                specifiers.emplace_back(current_token.type);
+                advance();
+            }
 
             if (match(TOKEN_FN))
-                program->decls.emplace_back(parse_func_decl(qualifier));
+                program->decls.emplace_back(parse_func_decl(specifiers));
             else if (match(addressable_types))
-                program->decls.emplace_back(parse_var_decl(qualifier));
+                program->decls.emplace_back(parse_var_decl(specifiers));
         }
 
         advance();
@@ -118,7 +123,7 @@ std::unique_ptr<ASTNode> Parser::parse_struct_decl()
 
     while (!match(TOKEN_RBRACE))
     {
-        members.emplace_back(parse_var_decl());
+        members.emplace_back(parse_var_decl(std::nullopt));
         advance();
     }
 
@@ -132,13 +137,19 @@ std::unique_ptr<ASTNode> Parser::parse_struct_decl()
         SourceLocation{current_token.line, current_token.index});
 }
 
-std::unique_ptr<FuncNode> Parser::parse_func_decl(const TokenType &specifier)
+std::unique_ptr<FuncNode> Parser::parse_func_decl(const std::optional<std::vector<TokenType>> specifiers)
 {
     expect_and_advance(TOKEN_FN);
 
     expect(TOKEN_IDENTIFIER);
 
-    std::unique_ptr<FuncNode> func = std::make_unique<FuncNode>(current_token.text, get_specifier(specifier));
+    std::vector<Specifier> specs;
+    if (specifiers.has_value())
+        specs = parse_tokens_to_specifiers(*specifiers);
+    else
+        specs = {};
+
+    std::unique_ptr<FuncNode> func = std::make_unique<FuncNode>(current_token.text, specs);
 
     advance();
 
@@ -167,7 +178,7 @@ void Parser::parse_param_list(std::unique_ptr<FuncNode> &func)
 
     while (!match(TOKEN_RPAREN))
     {
-        std::unique_ptr<VarNode> var = parse_var_declarator();
+        std::unique_ptr<VarNode> var = parse_var_declarator(std::nullopt);
 
         func->params.emplace_back(std::make_unique<VarDeclNode>(std::move(var), nullptr, SourceLocation{current_token.line, current_token.index}));
 
@@ -220,7 +231,7 @@ std::vector<std::unique_ptr<ASTNode>> Parser::parse_block()
             }
         }
         else if (match(addressable_types))
-            elements.emplace_back(parse_var_decl());
+            elements.emplace_back(parse_var_decl(std::nullopt));
         else if (match(TOKEN_IF))
             elements.emplace_back(parse_if_stmt());
         else if (match(TOKEN_WHILE))
@@ -229,11 +240,17 @@ std::vector<std::unique_ptr<ASTNode>> Parser::parse_block()
             elements.emplace_back(parse_for_stmt());
         else if (match(TOKEN_CONTINUE) || match(TOKEN_BREAK))
             elements.emplace_back(parse_loop_control());
-        else if (match(TOKEN_STATIC) || match(TOKEN_EXTERN) || match(TOKEN_CONST))
+        else if (match(specifier_tokens))
         {
-            TokenType specifier = current_token.type;
-            advance();
-            elements.emplace_back(parse_var_decl(specifier));
+            std::vector<TokenType> specifiers;
+
+            while (!match(specifier_tokens))
+            {
+                specifiers.emplace_back(current_token.type);
+                advance();
+            }
+
+            elements.emplace_back(parse_var_decl(specifiers));
         }
         else
             error("Expected an element");
@@ -328,7 +345,7 @@ std::unique_ptr<ForNode> Parser::parse_for_stmt()
 std::unique_ptr<ASTNode> Parser::parse_for_init()
 {
     if (match(addressable_types))
-        return parse_var_decl();
+        return parse_var_decl(std::nullopt);
     else if (match(TOKEN_IDENTIFIER))
         return parse_var_assign();
     else
@@ -347,7 +364,7 @@ std::unique_ptr<ASTNode> Parser::parse_loop_control()
 }
 
 // Parses name, type, array dims, etc for declaration
-std::unique_ptr<VarNode> Parser::parse_var_declarator(const TokenType &specifier)
+std::unique_ptr<VarNode> Parser::parse_var_declarator(const std::optional<std::vector<TokenType>> specifiers)
 {
     Type var_type = parse_type();
 
@@ -374,14 +391,20 @@ std::unique_ptr<VarNode> Parser::parse_var_declarator(const TokenType &specifier
         expect_and_advance(TOKEN_RSBRACE);
     }
 
-    return std::make_unique<VarNode>(var_name, var_type, get_specifier(specifier), SourceLocation{current_token.line, current_token.index});
+    std::vector<Specifier> specs;
+    if (specifiers.has_value())
+        specs = parse_tokens_to_specifiers(*specifiers);
+    else
+        specs = {};
+
+    return std::make_unique<VarNode>(var_name, var_type, specs, SourceLocation{current_token.line, current_token.index});
 }
 
 // Uses method above to capture type of variable
 // Specifier is static/extern
-std::unique_ptr<VarDeclNode> Parser::parse_var_decl(const TokenType &specifier)
+std::unique_ptr<VarDeclNode> Parser::parse_var_decl(const std::optional<std::vector<TokenType>> specifiers)
 {
-    std::unique_ptr<VarNode> var = parse_var_declarator(specifier);
+    std::unique_ptr<VarNode> var = parse_var_declarator(specifiers);
     Type var_type = var->type;
     std::vector<TokenType> excepted_tokens = std::vector<TokenType>{TOKEN_ASSIGN, TOKEN_SEMICOLON};
     expect(excepted_tokens);

@@ -123,13 +123,17 @@ enum class Specifier
     NONE,
     STATIC,
     EXTERN,
-    CONST
+    CONST,
+    PUBLIC,
+    PRIVATE
 };
 
 UnaryOpType
 get_unary_op_type(const TokenType &t);
 BinOpType get_bin_op_type(const TokenType &t);
-Specifier get_specifier(const TokenType &t);
+std::vector<Specifier> parse_tokens_to_specifiers(const std::vector<TokenType> &tokens);
+std::string get_str_from_specifiers(const std::vector<Specifier> &specifiers);
+bool contains_specifier(const std::vector<Specifier> &specifiers, Specifier s);
 Type get_type_from_str(const std::string &t);
 
 struct SourceLocation
@@ -279,9 +283,9 @@ public:
     std::vector<std::unique_ptr<ASTNode>> params;
     std::vector<std::unique_ptr<ASTNode>> elements;
     Type return_type = Type(BaseType::VOID);
-    Specifier specifier;
+    std::vector<Specifier> specifiers;
 
-    FuncNode(const std::string &n, Specifier s = Specifier::NONE, SourceLocation loc = {});
+    FuncNode(const std::string &n, std::vector<Specifier> s, SourceLocation loc = {});
     void print(int tabs) override;
     std::string get_param_name(int i);
 };
@@ -347,9 +351,9 @@ class VarNode : public ASTNode
 public:
     std::string name;
     Type type = Type(BaseType::VOID);
-    Specifier specifier = Specifier::NONE;
+    std::vector<Specifier> specifiers;
 
-    VarNode(const std::string &n, Type t, Specifier s = Specifier::NONE, SourceLocation loc = {});
+    VarNode(const std::string &n, Type t, std::vector<Specifier> s, SourceLocation loc = {});
     VarNode(const std::string &n, SourceLocation loc);
     void print(int tabs) override;
 };

@@ -22,6 +22,7 @@ private:
     std::vector<TokenType> bin_op_tokens = {TOKEN_PLUS, TOKEN_MINUS, TOKEN_STAR, TOKEN_SLASH, TOKEN_PERCENT, TOKEN_EQUALS, TOKEN_NOT_EQUALS, TOKEN_LT, TOKEN_GT, TOKEN_LE, TOKEN_GE, TOKEN_AND, TOKEN_OR};
     std::vector<TokenType> un_op_tokens = {TOKEN_TILDA, TOKEN_MINUS, TOKEN_AMPERSAND, TOKEN_STAR, TOKEN_INCREMENT, TOKEN_DECREMENT, TOKEN_EXCLAMATION};
     std::vector<TokenType> assign_tokens = {TOKEN_ASSIGN, TOKEN_PLUS_EQUALS, TOKEN_MINUS_EQUALS, TOKEN_STAR_EQUALS, TOKEN_SLASH_EQUALS, TOKEN_MODULUS_EQUALS};
+    std::vector<TokenType> specifier_tokens = {TOKEN_PUBLIC, TOKEN_PRIVATE, TOKEN_STATIC, TOKEN_EXTERN, TOKEN_CONST};
 
     bool match(const TokenType &type);
     bool match(const std::vector<TokenType> &tokens);
@@ -33,12 +34,12 @@ private:
     void expect(const std::vector<TokenType> &tokens);
     void error(const std::string &message);
 
-    std::unique_ptr<FuncNode> parse_func_decl(const TokenType &specifier = TOKEN_EOF);
+    std::unique_ptr<FuncNode> parse_func_decl(const std::optional<std::vector<TokenType>> specifiers);
     std::vector<std::unique_ptr<ASTNode>> parse_block();
     void parse_param_list(std::unique_ptr<FuncNode> &func);
     std::unique_ptr<RtnNode> parse_rtn();
-    std::unique_ptr<VarNode> parse_var_declarator(const TokenType &specifier = TOKEN_EOF);
-    std::unique_ptr<VarDeclNode> parse_var_decl(const TokenType &specifier = TOKEN_EOF); 
+    std::unique_ptr<VarNode> parse_var_declarator(const std::optional<std::vector<TokenType>> specifiers);
+    std::unique_ptr<VarDeclNode> parse_var_decl(const std::optional<std::vector<TokenType>> specifiers);
     std::unique_ptr<VarAssignNode> parse_var_assign();
     std::unique_ptr<ASTNode> parse_factor();
     std::unique_ptr<ASTNode> parse_expr(int min_precedence = 0);

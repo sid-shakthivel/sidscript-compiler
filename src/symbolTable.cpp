@@ -5,16 +5,16 @@
 #include <iomanip>
 #include <ios>
 
-Symbol::Symbol(std::string n, int o, Type t) : name(n), stack_offset(o), type(t) {}
+Symbol::Symbol(std::string n, int o, Type t, std::vector<Specifier> s) : name(n), stack_offset(o), type(t), specifiers(s) {}
 
 void Symbol::set_linkage(Linkage l) { linkage = l; }
 void Symbol::set_storage_duration(StorageDuration sd) { storage_duration = sd; }
 void Symbol::set_is_temp(bool it) { is_temporary = it; }
-void Symbol::set_is_const(bool it) { is_const = it; }
+bool Symbol::is_const() { return contains_specifier(specifiers, Specifier::CONST); }
 
 bool Symbol::has_static_sd() { return storage_duration == StorageDuration::Static; }
 
-FuncSymbol::FuncSymbol(const std::string &n, int ac, std::vector<Type> &at, const Type &rt) : Symbol(n, 0, rt), arg_count(ac), arg_types(at), return_type(rt) {}
+FuncSymbol::FuncSymbol(const std::string &n, int ac, std::vector<Type> &at, const Type &rt, std::vector<Specifier> s) : Symbol(n, 0, rt, s), arg_count(ac), arg_types(at), return_type(rt) {}
 
 SymbolTable::SymbolTable() {}
 
@@ -31,9 +31,9 @@ void SymbolTable::exit_scope()
     scopes.pop();
 }
 
-std::tuple<bool, std::string> SymbolTable::declare_var(const std::string &name, const Type &type, Specifier specifier)
+std::tuple<bool, std::string> SymbolTable::declare_var(const std::string &name, const Type &type, std::vector<Specifier> specifiers)
 {
-    bool is_static = specifier == Specifier::STATIC;
+    bool is_static = contains_specifier(specifiers, Specifier::STATIC);
 
     if (scopes.empty())
         throw std::runtime_error("Semantic Error: No scope available");
@@ -52,10 +52,9 @@ std::tuple<bool, std::string> SymbolTable::declare_var(const std::string &name, 
 
     adjust_stack(type);
 
-    std::shared_ptr<Symbol> symbol = std::make_shared<Symbol>(name, stack_size * -1, type);
+    std::shared_ptr<Symbol> symbol = std::make_shared<Symbol>(name, stack_size * -1, type, specifiers);
 
     symbol->set_storage_duration(is_static ? StorageDuration::Static : StorageDuration::Automatic);
-    symbol->set_is_const(specifier == Specifier::CONST);
 
     auto it = var_symbols.find(name);
     if (it != var_symbols.end())
@@ -93,7 +92,7 @@ Symbol *SymbolTable::get_symbol(const std::string &name)
 void SymbolTable::declare_temp_var(const std::string &name, const Type &type)
 {
     adjust_stack(type);
-    std::shared_ptr<Symbol> new_temp_var = std::make_shared<Symbol>(name, stack_size * -1, type);
+    std::shared_ptr<Symbol> new_temp_var = std::make_shared<Symbol>(name, stack_size * -1, type, std::vector<Specifier>{});
     new_temp_var->set_is_temp(true);
     var_symbols[name] = new_temp_var;
     var_count += 1;
@@ -101,14 +100,14 @@ void SymbolTable::declare_temp_var(const std::string &name, const Type &type)
 
 void SymbolTable::declare_const_var(const std::string &name, const Type &type)
 {
-    std::shared_ptr<Symbol> new_const_var = std::make_shared<Symbol>(name, 0, type);
+    std::shared_ptr<Symbol> new_const_var = std::make_shared<Symbol>(name, 0, type, std::vector<Specifier>{});
     new_const_var->is_literal8 = true;
     var_symbols[name] = new_const_var;
 }
 
 void SymbolTable::declare_str_var(const std::string &name, const Type &type)
 {
-    var_symbols[name] = std::make_shared<Symbol>(name, 0, type);
+    var_symbols[name] = std::make_shared<Symbol>(name, 0, type, std::vector<Specifier>{});
 }
 
 void SymbolTable::print()

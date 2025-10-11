@@ -68,6 +68,10 @@ std::unordered_map<std::string, TokenType> string_to_token = {
     {"identifier", TOKEN_IDENTIFIER},
     {"sizeof", TOKEN_SIZEOF},
     {"const", TOKEN_CONST},
+    {"public", TOKEN_PUBLIC},
+    {"private", TOKEN_PRIVATE},
+    {"import", TOKEN_IMPORT},
+    {"from", TOKEN_FROM},
 };
 
 Lexer::Lexer(const std::string &src) : source(src), index(0) {}

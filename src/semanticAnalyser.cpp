@@ -35,6 +35,8 @@ void SemanticAnalyser::analyse_func(ASTNode *node)
 {
     FuncNode *func_node = (FuncNode *)node;
 
+    analyse_specifiers(func_node->specifiers, func_node);
+
     // Find and create new function symbol using params
     std::vector<Type> arg_types;
     for (auto &param : func_node->params)
@@ -49,7 +51,7 @@ void SemanticAnalyser::analyse_func(ASTNode *node)
         arg_types.push_back(param_var_decl_node->var->type);
     }
 
-    std::unique_ptr<FuncSymbol> func_symbol = std::make_unique<FuncSymbol>(func_node->name, func_node->params.size(), arg_types, func_node->return_type);
+    std::unique_ptr<FuncSymbol> func_symbol = std::make_unique<FuncSymbol>(func_node->name, func_node->params.size(), arg_types, func_node->return_type, func_node->specifiers);
     std::shared_ptr<SymbolTable> symbol_table = std::make_unique<SymbolTable>();
 
     gst->create_new_func(func_node->name, std::move(func_symbol), symbol_table);
@@ -209,7 +211,7 @@ void SemanticAnalyser::analyse_var_assign(ASTNode *node)
 
         var->type = var_type;
 
-        if (var_symbol->is_const)
+        if (var_symbol->is_const())
             error("Cannot assign to const variable '" + var->name + "'", var_assign_node->loc);
 
         if (var_type.is_struct())
@@ -229,7 +231,7 @@ void SemanticAnalyser::analyse_var_assign(ASTNode *node)
         if (!symbol->type.is_array())
             error("Array '" + array_access->array->name + "' is not an array", var_assign_node->loc);
 
-        if (symbol->is_const)
+        if (symbol->is_const())
             error("Cannot assign to const variable '" + array_access->array->name + "'", var_assign_node->loc);
 
         Type value_type = infer_type(var_assign_node->value.get());
@@ -381,6 +383,7 @@ void SemanticAnalyser::analyse_unary(ASTNode *node)
 void SemanticAnalyser::analyse_var(ASTNode *node)
 {
     VarNode *var_node = (VarNode *)node;
+    analyse_specifiers(var_node->specifiers, var_node);
     var_node->name = gst->check_var_defined(var_node->name);
     var_node->type = gst->get_symbol(var_node->name)->type;
 }
@@ -538,6 +541,18 @@ void SemanticAnalyser::validate_type_assignment(const Type &target_type, std::un
 
     // If still incompatible, fail
     error("Cannot assign " + source_type.to_string() + " to " + target_type.to_string() + " in " + context, source_expr->loc);
+}
+
+void SemanticAnalyser::analyse_specifiers(const std::vector<Specifier> &specifiers, ASTNode *node)
+{
+    if (contains_specifier(specifiers, Specifier::STATIC) && contains_specifier(specifiers, Specifier::EXTERN))
+        error("Cannot have both 'static' and 'extern' specifiers", node->loc);
+
+    if (contains_specifier(specifiers, Specifier::PUBLIC) && contains_specifier(specifiers, Specifier::PRIVATE))
+        error("Cannot have both 'public' and 'private' specifiers", node->loc);
+
+    if (contains_specifier(specifiers, Specifier::EXTERN) && specifiers.size() > 1)
+        error("Cannot have more than one specifier on an extern variable", node->loc);
 }
 
 void SemanticAnalyser::error(const std::string &message, const SourceLocation &loc)

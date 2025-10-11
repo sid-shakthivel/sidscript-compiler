@@ -36,15 +36,15 @@ struct Symbol
     std::string unique_name;
     Type type = Type(BaseType::VOID);
     bool is_literal8 = false;
-    bool is_const = false;
+    std::vector<Specifier> specifiers;
 
-    Symbol(std::string n, int o, Type t);
+    Symbol(std::string n, int o, Type t, std::vector<Specifier> s);
 
     void set_linkage(Linkage l);
     void set_storage_duration(StorageDuration sd);
     void set_is_temp(bool it);
     bool has_static_sd();
-    void set_is_const(bool it);
+    bool is_const();
 };
 
 struct FuncSymbol : public Symbol
@@ -53,7 +53,7 @@ struct FuncSymbol : public Symbol
     std::vector<Type> arg_types;
     Type return_type;
 
-    FuncSymbol(const std::string &n, int ac, std::vector<Type> &at, const Type &rt);
+    FuncSymbol(const std::string &n, int ac, std::vector<Type> &at, const Type &rt, std::vector<Specifier> s);
 };
 
 class SymbolTable
@@ -64,7 +64,7 @@ public:
     void enter_scope();
     void exit_scope();
 
-    std::tuple<bool, std::string> declare_var(const std::string &name, const Type &type, Specifier specifier);
+    std::tuple<bool, std::string> declare_var(const std::string &name, const Type &type, std::vector<Specifier> specifiers);
     void declare_temp_var(const std::string &name, const Type &type);
     void declare_const_var(const std::string &name, const Type &type);
     void declare_str_var(const std::string &name, const Type &type);
