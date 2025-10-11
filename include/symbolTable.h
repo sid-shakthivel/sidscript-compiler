@@ -45,6 +45,7 @@ struct Symbol
     void set_is_temp(bool it);
     bool has_static_sd();
     bool is_const();
+    bool is_public();
 };
 
 struct FuncSymbol : public Symbol

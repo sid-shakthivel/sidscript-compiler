@@ -11,6 +11,7 @@ void Symbol::set_linkage(Linkage l) { linkage = l; }
 void Symbol::set_storage_duration(StorageDuration sd) { storage_duration = sd; }
 void Symbol::set_is_temp(bool it) { is_temporary = it; }
 bool Symbol::is_const() { return contains_specifier(specifiers, Specifier::CONST); }
+bool Symbol::is_public() { return contains_specifier(specifiers, Specifier::PUBLIC); }
 
 bool Symbol::has_static_sd() { return storage_duration == StorageDuration::Static; }
 

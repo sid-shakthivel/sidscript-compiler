@@ -16,6 +16,7 @@ set(SOURCES
     ../src/semanticAnalyser.cpp
     ../src/tacGenerator.cpp
     ../src/assembler.cpp
+    ../src/module.cpp
     ../src/main.cpp
 )
 

@@ -4,57 +4,15 @@
 #include <sstream>
 #include <memory>
 
-#include "../include/lexer.h"
-#include "../include/parser.h"
-#include "../include/assembler.h"
-#include "../include/ast.h"
-#include "../include/semanticAnalyser.h"
-#include "../include/tacGenerator.h"
+#include "../include/module.h"
+#include "../include/globalSymbolTable.h"
 
 int main()
 {
-    std::string file_line;
-    std::ifstream code_file("../tests/test.ss");
-
-    if (!code_file)
-    {
-        std::cerr << "Error opening file!" << std::endl;
-        return 1;
-    }
-
-    std::stringstream buffer;
-    buffer << code_file.rdbuf();
-    std::string file_contents = buffer.str();
-
-    code_file.close();
-
-    Lexer lexer(file_contents);
-
-    Parser parser(lexer);
-
-    std::shared_ptr<ProgramNode> program = parser.parse();
-
     std::shared_ptr<GlobalSymbolTable> gst = std::make_shared<GlobalSymbolTable>();
 
-    std::shared_ptr<SemanticAnalyser> sem_analyser = std::make_shared<SemanticAnalyser>(gst);
-    sem_analyser->analyse(program);
-
-    program->print();
-
-    std::cout << "finished semantic analysis" << std::endl;
-
-    TacGenerator tacGenerator(gst, sem_analyser);
-
-    tacGenerator.generate_all_tac(program);
-
-    // gst->print();
-
-    tacGenerator.print_all_tac();
-
-    auto &instructions = tacGenerator.get_instructions();
-
-    Assembler assembler(gst, "test.s");
-    assembler.assemble(instructions);
+    Module module("../tests/test.ss", gst);
+    module.compile();
 
     return 0;
 }
