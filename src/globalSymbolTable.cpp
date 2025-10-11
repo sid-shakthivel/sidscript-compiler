@@ -11,7 +11,7 @@ void GlobalSymbolTable::create_new_func(const std::string &func_name, std::uniqu
 	if (it != functions.end())
 		throw std::runtime_error("Semantic Error: Function '" + func_name + "' already exists");
 
-	functions[func_name] = std::make_tuple(std::move(symbol), st);
+	functions[func_name] = std::make_tuple(std::move(symbol), st, current_module);
 }
 
 void GlobalSymbolTable::enter_func_scope(const std::string &func_name)
@@ -35,6 +35,32 @@ FuncSymbol *GlobalSymbolTable::get_func_symbol(const std::string &func_name)
 	auto it = functions.find(func_name);
 	if (it == functions.end())
 		return nullptr;
+
+	/*
+		If the function is not just within the current module, check if it is imported
+		This is done by checking all of the imports within the import table for the current module
+	*/
+	if (std::get<2>(it->second) != current_module)
+	{
+		bool function_imported = false;
+
+		auto it = import_table.find(current_module);
+		if (it != import_table.end())
+		{
+			for (const auto &[imported_module, symbols] : it->second)
+			{
+				if (std::find(symbols.begin(), symbols.end(), func_name) != symbols.end())
+				{
+					function_imported = true;
+					break;
+				}
+			}
+		}
+
+		if (!function_imported)
+			throw std::runtime_error("Semantic Error: Function '" + func_name + "' is not imported in module " + current_module);
+	}
+
 	return std::get<0>(it->second).get();
 }
 
@@ -79,7 +105,7 @@ void GlobalSymbolTable::handle_global_var_decl(VarNode *node)
 
 		if (it != global_variables.end())
 		{
-			Symbol *existing_symbol = it->second.get();
+			Symbol *existing_symbol = std::get<0>(it->second).get();
 
 			// Check for linkage conflicts
 			if (existing_symbol->linkage == Linkage::Internal && contains_specifier(node->specifiers, Specifier::EXTERN))
@@ -96,7 +122,7 @@ void GlobalSymbolTable::handle_global_var_decl(VarNode *node)
 		symbol->set_storage_duration(StorageDuration::Static);
 		symbol->set_linkage(contains_specifier(node->specifiers, Specifier::STATIC) ? Linkage::Internal : Linkage::External);
 
-		global_variables[node->name] = std::move(symbol);
+		global_variables[node->name] = std::make_tuple(std::move(symbol), current_module);
 		return;
 	}
 }
@@ -112,7 +138,7 @@ void GlobalSymbolTable::handle_local_var_decl(VarNode *node)
 	auto it = global_variables.find(node->name);
 	if (it != global_variables.end())
 	{
-		Symbol *existing_symbol = it->second.get();
+		Symbol *existing_symbol = std::get<0>(it->second).get();
 
 		if (sd == StorageDuration::Static)
 			throw std::runtime_error("Semantic Error: Block-scoped static variable '" + node->name + "' conflicts with a global static variable");
@@ -213,9 +239,27 @@ Symbol *GlobalSymbolTable::get_symbol(const std::string &name)
 
 	auto it2 = global_variables.find(name);
 	if (it2 != global_variables.end())
-		return it2->second.get();
+		return std::get<0>(it2->second).get();
 
 	return nullptr;
+}
+
+void GlobalSymbolTable::add_import(const std::string &imported_module_name, const std::vector<std::string> &imported_names)
+{
+	if (import_table[current_module].find(imported_module_name) != import_table[current_module].end())
+		throw std::runtime_error("Semantic Error: Module '" + imported_module_name + "' is already imported");
+
+	import_table[current_module][imported_module_name] = imported_names;
+}
+
+void GlobalSymbolTable::check_imports()
+{
+	/*
+		For each module
+		Check each import list
+		Try and find it in function table or global variables (and is public)
+		If can't be found then throw error
+	*/
 }
 
 void GlobalSymbolTable::print()

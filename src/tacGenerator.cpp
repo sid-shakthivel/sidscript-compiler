@@ -158,7 +158,14 @@ void TacGenerator::generate_tac_func(ASTNode *element)
     FuncNode *func = (FuncNode *)element;
 
     gst->enter_func_scope(func->name);
-    instructions.emplace_back(TACOp::FUNC_BEGIN, func->name, contains_specifier(func->specifiers, Specifier::STATIC) ? "static" : "global");
+
+    std::string status = "";
+    if (contains_specifier(func->specifiers, Specifier::STATIC))
+        status = "static";
+    if (contains_specifier(func->specifiers, Specifier::PUBLIC) || func->name == "main")
+        status = "global";
+
+    instructions.emplace_back(TACOp::FUNC_BEGIN, func->name, status);
 
     FuncSymbol *func_symbol = gst->get_func_symbol(func->name);
 

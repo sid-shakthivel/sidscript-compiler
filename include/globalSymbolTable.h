@@ -33,12 +33,23 @@ public:
     void enter_scope();
     void exit_scope();
 
+    void add_import(const std::string &imported_module_name, const std::vector<std::string> &imported_names);
+    void check_imports();
+
     void print();
+
+    std::string current_module = "";
 
 private:
     std::string current_func = "";
-    std::unordered_map<std::string, std::tuple<std::unique_ptr<FuncSymbol>, std::shared_ptr<SymbolTable>>> functions;
-    std::unordered_map<std::string, std::unique_ptr<Symbol>> global_variables;
+    std::unordered_map<std::string, std::tuple<std::unique_ptr<FuncSymbol>, std::shared_ptr<SymbolTable>, std::string>> functions;
+    std::unordered_map<std::string, std::tuple<std::unique_ptr<Symbol>, std::string>> global_variables;
+
+    /*
+        This is a map of maps of vectors of strings.
+        The first map is the module name to a map of modules (imported) to a vector of strings (names of variables/functions imported)
+    */
+    std::unordered_map<std::string, std::unordered_map<std::string, std::vector<std::string>>> import_table;
 
     void handle_global_var_decl(VarNode *node);
     void handle_local_var_decl(VarNode *node);

@@ -7,12 +7,15 @@
 #include "../include/module.h"
 #include "../include/globalSymbolTable.h"
 
-int main()
+int main(int argc, char *argv[])
 {
     std::shared_ptr<GlobalSymbolTable> gst = std::make_shared<GlobalSymbolTable>();
 
-    Module module("../tests/test.ss", gst);
-    module.compile();
+    for (int i = 1; i < argc; ++i)
+    {
+        Module module(argv[i], gst);
+        module.compile();
+    }
 
     return 0;
 }

@@ -32,7 +32,7 @@ Module::Module(const std::string &path, std::shared_ptr<GlobalSymbolTable> gst) 
 
 void Module::check_file()
 {
-    std::ifstream code_file(filepath);
+    std::ifstream code_file(filepath, std::ios::in);
 
     if (!code_file)
         throw std::runtime_error("File Error: Error opening file: " + filepath);
@@ -42,12 +42,16 @@ void Module::check_file()
 
     file_contents = buffer.str();
 
+    code_file.close();
+
     if (file_contents.empty())
         throw std::runtime_error("File Error: File is empty: " + filepath);
 }
 
 void Module::compile()
 {
+    gst->current_module = name;
+
     Lexer lexer(file_contents);
 
     Parser parser(lexer);

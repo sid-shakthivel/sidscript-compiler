@@ -23,6 +23,7 @@ SemanticAnalyser::SemanticAnalyser(std::shared_ptr<GlobalSymbolTable> gst) : gst
     REGISTER_HANDLER(NodeType::NODE_POSTFIX, analyse_postfix);
     REGISTER_HANDLER(NodeType::NODE_STRUCT_DECL, analyse_struct_decl);
     REGISTER_HANDLER(NodeType::NODE_AGGREGATE_INIT, analyse_aggregate_literal);
+    REGISTER_HANDLER(NodeType::NODE_INCLUDE, analyse_include);
 }
 
 void SemanticAnalyser::analyse(std::shared_ptr<ProgramNode> &program)
@@ -80,7 +81,7 @@ void SemanticAnalyser::analyse_node(ASTNode *node)
     if (handler != handlers.end())
         handler->second(node);
     // else
-    // error("Unknown node of type " + node_type_to_string(node->node_type) + " encountered");
+    // error("Unknown node of type " + node_type_to_string(node->node_type) + " encountered", node->loc);
 }
 
 void SemanticAnalyser::analyse_var_decl(ASTNode *node)
@@ -553,6 +554,12 @@ void SemanticAnalyser::analyse_specifiers(const std::vector<Specifier> &specifie
 
     if (contains_specifier(specifiers, Specifier::EXTERN) && specifiers.size() > 1)
         error("Cannot have more than one specifier on an extern variable", node->loc);
+}
+
+void SemanticAnalyser::analyse_include(ASTNode *node)
+{
+    IncludeNode *include_node = (IncludeNode *)node;
+    gst->add_import(include_node->module_name, include_node->args);
 }
 
 void SemanticAnalyser::error(const std::string &message, const SourceLocation &loc)

@@ -1,6 +1,7 @@
+import { add } from "hey";
+
 fn main() -> int
 {
-    int a = 5;
-    a = 7;
-    return 10;
+    int res = add(3, 6);
+    return res;
 }

@@ -60,7 +60,8 @@ enum class NodeType
     NODE_STRING,
     NODE_STRUCT_DECL,
     NODE_LOOP_CONTROL,
-    NODE_SIZE_OF
+    NODE_SIZE_OF,
+    NODE_INCLUDE
 };
 
 inline std::string node_type_to_string(NodeType type)
@@ -442,11 +443,7 @@ public:
     std::unique_ptr<ASTNode> index;
     Type type = Type(BaseType::VOID);
 
-    ArrayAccessNode(const ArrayAccessNode &other, SourceLocation loc)
-        : ASTNode(NodeType::NODE_ARRAY_ACCESS, loc),
-          array(std::make_unique<VarNode>(*other.array)),
-          index(other.index ? other.index->clone() : nullptr) {}
-
+    ArrayAccessNode(const ArrayAccessNode &other, SourceLocation loc);
     ArrayAccessNode(std::unique_ptr<VarNode> arr, std::unique_ptr<ASTNode> idx, SourceLocation loc);
 
     void print(int tabs) override;
@@ -460,5 +457,15 @@ public:
 
     SizeOfNode(Type t, SourceLocation loc);
     SizeOfNode(std::unique_ptr<VarNode> v, SourceLocation loc);
+    void print(int tabs) override;
+};
+
+class IncludeNode : public ASTNode
+{
+public:
+    std::string module_name;
+    std::vector<std::string> args;
+
+    IncludeNode(const std::string &module_name, std::vector<std::string> a, SourceLocation loc);
     void print(int tabs) override;
 };

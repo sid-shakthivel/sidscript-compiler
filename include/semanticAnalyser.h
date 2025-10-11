@@ -47,6 +47,7 @@ private:
     void analyse_struct_decl(ASTNode *node);
     void analyse_aggregate_literal(ASTNode *node, const Type &type = Type(BaseType::VOID));
     void analyse_postfix(ASTNode *node);
+    void analyse_include(ASTNode *node);
 
     void analyse_specifiers(const std::vector<Specifier> &specifiers, ASTNode *node);
 

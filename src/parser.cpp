@@ -103,6 +103,8 @@ std::shared_ptr<ProgramNode> Parser::parse()
             else if (match(addressable_types))
                 program->decls.emplace_back(parse_var_decl(specifiers));
         }
+        else if (match(TOKEN_IMPORT))
+            program->decls.emplace_back(parse_import());
 
         advance();
     }
@@ -822,4 +824,29 @@ std::unique_ptr<ASTNode> Parser::parse_sizeof()
     expect(TOKEN_RPAREN);
 
     return sizeof_node;
+}
+
+std::unique_ptr<ASTNode> Parser::parse_import()
+{
+    expect_and_advance(TOKEN_IMPORT);
+    expect_and_advance(TOKEN_LBRACE);
+
+    std::vector<std::string> includes;
+
+    while (!match(TOKEN_RBRACE))
+    {
+        includes.push_back(current_token.text);
+        advance();
+    }
+
+    expect_and_advance(TOKEN_RBRACE);
+
+    expect_and_advance(TOKEN_FROM);
+
+    std::string module_name = current_token.text;
+
+    advance();
+    expect(TOKEN_SEMICOLON);
+
+    return std::make_unique<IncludeNode>(module_name, includes, SourceLocation{current_token.line, current_token.index});
 }

@@ -477,8 +477,9 @@ void LoopControl::print(int tabs)
 
 ArrayAccessNode::ArrayAccessNode(std::unique_ptr<VarNode> arr, std::unique_ptr<ASTNode> idx, SourceLocation loc) : ASTNode(NodeType::NODE_ARRAY_ACCESS, loc), array(std::move(arr)), index(std::move(idx)) {}
 
-// ArrayAccessNode(const ArrayAccessNode &other, SourceLocation loc) : ASTNode(NodeType::NODE_ARRAY_ACCESS, loc), array(std::make_unique<VarNode>(*other.array)), index(other.index ? other.index->clone() : nullptr) {}
-
+ArrayAccessNode::ArrayAccessNode(const ArrayAccessNode &other, SourceLocation loc) : ASTNode(NodeType::NODE_ARRAY_ACCESS, loc),
+                                                                                     array(std::make_unique<VarNode>(*other.array)),
+                                                                                     index(other.index ? other.index->clone() : nullptr) {}
 void ArrayAccessNode::print(int tabs)
 {
     std::cout << std::string(tabs, ' ') << "ArrayAccess: " << std::endl;
@@ -501,4 +502,17 @@ void SizeOfNode::print(int tabs)
         std::cout << std::string(tabs + 1, ' ') << "Var: " << var->name << std::endl;
     else
         std::cout << std::string(tabs + 1, ' ') << "Type: " << type.to_string() << std::endl;
+}
+
+IncludeNode::IncludeNode(const std::string &module_name, std::vector<std::string> a, SourceLocation loc) : ASTNode(NodeType::NODE_INCLUDE, loc), module_name(module_name), args(std::move(a)) {}
+
+void IncludeNode::print(int tabs)
+{
+    std::cout << std::string(tabs, ' ') << "Include: " << module_name << std::endl;
+
+    std::string str = "";
+    for (auto &arg : args)
+        str += arg + " ";
+
+    std::cout << std::string(tabs + 1, ' ') << "Args: " << str << std::endl;
 }
