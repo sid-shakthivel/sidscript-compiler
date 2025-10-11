@@ -92,7 +92,7 @@ std::shared_ptr<ProgramNode> Parser::parse()
         {
             std::vector<TokenType> specifiers;
 
-            while (!match(specifier_tokens))
+            while (match(specifier_tokens))
             {
                 specifiers.emplace_back(current_token.type);
                 advance();
@@ -246,7 +246,7 @@ std::vector<std::unique_ptr<ASTNode>> Parser::parse_block()
         {
             std::vector<TokenType> specifiers;
 
-            while (!match(specifier_tokens))
+            while (match(specifier_tokens))
             {
                 specifiers.emplace_back(current_token.type);
                 advance();

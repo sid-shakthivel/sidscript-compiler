@@ -255,11 +255,51 @@ void GlobalSymbolTable::add_import(const std::string &imported_module_name, cons
 void GlobalSymbolTable::check_imports()
 {
 	/*
-		For each module
-		Check each import list
-		Try and find it in function table or global variables (and is public)
-		If can't be found then throw error
+		For each module:
+			- Retreive each symbol in each import list
+			- Check that module exists properly somewhere
+
+		Note that since local variables can't be exported, we only need to check:
+			- global_variables
+			- functions
 	*/
+
+	for (auto it = import_table.begin(); it != import_table.end(); ++it)
+	{
+		for (auto it2 = it->second.begin(); it2 != it->second.end(); ++it2)
+		{
+			for (const auto &symbol_name : it2->second)
+			{
+				// Check whether it's in functions
+				FuncSymbol *func_symbol = get_func_symbol(symbol_name);
+
+				if (func_symbol)
+				{
+					if (!func_symbol->is_public())
+						throw std::runtime_error("Semantic Error: Function '" + symbol_name + "' must be marked as public to be imported");
+
+					continue;
+				}
+
+				// Check whether it's in global_variables
+				auto it2 = global_variables.find(symbol_name);
+				if (it2 != global_variables.end())
+				{
+					Symbol *symbol = std::get<0>(it2->second).get();
+
+					if (symbol)
+					{
+						if (!symbol->is_public())
+							throw std::runtime_error("Semantic Error: Variable '" + symbol_name + "' must be marked as public to be imported");
+
+						continue;
+					}
+				}
+
+				throw std::runtime_error("Semantic Error: Symbol '" + symbol_name + "' is not declared");
+			}
+		}
+	}
 }
 
 void GlobalSymbolTable::print()
@@ -269,6 +309,7 @@ void GlobalSymbolTable::print()
 
 	for (auto it = functions.begin(); it != functions.end(); ++it)
 	{
+		// FuncSymbol *func_symbol = std::get<0>(it->second).get();
 		std::cout << "Variables for *" << it->first << "* are: " << std::endl;
 		std::get<1>(it->second)->print();
 	}
