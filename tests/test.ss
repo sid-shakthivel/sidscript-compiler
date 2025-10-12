@@ -1,7 +1,10 @@
-import { add } from "hey";
+struct Test {
+    int a;
+    int b;
+};
 
 fn main() -> int
 {
-    int res = add(3, 75);
-    return res;
+    const struct Test example = {1, 2};
+    return example.b;
 }

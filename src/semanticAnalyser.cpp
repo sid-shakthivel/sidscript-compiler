@@ -246,11 +246,18 @@ void SemanticAnalyser::analyse_var_assign(ASTNode *node)
     }
     else if (var_assign_node->var->node_type == NodeType::NODE_POSTFIX)
     {
-        analyse_node(var_assign_node->var.get());
+        PostfixNode *postfix = (PostfixNode *)var_assign_node->var.get();
 
-        Type left = infer_type(var_assign_node->var.get());
+        analyse_node(postfix);
 
-        validate_type_assignment(left, var_assign_node->value, "in assignment");
+        Type var_type = infer_type(var_assign_node->var.get());
+
+        validate_type_assignment(var_type, var_assign_node->value, "in assignment");
+
+        Symbol *symbol = gst->get_symbol(postfix->struct_name);
+
+        if (symbol->is_const())
+            error("Cannot assign to const variable '" + postfix->struct_name + "'", var_assign_node->loc);
     }
 }
 
@@ -384,9 +391,9 @@ void SemanticAnalyser::analyse_unary(ASTNode *node)
 void SemanticAnalyser::analyse_var(ASTNode *node)
 {
     VarNode *var_node = (VarNode *)node;
-    analyse_specifiers(var_node->specifiers, var_node);
     var_node->name = gst->check_var_defined(var_node->name);
     var_node->type = gst->get_symbol(var_node->name)->type;
+    analyse_specifiers(var_node->specifiers, var_node);
 }
 
 std::string SemanticAnalyser::gen_new_loop_label()
@@ -502,7 +509,6 @@ void SemanticAnalyser::analyse_postfix(ASTNode *node)
         // Get the symbol for the struct variable
         Symbol *symbol = gst->get_symbol(postfix_node->struct_name);
 
-        // Type expr_type = infer_type(postfix_node->value.get(), postfix_node->field);
         Type expr_type = symbol->type;
 
         if (postfix_node->op == TOKEN_DOT && (!expr_type.is_struct() || expr_type.is_pointer()))
@@ -554,6 +560,15 @@ void SemanticAnalyser::analyse_specifiers(const std::vector<Specifier> &specifie
 
     if (contains_specifier(specifiers, Specifier::EXTERN) && specifiers.size() > 1)
         error("Cannot have more than one specifier on an extern variable", node->loc);
+
+    if (node->node_type == NodeType::NODE_VAR)
+    {
+        VarNode *var = (VarNode *)node;
+        Symbol *symbol = gst->get_symbol(var->name);
+
+        if (!symbol->is_global && (contains_specifier(specifiers, Specifier::PUBLIC) || contains_specifier(specifiers, Specifier::PRIVATE)))
+            error("Cannot have 'public' or 'private' specifiers on a local variable", node->loc);
+    }
 }
 
 void SemanticAnalyser::analyse_include(ASTNode *node)

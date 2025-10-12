@@ -212,7 +212,8 @@ void TacGenerator::generate_tac_var_decl(ASTNode *element)
     // Check if some sort of global/static
     if (var_symbol->linkage != Linkage::None || var_symbol->storage_duration == StorageDuration::Static)
     {
-        instruction.arg3 = var_symbol->linkage == Linkage::External ? "global" : "";
+        if (var_symbol->linkage == Linkage::External || contains_specifier(var_symbol->specifiers, Specifier::PUBLIC))
+            instruction.arg3 = "global";
 
         // Place in BSS (if not initialised); otherwise Data
         if (var_decl->value)

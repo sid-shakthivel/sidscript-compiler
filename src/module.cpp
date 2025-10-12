@@ -65,6 +65,8 @@ void Module::compile()
     tacGenerator.generate_all_tac(program);
     auto &instructions = tacGenerator.get_instructions();
 
+    tacGenerator.print_all_tac();
+
     Assembler assembler(gst, name + ".s");
     assembler.assemble(instructions);
 }

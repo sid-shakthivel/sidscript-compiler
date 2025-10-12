@@ -121,6 +121,7 @@ void GlobalSymbolTable::handle_global_var_decl(VarNode *node)
 		std::unique_ptr<Symbol> symbol = std::make_unique<Symbol>(node->name, 0, node->type, node->specifiers);
 		symbol->set_storage_duration(StorageDuration::Static);
 		symbol->set_linkage(contains_specifier(node->specifiers, Specifier::STATIC) ? Linkage::Internal : Linkage::External);
+		symbol->is_global = true;
 
 		global_variables[node->name] = std::make_tuple(std::move(symbol), current_module);
 		return;
