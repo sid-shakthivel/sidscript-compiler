@@ -9,9 +9,9 @@ if [ $? -ne 0 ]; then
     exit 1
 fi
 
-./ssc ../tests/test.ss 
+./ssc ../tests/hey.ss ../tests/test.ss 
 
-arch -x86_64 gcc test.s -o test
+arch -x86_64 gcc test.s hey.s -o test
 
 if [ $? -ne 0 ]; then
     echo "Assembly compilation failed."

@@ -212,12 +212,17 @@ void TacGenerator::generate_tac_var_decl(ASTNode *element)
     // Check if some sort of global/static
     if (var_symbol->linkage != Linkage::None || var_symbol->storage_duration == StorageDuration::Static)
     {
-        if (var_symbol->linkage == Linkage::External || contains_specifier(var_symbol->specifiers, Specifier::PUBLIC))
+        if (contains_specifier(var_symbol->specifiers, Specifier::PUBLIC))
             instruction.arg3 = "global";
 
         // Place in BSS (if not initialised); otherwise Data
         if (var_decl->value)
+        {
+            if (var_decl->var->type.is_struct())
+                return generate_tac_struct_assign(var_decl->var.get(), var_decl->value.get(), "data");
+
             data_vars.emplace_back(instruction);
+        }
         else
             bss_vars.emplace_back(instruction);
 
@@ -539,11 +544,14 @@ void TacGenerator::generate_tac_cmp(ASTNode *condition, const std::string &label
     }
 }
 
-void TacGenerator::generate_tac_struct_assign(VarNode *var, ASTNode *value)
+void TacGenerator::generate_tac_struct_assign(VarNode *var, ASTNode *value, std::string memory_region)
 {
     AggregateLiteral *compound_init = dynamic_cast<AggregateLiteral *>(value);
 
-    instructions.emplace_back(TACOp::STRUCT_INIT, var->name, "", "", var->type);
+    if (memory_region == "text")
+        instructions.emplace_back(TACOp::STRUCT_INIT, var->name, "", "", var->type);
+    else if (memory_region == "data")
+        data_vars.emplace_back(TACOp::STRUCT_INIT, var->name, "", "", var->type);
 
     Symbol *struct_sym = gst->get_symbol(var->name);
 
@@ -566,7 +574,10 @@ void TacGenerator::generate_tac_struct_assign(VarNode *var, ASTNode *value)
                     int arr_offset = offset + (i * result_type.get_base_size());
                     int final_offset = struct_sym->stack_offset + arr_offset;
 
-                    instructions.emplace_back(TACOp::ASSIGN, var->name, std::to_string(final_offset), result, aggregate_init->type.get_base_type());
+                    if (memory_region == "text")
+                        instructions.emplace_back(TACOp::ASSIGN, var->name, std::to_string(final_offset), result, aggregate_init->type.get_base_type());
+                    else if (memory_region == "data")
+                        data_vars.emplace_back(TACOp::ASSIGN, var->name, std::to_string(final_offset), result, aggregate_init->type.get_base_type());
                 }
             }
             field_index++;
@@ -575,7 +586,16 @@ void TacGenerator::generate_tac_struct_assign(VarNode *var, ASTNode *value)
         else
         {
             int final_offset = struct_sym->stack_offset + offset;
-            instructions.emplace_back(TACOp::ASSIGN, var->name, std::to_string(final_offset), result, result_type);
+
+            if (memory_region == "text")
+                instructions.emplace_back(TACOp::ASSIGN, var->name, std::to_string(final_offset), result, result_type);
+            else if (memory_region == "data")
+            {
+                TACInstruction instruction(TACOp::ASSIGN, var->name, std::to_string(final_offset), result, result_type);
+                instruction.arg3 = field_index == 0 ? "" : "struct_not_first";
+                data_vars.emplace_back(instruction);
+            }
+
             field_index++;
         }
     }

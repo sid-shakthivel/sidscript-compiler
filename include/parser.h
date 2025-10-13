@@ -10,11 +10,12 @@
 class Parser
 {
 public:
-    Parser(Lexer &l);
+    Parser(Lexer &l, std::string source_file);
     std::shared_ptr<ProgramNode> parse();
 
 private:
     Lexer &lexer;
+    std::string source_file;
     Token current_token;
 
     std::vector<TokenType> all_types = {TOKEN_VOID, TOKEN_INT, TOKEN_LONG, TOKEN_UNSIGNED, TOKEN_SIGNED, TOKEN_DOUBLE, TOKEN_CHAR_TEXT, TOKEN_STRUCT, TOKEN_BOOL};

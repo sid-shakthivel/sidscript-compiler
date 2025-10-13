@@ -1,10 +1,6 @@
-struct Test {
-    int a;
-    int b;
-};
+import { struct Test } from "hey";
 
 fn main() -> int
 {
-    const struct Test example = {1, 2};
-    return example.b;
+    return 34;
 }

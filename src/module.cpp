@@ -54,7 +54,7 @@ void Module::compile()
 
     Lexer lexer(file_contents);
 
-    Parser parser(lexer);
+    Parser parser(lexer, name);
 
     std::shared_ptr<ProgramNode> program = parser.parse();
 

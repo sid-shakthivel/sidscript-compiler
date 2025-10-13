@@ -202,12 +202,29 @@ std::string GlobalSymbolTable::check_var_defined(const std::string &name)
 {
 	auto it = functions.find(current_func);
 
-	// Check against global variables
+	/*
+		If we are not within a function, that means we're global
+		This means we need to check against other global variables ONLY
+	*/
 	if (it == functions.end())
 	{
 		auto it = global_variables.find(name);
 		if (it == global_variables.end())
 			throw std::runtime_error("Semantic Error: Variable '" + name + "' is not declared");
+
+		std::string module_of_global_var = std::get<1>(it->second);
+		if (module_of_global_var != current_module)
+		{
+			auto it = import_table.find(current_module);
+
+			if (it == import_table.end())
+				throw std::runtime_error("Semantic Error: No imports for " + current_module + " and variable '" + name + "' is not found within the module " + current_module);
+
+			auto it2 = it->second.find(module_of_global_var);
+
+			if (it2 == it->second.end())
+				throw std::runtime_error("Semantic Error: Variable '" + name + "' has not been imported from " + module_of_global_var);
+		}
 
 		return name;
 	}
@@ -221,6 +238,24 @@ std::string GlobalSymbolTable::check_var_defined(const std::string &name)
 		auto it = global_variables.find(name);
 		if (it == global_variables.end())
 			throw std::runtime_error("Semantic Error: Variable '" + name + "' is not declared");
+
+		/*
+			If the variable is declared in a different module:
+				- Check that it exists within the imports of the current module
+		*/
+		std::string module_of_global_var = std::get<1>(it->second);
+		if (module_of_global_var != current_module)
+		{
+			auto it = import_table.find(current_module);
+
+			if (it == import_table.end())
+				throw std::runtime_error("Semantic Error: No imports for " + current_module + " and variable '" + name + "' is not found within the module " + current_module);
+
+			auto it2 = it->second.find(module_of_global_var);
+
+			if (it2 == it->second.end())
+				throw std::runtime_error("Semantic Error: Variable '" + name + "' has not been imported from " + module_of_global_var);
+		}
 
 		return name;
 	}

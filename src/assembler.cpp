@@ -124,7 +124,14 @@ void Assembler::emit_load(const std::string &operand, const char *reg, Type type
 
 		if (!field_sym)
 		{
-			fprintf(file, "\tmovl\t%d(%%rbp), %s\n", std::stoi(arg2), reg_name.c_str());
+			if (sym->is_global)
+			{
+				fprintf(file, "\tmovl\t_%s+%d(%%rip), %s\n", operand.c_str(), std::stoi(arg2), reg_name.c_str());
+			}
+			else
+			{
+				fprintf(file, "\tmovl\t%d(%%rbp), %s\n", std::stoi(arg2), reg_name.c_str());
+			}
 		}
 		else
 		{
@@ -218,7 +225,16 @@ void Assembler::emit_store(const std::string &operand, const char *reg, Type typ
 
 		if (!field_sym)
 		{
-			fprintf(file, "\tmovl\t%s, %d(%%rbp)\n", reg_name.c_str(), std::stoi(arg2));
+			if (sym->is_global)
+			{
+				fprintf(file, "\tmovl\t%s, _%s+%d(%%rip)\n", reg_name.c_str(), operand.c_str(), std::stoi(arg2));
+			}
+			else
+			{
+				fprintf(file, "\tmovl\t%d(%%rbp), %s\n", std::stoi(arg2), reg_name.c_str());
+			}
+
+			// fprintf(file, "\tmovl\t%s, %d(%%rbp)\n", reg_name.c_str(), std::stoi(arg2));
 		}
 		else
 		{
@@ -334,8 +350,9 @@ void Assembler::emit_data_assign(const TACInstruction &instruction)
 	if (instruction.arg3 == "global")
 		fprintf(file, ".global	_%s\n", instruction.arg1.c_str());
 
-	fprintf(file, "_%s:\n", instruction.arg1.c_str());
-	fprintf(file, "\t.%s %s\n\n", instruction.type.is_size_8() ? "quad" : "long", instruction.result.c_str());
+	if (instruction.arg3 != "struct_not_first")
+		fprintf(file, "_%s:\n", instruction.arg1.c_str());
+	fprintf(file, "\t.%s %s\n", instruction.type.is_size_8() ? "quad" : "long", instruction.result.c_str());
 }
 
 void Assembler::emit_literal8_assign(const TACInstruction &instruction)
@@ -579,14 +596,14 @@ void Assembler::emit_section(const TACInstruction &instruction)
 	case TACOp::ENTER_BSS:
 	{
 		fprintf(file, ".bss\n");
-		fprintf(file, ".balign 8\n\n");
+		fprintf(file, ".balign 8\n");
 		current_var_type = VarType::BSS;
 		break;
 	}
 	case TACOp::ENTER_DATA:
 	{
 		fprintf(file, ".data\n");
-		fprintf(file, ".balign 8\n\n");
+		fprintf(file, ".balign 8\n");
 		current_var_type = VarType::DATA;
 		break;
 	}
