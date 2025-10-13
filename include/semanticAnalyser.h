@@ -21,7 +21,7 @@ public:
 private:
     std::unordered_map<NodeType, std::function<void(ASTNode *)>> handlers;
     std::shared_ptr<GlobalSymbolTable> gst;
-    std::unordered_map<std::string, std::unordered_map<std::string, Type>> struct_table;
+    std::unordered_map<std::string, std::map<std::string, Type>> struct_table;
 
     unsigned int loop_label_counter = 0;
     std::string gen_new_loop_label();

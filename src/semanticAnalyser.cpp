@@ -162,7 +162,7 @@ void SemanticAnalyser::analyse_aggregate_literal(ASTNode *node, const Type &var_
         if (struct_table.find(struct_name) == struct_table.end())
             error("Struct '" + struct_name + "' not defined", aggregate_literal->loc);
 
-        std::unordered_map<std::string, Type> struct_fields = struct_table[struct_name];
+        std::map<std::string, Type> struct_fields = struct_table[struct_name];
 
         if (struct_fields.size() != aggregate_literal->values.size())
             error("Struct '" + struct_name + "' has " + std::to_string(struct_fields.size()) +
@@ -468,7 +468,7 @@ void SemanticAnalyser::analyse_struct_decl(ASTNode *node)
     if (struct_table.find(struct_decl_node->name) != struct_table.end())
         error("Struct '" + struct_decl_node->name + "' already defined", struct_decl_node->loc);
 
-    std::unordered_map<std::string, Type> members;
+    std::map<std::string, Type> members;
 
     for (const auto &member : struct_decl_node->members)
     {
@@ -611,7 +611,7 @@ Type SemanticAnalyser::infer_type(ASTNode *node, std::optional<std::string> fiel
             if (struct_table.find(struct_name) == struct_table.end())
                 error("Struct '" + struct_name + "' not defined", var_node->loc);
 
-            std::unordered_map<std::string, Type> struct_fields = struct_table[struct_name];
+            std::map<std::string, Type> struct_fields = struct_table[struct_name];
 
             if (struct_fields.find(var_node->name) == struct_fields.end())
                 error("Struct '" + struct_name + "' has no field '" + var_node->name + "'", var_node->loc);
@@ -736,7 +736,7 @@ Type SemanticAnalyser::infer_type(ASTNode *node, std::optional<std::string> fiel
             if (struct_table.find(struct_name) == struct_table.end())
                 error("Struct '" + struct_name + "' not defined", array_access_node->loc);
 
-            std::unordered_map<std::string, Type> struct_fields = struct_table[struct_name];
+            std::map<std::string, Type> struct_fields = struct_table[struct_name];
 
             if (struct_fields.find(array_access_node->array->name) == struct_fields.end())
                 error("Struct '" + struct_name + "' has no field '" + array_access_node->array->name + "'", array_access_node->loc);

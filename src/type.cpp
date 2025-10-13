@@ -62,6 +62,7 @@ size_t Type::get_size() const
 
     if (is_struct())
     {
+        base_size = 0;
         for (const auto &field : struct_fields)
             base_size += field.second.first.get_size();
     }
@@ -135,7 +136,7 @@ void Type::set_ptr_depth(int ptr_depth)
 std::string Type::get_struct_name() const
 {
     if (!struct_name.has_value())
-        throw std::runtime_error("TypeError: Attempting to get struct name from type " + to_string());
+        throw std::runtime_error("Type Error: Attempting to get struct name from type " + to_string());
     return struct_name.value();
 }
 
@@ -300,53 +301,37 @@ void Type::add_field(const std::string &name, const Type &type)
 
     if (!struct_fields.empty())
     {
-        // Find the last field’s offset + size
-        for (const auto &kv : struct_fields)
-        {
-            int offset = kv.second.second;
-            int size = kv.second.first.get_size();
-            int end = offset + size;
-            if (end > current_offset)
-            {
-                current_offset = end;
-            }
-        }
+        const auto &[last_name, last_pair] = struct_fields.back();
+        const Type &last_type = last_pair.first;
+        int last_offset = last_pair.second;
+        current_offset = last_offset + last_type.get_size();
     }
 
-    // Align the field based on its size
-    size_t alignment = type.get_size();
-    if (alignment > 8)
-        alignment = 8; // max alignment is 8 bytes
-    if (alignment == 0)
-        alignment = 1; // minimum alignment is 1 byte
-
-    // Adjust current_offset for alignment
+    // Align to 8 bytes max
+    size_t alignment = std::min<size_t>(8, std::max<size_t>(1, type.get_size()));
     current_offset = (current_offset + alignment - 1) & ~(alignment - 1);
 
-    struct_fields[name] = std::make_pair(type, current_offset);
+    struct_fields.push_back({name, {type, current_offset}});
 }
 
 int Type::get_field_offset(const std::string &field_name) const
 {
     if (!is_struct())
+        throw std::runtime_error("Type Error: Attempting to get field offset from non-struct type");
+
+    for (const auto &field : struct_fields)
     {
-        throw std::runtime_error("Attempting to get field offset from non-struct type");
+        if (field.first == field_name)
+            return field.second.second;
     }
 
-    auto it = struct_fields.find(field_name);
-    if (it == struct_fields.end())
-    {
-        throw std::runtime_error("Field '" + field_name + "' not found in struct");
-    }
-
-    return it->second.second;
+    throw std::runtime_error("Type Error: Field '" + field_name + "' not found in struct");
 }
 
 std::string Type::get_field_name(int index) const
 {
-    if (!is_struct() || index < 0 || index >= struct_fields.size())
-        throw std::runtime_error("Invalid field index of " + index);
-    auto it = struct_fields.begin();
-    std::advance(it, index);
-    return it->first;
+    if (!is_struct() || index < 0 || index >= static_cast<int>(struct_fields.size()))
+        throw std::runtime_error("Type Error: Invalid field index " + std::to_string(index));
+
+    return struct_fields[index].first;
 }
