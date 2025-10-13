@@ -37,6 +37,7 @@ struct Symbol
     Type type = Type(BaseType::VOID);
     bool is_literal8 = false;
     std::vector<Specifier> specifiers;
+    bool is_global = false;
 
     Symbol(std::string n, int o, Type t, std::vector<Specifier> s);
 

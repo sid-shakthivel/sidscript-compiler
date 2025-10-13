@@ -54,7 +54,7 @@ void Module::compile()
 
     Lexer lexer(file_contents);
 
-    Parser parser(lexer);
+    Parser parser(lexer, name);
 
     std::shared_ptr<ProgramNode> program = parser.parse();
 
@@ -64,6 +64,8 @@ void Module::compile()
     TacGenerator tacGenerator(gst, sem_analyser);
     tacGenerator.generate_all_tac(program);
     auto &instructions = tacGenerator.get_instructions();
+
+    tacGenerator.print_all_tac();
 
     Assembler assembler(gst, name + ".s");
     assembler.assemble(instructions);

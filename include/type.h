@@ -27,7 +27,7 @@ private:
     int ptr_level = 0;
     std::vector<int> array_sizes;
     std::optional<std::string> struct_name;
-    std::unordered_map<std::string, std::pair<Type, int>> struct_fields;
+    std::vector<std::pair<std::string, std::pair<Type, int>>> struct_fields;
 
 public:
     Type() : base_type(BaseType::VOID), ptr_level(0) {}

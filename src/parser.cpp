@@ -22,7 +22,7 @@ std::unordered_map<BinOpType, int> precedence_map = {
     {BinOpType::MOD, 40},
 };
 
-Parser::Parser(Lexer &l) : lexer(l), current_token(TOKEN_EOF, "", 1, 0)
+Parser::Parser(Lexer &l, std::string source_file) : lexer(l), current_token(TOKEN_EOF, "", 1, 0), source_file(source_file)
 {
     advance();
 }
@@ -49,7 +49,7 @@ void Parser::retreat(int iterations)
 
 void Parser::error(const std::string &message)
 {
-    throw std::runtime_error("Parser Error: " + message + " but found '" + current_token.text + "' on line " + std::to_string(current_token.line));
+    throw std::runtime_error("Parser Error: " + message + " but found '" + current_token.text + "' on line " + std::to_string(current_token.line) + " in module '" + source_file + "'");
 }
 
 void Parser::expect(const TokenType &token_type)
@@ -85,7 +85,28 @@ std::shared_ptr<ProgramNode> Parser::parse()
         if (match(TOKEN_FN))
             program->decls.emplace_back(parse_func_decl(std::nullopt));
         else if (match(TOKEN_STRUCT))
-            program->decls.emplace_back(parse_struct_decl());
+        {
+            /*
+                When the struct keyword is found, it could be one of two things:
+                - A struct declaration i.e. struct Test { int a; int b; };
+                - A global struct varaible declaration i.e. struct Test *t;
+                Hence we skip forward to determine whether the third token is an identifier or a left brace to determine which of the two it is
+            */
+            advance();
+            advance();
+
+            bool is_struct_var_decl = false;
+
+            if (match(TOKEN_IDENTIFIER))
+                is_struct_var_decl = true;
+
+            retreat(2);
+
+            if (is_struct_var_decl)
+                program->decls.emplace_back(parse_var_decl({}));
+            else
+                program->decls.emplace_back(parse_struct_decl());
+        }
         else if (match(addressable_types))
             program->decls.emplace_back(parse_var_decl(std::nullopt));
         else if (match(specifier_tokens))
@@ -835,7 +856,19 @@ std::unique_ptr<ASTNode> Parser::parse_import()
 
     while (!match(TOKEN_RBRACE))
     {
-        includes.push_back(current_token.text);
+        if (match(TOKEN_STRUCT))
+        {
+            std::cout << "helllo " << current_token.text << std::endl;
+
+            advance();
+
+            expect(TOKEN_IDENTIFIER);
+
+            includes.push_back("struct " + current_token.text);
+        }
+        else
+            includes.push_back(current_token.text);
+
         advance();
     }
 
@@ -847,6 +880,11 @@ std::unique_ptr<ASTNode> Parser::parse_import()
 
     advance();
     expect(TOKEN_SEMICOLON);
+
+    for (const auto &inc : includes)
+    {
+        std::cout << inc << std::endl;
+    }
 
     return std::make_unique<IncludeNode>(module_name, includes, SourceLocation{current_token.line, current_token.index});
 }

@@ -140,7 +140,7 @@ private:
 
     void generate_tac_var_array_assign(VarNode *var_node, Symbol *var_symbol, ASTNode *value);
     void generate_tac_cmp(ASTNode *condition, const std::string &label_success, const std::string &label_failure);
-    void generate_tac_struct_assign(VarNode *var, ASTNode *value);
+    void generate_tac_struct_assign(VarNode *var, ASTNode *value, std::string memory_region = "text");
     std::string get_const_label(double value);
 
     std::tuple<std::string, std::string> compute_struct_access_offset(PostfixNode *postfix);

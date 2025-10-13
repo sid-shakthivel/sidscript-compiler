@@ -162,7 +162,7 @@ void SemanticAnalyser::analyse_aggregate_literal(ASTNode *node, const Type &var_
         if (struct_table.find(struct_name) == struct_table.end())
             error("Struct '" + struct_name + "' not defined", aggregate_literal->loc);
 
-        std::unordered_map<std::string, Type> struct_fields = struct_table[struct_name];
+        std::map<std::string, Type> struct_fields = struct_table[struct_name];
 
         if (struct_fields.size() != aggregate_literal->values.size())
             error("Struct '" + struct_name + "' has " + std::to_string(struct_fields.size()) +
@@ -246,11 +246,18 @@ void SemanticAnalyser::analyse_var_assign(ASTNode *node)
     }
     else if (var_assign_node->var->node_type == NodeType::NODE_POSTFIX)
     {
-        analyse_node(var_assign_node->var.get());
+        PostfixNode *postfix = (PostfixNode *)var_assign_node->var.get();
 
-        Type left = infer_type(var_assign_node->var.get());
+        analyse_node(postfix);
 
-        validate_type_assignment(left, var_assign_node->value, "in assignment");
+        Type var_type = infer_type(var_assign_node->var.get());
+
+        validate_type_assignment(var_type, var_assign_node->value, "in assignment");
+
+        Symbol *symbol = gst->get_symbol(postfix->struct_name);
+
+        if (symbol->is_const())
+            error("Cannot assign to const variable '" + postfix->struct_name + "'", var_assign_node->loc);
     }
 }
 
@@ -384,9 +391,9 @@ void SemanticAnalyser::analyse_unary(ASTNode *node)
 void SemanticAnalyser::analyse_var(ASTNode *node)
 {
     VarNode *var_node = (VarNode *)node;
-    analyse_specifiers(var_node->specifiers, var_node);
     var_node->name = gst->check_var_defined(var_node->name);
     var_node->type = gst->get_symbol(var_node->name)->type;
+    analyse_specifiers(var_node->specifiers, var_node);
 }
 
 std::string SemanticAnalyser::gen_new_loop_label()
@@ -461,7 +468,7 @@ void SemanticAnalyser::analyse_struct_decl(ASTNode *node)
     if (struct_table.find(struct_decl_node->name) != struct_table.end())
         error("Struct '" + struct_decl_node->name + "' already defined", struct_decl_node->loc);
 
-    std::unordered_map<std::string, Type> members;
+    std::map<std::string, Type> members;
 
     for (const auto &member : struct_decl_node->members)
     {
@@ -502,7 +509,6 @@ void SemanticAnalyser::analyse_postfix(ASTNode *node)
         // Get the symbol for the struct variable
         Symbol *symbol = gst->get_symbol(postfix_node->struct_name);
 
-        // Type expr_type = infer_type(postfix_node->value.get(), postfix_node->field);
         Type expr_type = symbol->type;
 
         if (postfix_node->op == TOKEN_DOT && (!expr_type.is_struct() || expr_type.is_pointer()))
@@ -554,6 +560,15 @@ void SemanticAnalyser::analyse_specifiers(const std::vector<Specifier> &specifie
 
     if (contains_specifier(specifiers, Specifier::EXTERN) && specifiers.size() > 1)
         error("Cannot have more than one specifier on an extern variable", node->loc);
+
+    if (node->node_type == NodeType::NODE_VAR)
+    {
+        VarNode *var = (VarNode *)node;
+        Symbol *symbol = gst->get_symbol(var->name);
+
+        if (!symbol->is_global && (contains_specifier(specifiers, Specifier::PUBLIC) || contains_specifier(specifiers, Specifier::PRIVATE)))
+            error("Cannot have 'public' or 'private' specifiers on a local variable", node->loc);
+    }
 }
 
 void SemanticAnalyser::analyse_include(ASTNode *node)
@@ -596,7 +611,7 @@ Type SemanticAnalyser::infer_type(ASTNode *node, std::optional<std::string> fiel
             if (struct_table.find(struct_name) == struct_table.end())
                 error("Struct '" + struct_name + "' not defined", var_node->loc);
 
-            std::unordered_map<std::string, Type> struct_fields = struct_table[struct_name];
+            std::map<std::string, Type> struct_fields = struct_table[struct_name];
 
             if (struct_fields.find(var_node->name) == struct_fields.end())
                 error("Struct '" + struct_name + "' has no field '" + var_node->name + "'", var_node->loc);
@@ -721,7 +736,7 @@ Type SemanticAnalyser::infer_type(ASTNode *node, std::optional<std::string> fiel
             if (struct_table.find(struct_name) == struct_table.end())
                 error("Struct '" + struct_name + "' not defined", array_access_node->loc);
 
-            std::unordered_map<std::string, Type> struct_fields = struct_table[struct_name];
+            std::map<std::string, Type> struct_fields = struct_table[struct_name];
 
             if (struct_fields.find(array_access_node->array->name) == struct_fields.end())
                 error("Struct '" + struct_name + "' has no field '" + array_access_node->array->name + "'", array_access_node->loc);
