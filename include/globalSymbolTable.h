@@ -24,6 +24,7 @@ public:
     void declare_str_var(const std::string &name, const Type &type);
 
     std::string check_var_defined(const std::string &name);
+    bool check_struct_defined(const std::string &name);
 
     FuncSymbol *get_func_symbol(const std::string &func_name);
     SymbolTable *get_func_st(const std::string &func_name);
@@ -39,6 +40,12 @@ public:
     void print();
 
     std::string current_module = "";
+
+    /*
+        This is a map of struct names to a map of field names to their respective types
+        (All struct members are public for now)
+    */
+    std::unordered_map<std::string, std::pair<std::map<std::string, Type>, std::string>> struct_table;
 
 private:
     std::string current_func = "";

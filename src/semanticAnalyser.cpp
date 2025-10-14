@@ -4,7 +4,7 @@
 
 #define REGISTER_HANDLER(node_type, fn) handlers[node_type] = [this](ASTNode *node) { fn(node); }
 
-SemanticAnalyser::SemanticAnalyser(std::shared_ptr<GlobalSymbolTable> gst) : gst(gst)
+SemanticAnalyser::SemanticAnalyser(std::shared_ptr<GlobalSymbolTable> gst, std::string module_name) : gst(gst), module_name(module_name)
 {
     // Initialise analysers
     REGISTER_HANDLER(NodeType::NODE_FUNCTION, analyse_func);
@@ -99,7 +99,10 @@ void SemanticAnalyser::analyse_var_decl(ASTNode *node)
     {
         std::string struct_name = var_decl_node->var->type.get_struct_name();
 
-        for (const auto &[field_name, field_type] : struct_table[struct_name])
+        if (!gst->check_struct_defined(struct_name))
+            error("Struct '" + struct_name + "' not defined", var_decl_node->loc);
+
+        for (const auto &[field_name, field_type] : std::get<0>(gst->struct_table[struct_name]))
             var_decl_node->var->type.add_field(field_name, field_type);
     }
 
@@ -159,10 +162,10 @@ void SemanticAnalyser::analyse_aggregate_literal(ASTNode *node, const Type &var_
     {
         std::string struct_name = type_to_cmp.get_struct_name();
 
-        if (struct_table.find(struct_name) == struct_table.end())
+        if (!gst->check_struct_defined(struct_name))
             error("Struct '" + struct_name + "' not defined", aggregate_literal->loc);
 
-        std::map<std::string, Type> struct_fields = struct_table[struct_name];
+        std::map<std::string, Type> struct_fields = std::get<0>(gst->struct_table[struct_name]);
 
         if (struct_fields.size() != aggregate_literal->values.size())
             error("Struct '" + struct_name + "' has " + std::to_string(struct_fields.size()) +
@@ -465,7 +468,7 @@ void SemanticAnalyser::analyse_struct_decl(ASTNode *node)
 {
     StructDeclNode *struct_decl_node = (StructDeclNode *)node;
 
-    if (struct_table.find(struct_decl_node->name) != struct_table.end())
+    if (gst->check_struct_defined(struct_decl_node->name))
         error("Struct '" + struct_decl_node->name + "' already defined", struct_decl_node->loc);
 
     std::map<std::string, Type> members;
@@ -484,7 +487,7 @@ void SemanticAnalyser::analyse_struct_decl(ASTNode *node)
         members[member_decl->var->name] = member_decl->var->type;
     }
 
-    struct_table[struct_decl_node->name] = std::move(members);
+    gst->struct_table[struct_decl_node->name] = std::make_pair(std::move(members), module_name);
 }
 
 void SemanticAnalyser::analyse_postfix(ASTNode *node)
@@ -608,10 +611,10 @@ Type SemanticAnalyser::infer_type(ASTNode *node, std::optional<std::string> fiel
 
             std::string struct_name = struct_symbol->type.get_struct_name();
 
-            if (struct_table.find(struct_name) == struct_table.end())
+            if (!gst->check_struct_defined(struct_name))
                 error("Struct '" + struct_name + "' not defined", var_node->loc);
 
-            std::map<std::string, Type> struct_fields = struct_table[struct_name];
+            std::map<std::string, Type> struct_fields = std::get<0>(gst->struct_table[struct_name]);
 
             if (struct_fields.find(var_node->name) == struct_fields.end())
                 error("Struct '" + struct_name + "' has no field '" + var_node->name + "'", var_node->loc);
@@ -733,10 +736,11 @@ Type SemanticAnalyser::infer_type(ASTNode *node, std::optional<std::string> fiel
             /*
                 Now check whether the 'field' for the struct matches properly
             */
-            if (struct_table.find(struct_name) == struct_table.end())
+
+            if (!gst->check_struct_defined(struct_name))
                 error("Struct '" + struct_name + "' not defined", array_access_node->loc);
 
-            std::map<std::string, Type> struct_fields = struct_table[struct_name];
+            std::map<std::string, Type> struct_fields = std::get<0>(gst->struct_table[struct_name]);
 
             if (struct_fields.find(array_access_node->array->name) == struct_fields.end())
                 error("Struct '" + struct_name + "' has no field '" + array_access_node->array->name + "'", array_access_node->loc);
@@ -801,10 +805,10 @@ Type SemanticAnalyser::infer_type(ASTNode *node, std::optional<std::string> fiel
 
         if (size_of_node->type.is_struct())
         {
-            if (struct_table[size_of_node->type.get_struct_name()].empty())
+            if (std::get<0>(gst->struct_table[size_of_node->type.get_struct_name()]).empty())
                 error("Struct '" + size_of_node->type.get_struct_name() + "' not defined", size_of_node->loc);
 
-            for (auto &member : struct_table[size_of_node->type.get_struct_name()])
+            for (auto &member : std::get<0>(gst->struct_table[size_of_node->type.get_struct_name()]))
                 size_of_node->type.add_field(member.first, member.second);
         }
 

@@ -12,7 +12,7 @@
 class SemanticAnalyser
 {
 public:
-    SemanticAnalyser(std::shared_ptr<GlobalSymbolTable> gst);
+    SemanticAnalyser(std::shared_ptr<GlobalSymbolTable> gst, std::string module_name);
 
     void analyse(std::shared_ptr<ProgramNode> &program);
 
@@ -21,7 +21,7 @@ public:
 private:
     std::unordered_map<NodeType, std::function<void(ASTNode *)>> handlers;
     std::shared_ptr<GlobalSymbolTable> gst;
-    std::unordered_map<std::string, std::map<std::string, Type>> struct_table;
+    std::string module_name;
 
     unsigned int loop_label_counter = 0;
     std::string gen_new_loop_label();

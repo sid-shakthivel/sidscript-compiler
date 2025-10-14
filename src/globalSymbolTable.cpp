@@ -1,4 +1,5 @@
 #include <iostream>
+#include <sstream>
 
 #include "../include/globalSymbolTable.h"
 
@@ -263,6 +264,30 @@ std::string GlobalSymbolTable::check_var_defined(const std::string &name)
 	return new_name;
 }
 
+bool GlobalSymbolTable::check_struct_defined(const std::string &name)
+{
+	auto it = struct_table.find(name);
+	if (it == struct_table.end())
+		return false;
+
+	std::string module_of_struct = it->second.second;
+
+	if (module_of_struct != current_module)
+	{
+		auto it = import_table.find(current_module);
+
+		if (it == import_table.end())
+			return false;
+
+		auto it2 = it->second.find(module_of_struct);
+
+		if (it2 == it->second.end())
+			return false;
+	}
+
+	return true;
+}
+
 Symbol *GlobalSymbolTable::get_symbol(const std::string &name)
 {
 	auto it = functions.find(current_func);
@@ -318,16 +343,47 @@ void GlobalSymbolTable::check_imports()
 				}
 
 				// Check whether it's in global_variables
-				auto it2 = global_variables.find(symbol_name);
-				if (it2 != global_variables.end())
+				auto it3 = global_variables.find(symbol_name);
+				if (it3 != global_variables.end())
 				{
-					Symbol *symbol = std::get<0>(it2->second).get();
+					Symbol *symbol = std::get<0>(it3->second).get();
 
 					if (symbol)
 					{
 						if (!symbol->is_public())
 							throw std::runtime_error("Semantic Error: Variable '" + symbol_name + "' must be marked as public to be imported");
 
+						continue;
+					}
+				}
+
+				/*
+					If the symbol starts with 'struct' then we need to check the struct table (and check it's been declared in the right module)
+					We first need to split the string by ' ' (whitespace)
+					Then only if the size of the resulting vector is 2 and the first word is 'struct' do we check the struct table
+					We need to check the import is from the correct file
+				*/
+
+				std::stringstream ss(symbol_name);
+				std::vector<std::string> words;
+				std::string word;
+
+				while (std::getline(ss, word, ' '))
+				{
+					if (!word.empty())
+						words.push_back(word);
+				}
+
+				if (words.size() == 2 && words[0] == "struct")
+				{
+					std::string struct_name = words[1];
+
+					auto it4 = struct_table.find(struct_name);
+					if (it4 != struct_table.end())
+					{
+						std::string module_of_struct = it4->second.second;
+						if (module_of_struct != it2->first)
+							throw std::runtime_error("Semantic Error: Struct '" + struct_name + "' is not declared in module " + it->first);
 						continue;
 					}
 				}

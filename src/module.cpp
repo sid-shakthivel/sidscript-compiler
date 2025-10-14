@@ -58,7 +58,7 @@ void Module::compile()
 
     std::shared_ptr<ProgramNode> program = parser.parse();
 
-    std::shared_ptr<SemanticAnalyser> sem_analyser = std::make_shared<SemanticAnalyser>(gst);
+    std::shared_ptr<SemanticAnalyser> sem_analyser = std::make_shared<SemanticAnalyser>(gst, name);
     sem_analyser->analyse(program);
 
     TacGenerator tacGenerator(gst, sem_analyser);

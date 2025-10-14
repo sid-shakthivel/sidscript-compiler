@@ -858,8 +858,6 @@ std::unique_ptr<ASTNode> Parser::parse_import()
     {
         if (match(TOKEN_STRUCT))
         {
-            std::cout << "helllo " << current_token.text << std::endl;
-
             advance();
 
             expect(TOKEN_IDENTIFIER);
