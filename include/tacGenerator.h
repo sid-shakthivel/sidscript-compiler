@@ -138,6 +138,7 @@ private:
     std::string generate_tac_expr_array_access(ASTNode *expr);
     std::string generate_tac_expr_func_call(ASTNode *expr);
     std::string generate_tac_expr_size_of(ASTNode *expr);
+    std::string generate_tac_expr_null(ASTNode *expr);
 
     void generate_tac_var_array_assign(VarNode *var_node, Symbol *var_symbol, ASTNode *value);
     void generate_tac_cmp(ASTNode *condition, const std::string &label_success, const std::string &label_failure);

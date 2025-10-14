@@ -690,8 +690,10 @@ std::unique_ptr<ASTNode> Parser::parse_factor()
         return rtn;
     }
     else if (match(TOKEN_SIZEOF))
-    {
         return parse_sizeof();
+    else if (match(TOKEN_NULL))
+    {
+        return std::make_unique<NullLiteral>(SourceLocation{current_token.line, current_token.index});
     }
     else
         error("Expected expression");

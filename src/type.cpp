@@ -50,6 +50,9 @@ size_t Type::get_size() const
     case BaseType::STRUCT:
         base_size = 0;
         break;
+    case BaseType::NULL_TYPE:
+        base_size = 0;
+        break;
     }
 
     if (is_array())
@@ -173,6 +176,9 @@ std::string Type::to_string() const
         break;
     case BaseType::STRUCT:
         result = "struct " + (struct_name.has_value() ? struct_name.value() : "unknown");
+        break;
+    case BaseType::NULL_TYPE:
+        result = "null";
         break;
     }
 

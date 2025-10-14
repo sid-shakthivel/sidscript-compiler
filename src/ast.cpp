@@ -229,6 +229,16 @@ void BoolLiteral::print(int tabs)
     std::cout << std::string(tabs, ' ') << "Bool: " << value << std::endl;
 }
 
+NullLiteral::NullLiteral(SourceLocation loc) : ASTNode(NodeType::NODE_NULL, loc)
+{
+    value_type = Type(BaseType::NULL_TYPE);
+}
+
+void NullLiteral::print(int tabs)
+{
+    std::cout << std::string(tabs, ' ') << "Null" << std::endl;
+}
+
 CastNode::CastNode(std::unique_ptr<ASTNode> e, Type t1, Type t2, SourceLocation loc) : ASTNode(NodeType::NODE_CAST, loc), expr(std::move(e)), target_type(t1), src_type(t2) {}
 
 void CastNode::print(int tabs)

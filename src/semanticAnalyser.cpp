@@ -573,6 +573,10 @@ void SemanticAnalyser::validate_type_assignment(const Type &target_type, std::un
     if (target_type.can_assign_from(source_type) && try_promote_literal(source_expr, target_type))
         return;
 
+    // Allow ptr to null literal
+    if (source_type.has_base_type(BaseType::NULL_TYPE) && target_type.is_pointer())
+        return;
+
     // If still incompatible, fail
     error("Cannot assign " + source_type.to_string() + " to " + target_type.to_string() + " in " + context, source_expr->loc);
 }
@@ -850,8 +854,10 @@ Type SemanticAnalyser::infer_type(ASTNode *node, std::optional<std::string> fiel
 
         return Type(BaseType::INT);
     }
+    case NodeType::NODE_NULL:
+        return Type(BaseType::NULL_TYPE);
     default:
-        error("Cannot infer type of node of type ", node->loc);
+        error("Cannot infer type of node of type " + node_type_to_string(node->node_type), node->loc);
     }
 }
 

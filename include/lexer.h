@@ -76,6 +76,7 @@ enum TokenType
     TOKEN_PRIVATE,
     TOKEN_IMPORT,
     TOKEN_FROM,
+    TOKEN_NULL,
 };
 
 extern std::unordered_map<std::string, TokenType> string_to_token;

@@ -18,6 +18,7 @@ enum class BaseType
     STRUCT,
     CHAR,
     BOOL,
+    NULL_TYPE, // NULL is a keyword in C++, so we use NULL_TYPE
 };
 
 class Type

@@ -90,6 +90,7 @@ TacGenerator::TacGenerator(std::shared_ptr<GlobalSymbolTable> gst, std::shared_p
     REGISTER_EXPR_HANDLER(NODE_ARRAY_ACCESS, generate_tac_expr_array_access);
     REGISTER_EXPR_HANDLER(NODE_FUNC_CALL, generate_tac_expr_func_call);
     REGISTER_EXPR_HANDLER(NODE_SIZE_OF, generate_tac_expr_size_of);
+    REGISTER_EXPR_HANDLER(NODE_NULL, generate_tac_expr_null);
 }
 
 std::string TacGenerator::gen_new_temp_var()
@@ -821,6 +822,11 @@ std::string TacGenerator::generate_tac_expr_size_of(ASTNode *expr)
     instructions.emplace_back(TACOp::ASSIGN, temp_var, "", sizeof_node->var ? std::to_string(sizeof_node->var->type.get_size()) : std::to_string(sizeof_node->type.get_size()), BaseType::INT);
 
     return temp_var;
+}
+
+std::string TacGenerator::generate_tac_expr_null(ASTNode *expr)
+{
+    return "0";
 }
 
 std::string TacGenerator::get_const_label(double value)

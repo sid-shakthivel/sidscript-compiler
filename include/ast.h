@@ -58,6 +58,7 @@ enum class NodeType
     NODE_ARRAY_ACCESS,
     NODE_CHAR,
     NODE_STRING,
+    NODE_NULL,
     NODE_STRUCT_DECL,
     NODE_LOOP_CONTROL,
     NODE_SIZE_OF,
@@ -114,6 +115,10 @@ inline std::string node_type_to_string(NodeType type)
         return "BOOL";
     case NodeType::NODE_SIZE_OF:
         return "SIZE_OF";
+    case NodeType::NODE_NULL:
+        return "NULL";
+    case NodeType::NODE_INCLUDE:
+        return "INCLUDE";
     default:
         return "UNKNOWN";
     }
@@ -254,6 +259,15 @@ public:
     Type value_type = Type(BaseType::BOOL);
 
     BoolLiteral(bool v, SourceLocation loc);
+    void print(int tabs) override;
+};
+
+class NullLiteral : public ASTNode
+{
+public:
+    Type value_type = Type(BaseType::NULL_TYPE);
+
+    NullLiteral(SourceLocation loc);
     void print(int tabs) override;
 };
 
