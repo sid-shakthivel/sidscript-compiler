@@ -253,6 +253,8 @@ std::vector<std::unique_ptr<ASTNode>> Parser::parse_block()
                 expect(TOKEN_SEMICOLON);
             }
         }
+        else if (match(TOKEN_STAR))
+            elements.emplace_back(parse_var_assign());
         else if (match(addressable_types))
             elements.emplace_back(parse_var_decl(std::nullopt));
         else if (match(TOKEN_IF))
@@ -534,6 +536,22 @@ Type Parser::determine_type(const std::vector<TokenType> &types)
 
 std::unique_ptr<VarAssignNode> Parser::parse_var_assign()
 {
+    if (match(TOKEN_STAR))
+    {
+        advance();
+        expect(TOKEN_IDENTIFIER);
+        std::unique_ptr<VarNode> var = std::make_unique<VarNode>(current_token.text, SourceLocation{current_token.line, current_token.index});
+        std::unique_ptr<UnaryNode> deref = std::make_unique<UnaryNode>(get_unary_op_type(TOKEN_STAR), std::move(var), SourceLocation{current_token.line, current_token.index});
+
+        advance();
+        expect(TOKEN_ASSIGN);
+        advance();
+
+        std::unique_ptr<ASTNode> expr = parse_expr();
+        expect(TOKEN_SEMICOLON);
+        return std::make_unique<VarAssignNode>(std::move(deref), std::move(expr), SourceLocation{current_token.line, current_token.index});
+    }
+
     std::unique_ptr<ASTNode> target = parse_lvalue();
     TokenType assign_type = current_token.type;
 

@@ -144,6 +144,9 @@ void TacGenerator::generate_tac(ASTNode *node)
     auto handler = handlers.find(node->node_type);
     if (handler != handlers.end())
         handler->second(node);
+
+    // std::cout << "sorted " << node_type_to_string(node->node_type) << "\n";
+
     // else
     // error("No handler for node type " + node_type_to_string(node->node_type));
 }
@@ -209,6 +212,8 @@ void TacGenerator::generate_tac_var_decl(ASTNode *element)
     std::string result = generate_tac_expr(var_decl->value.get());
     TACInstruction instruction(TACOp::ASSIGN, var_decl->var->name, "", result, var_symbol->type);
 
+    // std::cout << "ok here for " << var_decl->var->name << "\n";
+
     // Check if some sort of global/static
     if (var_symbol->linkage != Linkage::None || var_symbol->storage_duration == StorageDuration::Static)
     {
@@ -236,7 +241,7 @@ void TacGenerator::generate_tac_var_decl(ASTNode *element)
     if (!var_decl->value)
         return;
 
-    if (var_decl->var->type.is_struct())
+    if (var_decl->var->type.is_struct() && !var_decl->var->type.is_pointer())
         return generate_tac_struct_assign(var_decl->var.get(), var_decl->value.get());
 
     instructions.emplace_back(instruction);
@@ -290,6 +295,22 @@ void TacGenerator::generate_tac_var_assign(ASTNode *element)
 
         instructions.emplace_back(TACOp::ASSIGN, struct_base, final_offset, result, sem_analyser->infer_type(var_assign->value.get()));
     }
+    else if (var_assign->var->node_type == NodeType::NODE_UNARY)
+    {
+        UnaryNode *unary = dynamic_cast<UnaryNode *>(var_assign->var.get());
+
+        if (unary->op != UnaryOpType::DEREF)
+            error("Cannot assign to this unary expression", unary->loc);
+
+        std::string var = generate_tac_expr(unary->value.get());
+        std::string result = generate_tac_expr(var_assign->value.get());
+
+        // std::cout << "assigning to deref " << var << " value " << result << "\n";
+
+        instructions.emplace_back(TACOp::ASSIGN_DEREF, var, "", result, unary->type);
+    }
+    else
+        error("Invalid lvalue in assignment", var_assign->var->loc);
 }
 
 void TacGenerator::generate_tac_if(ASTNode *element)
@@ -688,6 +709,8 @@ std::string TacGenerator::generate_tac_expr_postfix(ASTNode *expr)
 
     if (postfix->op == TokenType::TOKEN_DOT || postfix->op == TokenType::TOKEN_ARROW)
     {
+        std::cout << "are we here?\n";
+
         std::string temp = gen_new_temp_var();
         gst->declare_temp_var(temp, postfix->type);
 
@@ -832,7 +855,8 @@ std::tuple<std::string, std::string> TacGenerator::compute_struct_access_offset(
     if (postfix->op == TokenType::TOKEN_ARROW)
     {
         std::string deref = gen_new_temp_var();
-        instructions.emplace_back(TACOp::DEREF, postfix->struct_name, "", deref);
+        gst->declare_temp_var(deref, postfix->type.get_base_type());
+        instructions.emplace_back(TACOp::DEREF, postfix->struct_name, "", deref, postfix->type);
         struct_base = deref;
     }
     else
@@ -1004,6 +1028,8 @@ std::string TacGenerator::gen_tac_str(const TACInstruction &instr)
             return "ADDR_OF";
         case TACOp::STRUCT_INIT:
             return "STRUCT_INIT";
+        case TACOp::ASSIGN_DEREF:
+            return "ASSIGN_DEREF";
         default:
             return "UNKNOWN";
         }

@@ -1,7 +1,7 @@
-import { struct Test } from "hey";
-
 fn main() -> int
 {
-    struct Test example;
-    return 34;
+    int a = 5;
+    int *ptr = &a;
+    *ptr = 89;
+    return a;
 }

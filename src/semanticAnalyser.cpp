@@ -124,9 +124,9 @@ void SemanticAnalyser::analyse_var_decl(ASTNode *node)
             if (string_literal->value.size() + 1 > var_type.get_size())
                 error("Too many characters in string initialisation of " + var_decl_node->var->name, var_decl_node->loc);
         }
-        else if (var_type.is_array() || var_type.is_struct())
+        else if ((var_type.is_array() || var_type.is_struct()) && !var_type.is_pointer())
             if (var_decl_node->value->node_type != NodeType::NODE_AGGREGATE_INIT)
-                error("Compound initialisation of " + var_decl_node->var->name + " requires compound literal", var_decl_node->loc);
+                error("Aggregate initialisation of " + var_decl_node->var->name + " requires compound literal", var_decl_node->loc);
 
         validate_type_assignment(var_type, var_decl_node->value, var_decl_node->var->name);
     }
@@ -257,11 +257,35 @@ void SemanticAnalyser::analyse_var_assign(ASTNode *node)
 
         validate_type_assignment(var_type, var_assign_node->value, "in assignment");
 
+        postfix->type = var_type;
+
         Symbol *symbol = gst->get_symbol(postfix->struct_name);
 
         if (symbol->is_const())
             error("Cannot assign to const variable '" + postfix->struct_name + "'", var_assign_node->loc);
     }
+    else if (var_assign_node->var->node_type == NodeType::NODE_UNARY)
+    {
+        UnaryNode *unary = dynamic_cast<UnaryNode *>(var_assign_node->var.get());
+
+        if (unary->op != UnaryOpType::DEREF)
+            error("Cannot assign to this unary expression", unary->loc);
+
+        analyse_node(unary->value.get());
+        Type ptr_type = infer_type(unary->value.get());
+
+        if (ptr_type.get_ptr_depth() < 1)
+            error("Cannot dereference non-pointer type", unary->loc);
+
+        Type var_type = ptr_type;
+        var_type.set_ptr_depth(var_type.get_ptr_depth() - 1);
+
+        unary->type = var_type;
+
+        validate_type_assignment(var_type, var_assign_node->value, "in assignment");
+    }
+    else
+        error("Invalid lvalue in assignment", var_assign_node->var->loc);
 }
 
 void SemanticAnalyser::analyse_rtn(ASTNode *node)

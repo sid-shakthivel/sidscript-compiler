@@ -54,6 +54,7 @@ enum class TACOp
     ADDR_OF,
     PRINTF,
     STRUCT_INIT,
+    ASSIGN_DEREF,
 };
 
 TACOp convert_UnaryOpType_to_TACOp(UnaryOpType op);

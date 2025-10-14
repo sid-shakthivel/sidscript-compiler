@@ -61,8 +61,12 @@ void Module::compile()
     std::shared_ptr<SemanticAnalyser> sem_analyser = std::make_shared<SemanticAnalyser>(gst, name);
     sem_analyser->analyse(program);
 
+    program->print();
+
     TacGenerator tacGenerator(gst, sem_analyser);
+
     tacGenerator.generate_all_tac(program);
+
     auto &instructions = tacGenerator.get_instructions();
 
     tacGenerator.print_all_tac();

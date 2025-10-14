@@ -71,6 +71,7 @@ Assembler::Assembler(std::shared_ptr<GlobalSymbolTable> &gst, const std::string 
 	REGISTER_HANDLER(NOT, emit_not);
 	REGISTER_HANDLER(AND, emit_logical_and);
 	REGISTER_HANDLER(OR, emit_logical_or);
+	REGISTER_HANDLER(ASSIGN_DEREF, emit_assign_deref);
 }
 
 void Assembler::assemble(const std::vector<TACInstruction> &instructions)
@@ -766,6 +767,27 @@ void Assembler::emit_logical_op(const TACInstruction &instruction, const std::st
 	fprintf(file, "\t%s\t%s, %s\n", instr.c_str(), reg_a.c_str(), reg_b.c_str());
 
 	emit_store(instruction.result, "%r10", instruction.type);
+
+	fprintf(file, "\n");
+}
+
+void Assembler::emit_assign_deref(const TACInstruction &instruction)
+{
+	emit_comment_instr(instruction);
+
+	Symbol *ptr = gst->get_symbol(instruction.arg1);
+
+	// First, get the pointer value into a register
+	fprintf(file, "\tmovq\t%s, %%rax\n", format_mem_operand(instruction.arg1).c_str());
+
+	std::string mov = select_mov_instr(instruction.type);
+	std::string reg = select_reg_name("%r10", instruction.type);
+
+	// // Load the source value into a register
+	emit_load(instruction.result, "%r10", instruction.type);
+
+	// // Now dereference it and store the value
+	fprintf(file, "\t%s\t%s, (%%rax)\n", mov.c_str(), reg.c_str());
 
 	fprintf(file, "\n");
 }

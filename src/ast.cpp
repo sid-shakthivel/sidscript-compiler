@@ -204,7 +204,7 @@ void AggregateLiteral::add_element(std::unique_ptr<ASTNode> e)
 
 void AggregateLiteral::print(int tabs)
 {
-    std::cout << std::string(tabs, ' ') << "CompoundInit:" << std::endl;
+    std::cout << std::string(tabs, ' ') << "AggregateLiteral:" << std::endl;
     for (const auto &elem : values)
         elem->print(tabs + 1);
 }
@@ -333,12 +333,17 @@ void PostfixNode::print(int tabs)
             return "INCREMENT";
         case TOKEN_DECREMENT:
             return "DECREMENT";
+        case TOKEN_DOT:
+            return "DOT";
+        case TOKEN_ARROW:
+            return "ARROW";
         }
         return "Unknown";
     };
 
     std::cout << std::string(tabs, ' ') << "Postfix: " << std::endl;
-    std::cout << std::string(tabs + 1, ' ') << "Type: " << get_postfix_op_string(op) << std::endl;
+    std::cout << std::string(tabs + 1, ' ') << "Type (Postfix): " << get_postfix_op_string(op) << std::endl;
+    std::cout << std::string(tabs + 1, ' ') << "Type: " << type.to_string() << std::endl;
     std::cout << std::string(tabs + 1, ' ') << "Field: " << field_name << std::endl;
     std::cout << std::string(tabs + 1, ' ') << "StructName: " << struct_name << std::endl;
     value->print(tabs + 1);
