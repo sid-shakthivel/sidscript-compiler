@@ -232,7 +232,7 @@ void Assembler::emit_store(const std::string &operand, const char *reg, Type typ
 			}
 			else
 			{
-				fprintf(file, "\tmovl\t%d(%%rbp), %s\n", std::stoi(arg2), reg_name.c_str());
+				fprintf(file, "\tmovl\t%s, %d(%%rbp)\n", reg_name.c_str(), std::stoi(arg2));
 			}
 
 			// fprintf(file, "\tmovl\t%s, %d(%%rbp)\n", reg_name.c_str(), std::stoi(arg2));
@@ -783,11 +783,19 @@ void Assembler::emit_assign_deref(const TACInstruction &instruction)
 	std::string mov = select_mov_instr(instruction.type);
 	std::string reg = select_reg_name("%r10", instruction.type);
 
-	// // Load the source value into a register
+	// Load the source value into a register
 	emit_load(instruction.result, "%r10", instruction.type);
 
-	// // Now dereference it and store the value
-	fprintf(file, "\t%s\t%s, (%%rax)\n", mov.c_str(), reg.c_str());
+	// Now dereference it and store the value
+	if (instruction.arg2 != "")
+	{
+		int offset = std::stoi(instruction.arg2);
+		fprintf(file, "\t%s\t%s, %d(%%rax)\n", mov.c_str(), reg.c_str(), offset);
+	}
+	else
+	{
+		fprintf(file, "\t%s\t%s, (%%rax)\n", mov.c_str(), reg.c_str());
+	}
 
 	fprintf(file, "\n");
 }

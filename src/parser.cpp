@@ -76,6 +76,12 @@ void Parser::expect_and_advance(const std::vector<TokenType> &tokens)
     advance();
 }
 
+void Parser::advance_and_expect(const TokenType &token_type)
+{
+    advance();
+    expect(token_type);
+}
+
 std::shared_ptr<ProgramNode> Parser::parse()
 {
     std::shared_ptr<ProgramNode> program = std::make_shared<ProgramNode>();
@@ -381,9 +387,7 @@ std::unique_ptr<ASTNode> Parser::parse_loop_control()
 {
     TokenType token_type = current_token.type;
 
-    advance();
-
-    expect(TOKEN_SEMICOLON);
+    advance_and_expect(TOKEN_SEMICOLON);
 
     return std::make_unique<LoopControl>(token_type, "", SourceLocation{current_token.line, current_token.index});
 }
@@ -538,13 +542,13 @@ std::unique_ptr<VarAssignNode> Parser::parse_var_assign()
 {
     if (match(TOKEN_STAR))
     {
-        advance();
-        expect(TOKEN_IDENTIFIER);
+        advance_and_expect(TOKEN_IDENTIFIER);
+
         std::unique_ptr<VarNode> var = std::make_unique<VarNode>(current_token.text, SourceLocation{current_token.line, current_token.index});
         std::unique_ptr<UnaryNode> deref = std::make_unique<UnaryNode>(get_unary_op_type(TOKEN_STAR), std::move(var), SourceLocation{current_token.line, current_token.index});
 
-        advance();
-        expect(TOKEN_ASSIGN);
+        advance_and_expect(TOKEN_ASSIGN);
+
         advance();
 
         std::unique_ptr<ASTNode> expr = parse_expr();
@@ -894,13 +898,7 @@ std::unique_ptr<ASTNode> Parser::parse_import()
 
     std::string module_name = current_token.text;
 
-    advance();
-    expect(TOKEN_SEMICOLON);
-
-    for (const auto &inc : includes)
-    {
-        std::cout << inc << std::endl;
-    }
+    advance_and_expect(TOKEN_SEMICOLON);
 
     return std::make_unique<IncludeNode>(module_name, includes, SourceLocation{current_token.line, current_token.index});
 }

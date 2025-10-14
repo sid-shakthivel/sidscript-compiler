@@ -32,6 +32,9 @@ private:
     void expect(const TokenType &token_type);
     void expect_and_advance(const TokenType &token_type);
     void expect_and_advance(const std::vector<TokenType> &tokens);
+
+    void advance_and_expect(const TokenType &token_type);
+
     void expect(const std::vector<TokenType> &tokens);
     void error(const std::string &message);
 

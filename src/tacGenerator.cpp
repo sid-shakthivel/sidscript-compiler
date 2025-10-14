@@ -293,7 +293,10 @@ void TacGenerator::generate_tac_var_assign(ASTNode *element)
 
         auto [struct_base, final_offset] = compute_struct_access_offset(postfix);
 
-        instructions.emplace_back(TACOp::ASSIGN, struct_base, final_offset, result, sem_analyser->infer_type(var_assign->value.get()));
+        if (postfix->op == TokenType::TOKEN_DOT)
+            instructions.emplace_back(TACOp::ASSIGN, struct_base, final_offset, result, sem_analyser->infer_type(var_assign->value.get()));
+        else if (postfix->op == TokenType::TOKEN_ARROW)
+            instructions.emplace_back(TACOp::ASSIGN_DEREF, struct_base, final_offset, result, postfix->type);
     }
     else if (var_assign->var->node_type == NodeType::NODE_UNARY)
     {
@@ -304,8 +307,6 @@ void TacGenerator::generate_tac_var_assign(ASTNode *element)
 
         std::string var = generate_tac_expr(unary->value.get());
         std::string result = generate_tac_expr(var_assign->value.get());
-
-        // std::cout << "assigning to deref " << var << " value " << result << "\n";
 
         instructions.emplace_back(TACOp::ASSIGN_DEREF, var, "", result, unary->type);
     }
@@ -852,15 +853,7 @@ std::tuple<std::string, std::string> TacGenerator::compute_struct_access_offset(
     std::string final_field_offset;
 
     // Handle pointer dereference if required
-    if (postfix->op == TokenType::TOKEN_ARROW)
-    {
-        std::string deref = gen_new_temp_var();
-        gst->declare_temp_var(deref, postfix->type.get_base_type());
-        instructions.emplace_back(TACOp::DEREF, postfix->struct_name, "", deref, postfix->type);
-        struct_base = deref;
-    }
-    else
-        struct_base = postfix->struct_name;
+    struct_base = postfix->struct_name;
 
     Symbol *struct_symbol = gst->get_symbol(postfix->struct_name);
     int field_offset = struct_symbol->type.get_field_offset(postfix->field_name);
@@ -924,6 +917,9 @@ std::tuple<std::string, std::string> TacGenerator::compute_struct_access_offset(
 
     if (is_number)
     {
+        if (postfix->op == TOKEN_ARROW)
+            return {struct_base, final_field_offset};
+
         final_field_offset = std::to_string(std::stoi(final_field_offset) + struct_symbol->stack_offset);
         return {struct_base, final_field_offset};
     }
