@@ -203,6 +203,12 @@ void Assembler::emit_store(const std::string &operand, const char *reg, Type typ
 		*/
 		if (arg2.empty())
 		{
+			if (type.get_base_type() == BaseType::CHAR)
+			{
+				fprintf(file, "\tmovq\t_%s(%%rip), %s\n", operand.c_str(), reg);
+				return;
+			}
+
 			fprintf(file, "\tleaq\t%d(%%rbp), %s\n", sym->stack_offset, reg_name.c_str());
 		}
 		else
@@ -227,15 +233,9 @@ void Assembler::emit_store(const std::string &operand, const char *reg, Type typ
 		if (!field_sym)
 		{
 			if (sym->is_global)
-			{
 				fprintf(file, "\tmovl\t%s, _%s+%d(%%rip)\n", reg_name.c_str(), operand.c_str(), std::stoi(arg2));
-			}
 			else
-			{
 				fprintf(file, "\tmovl\t%s, %d(%%rbp)\n", reg_name.c_str(), std::stoi(arg2));
-			}
-
-			// fprintf(file, "\tmovl\t%s, %d(%%rbp)\n", reg_name.c_str(), std::stoi(arg2));
 		}
 		else
 		{
@@ -295,7 +295,7 @@ void Assembler::emit_func_begin(const TACInstruction &instruction)
 void Assembler::emit_func_end(const TACInstruction &instruction)
 {
 	std::string current_func = gst->get_current_func();
-	fprintf(file, ".L%s_end: # %s", current_func.c_str(), TacGenerator::gen_tac_str(instruction).c_str());
+	fprintf(file, ".L%s_end: # %s\n", current_func.c_str(), TacGenerator::gen_tac_str(instruction).c_str());
 	int stack_space = gst->get_func_st(current_func)->get_stack_size();
 	fprintf(file, "\taddq\t$%d, %%rsp\n", stack_space);
 	fprintf(file, "\tpopq\t%%rbp\n");
@@ -371,11 +371,32 @@ void Assembler::emit_literal8_assign(const TACInstruction &instruction)
 
 void Assembler::emit_str_assign(const TACInstruction &instruction)
 {
+	// Escape special symbols in the string when writing to assembly
+	auto escape_basic = [](const std::string &s)
+	{
+		std::string out;
+		out.reserve(s.size());
+		for (char c : s)
+		{
+			if (c == '\\')
+				out += "\\\\";
+			else if (c == '\"')
+				out += "\\\"";
+			else if (c == '\n')
+				out += "\\n";
+			else if (c == '\t')
+				out += "\\t";
+			else
+				out += c;
+		}
+		return out;
+	};
+
 	if (!instruction.type.has_base_type(BaseType::CHAR))
 		return;
 
 	fprintf(file, "_%s:\n", instruction.arg1.c_str());
-	fprintf(file, "\t.asciz \"%s\"\n\n", instruction.result.c_str());
+	fprintf(file, "\t.asciz \"%s\"\n\n", escape_basic(instruction.result).c_str());
 }
 
 void Assembler::emit_return(const TACInstruction &instruction)

@@ -439,8 +439,18 @@ void SemanticAnalyser::analyse_func_call(ASTNode *node)
     FuncCallNode *fc_node = (FuncCallNode *)node;
     FuncSymbol *func = gst->get_func_symbol(fc_node->name);
 
+    /*
+        Print is a special function that can take variable number of arguments
+        So for now:
+        -   Analyse all arguments but skip further checks
+    */
     if (fc_node->name == "printf")
+    {
+        for (int i = 0; i < fc_node->args.size(); i++)
+            infer_type(fc_node->args[i].get());
+
         return;
+    }
 
     if (func == nullptr)
         error("Function '" + fc_node->name + "' not defined", fc_node->loc);
@@ -710,6 +720,11 @@ Type SemanticAnalyser::infer_type(ASTNode *node, std::optional<std::string> fiel
             bin_node->type = left;
             return left;
         }
+
+        if (left.is_null() && right.is_pointer())
+            return right;
+        else if (right.is_null() && left.is_pointer())
+            return left;
 
         if (left.can_convert_to(right))
         {

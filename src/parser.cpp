@@ -405,6 +405,9 @@ std::unique_ptr<VarNode> Parser::parse_var_declarator(const std::optional<std::v
     {
         advance();
 
+        /*
+            Check for empty array declaration ie int arr[]; which is allowed for function parameters
+        */
         if (match(TOKEN_RSBRACE))
         {
             var_type.add_array_dimension(-1);

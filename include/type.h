@@ -42,6 +42,7 @@ public:
     bool is_array() const;
     bool is_struct() const;
     bool is_void() const;
+    bool is_null() const;
     BaseType get_base_type() const;
     bool has_base_type(const BaseType &other) const;
     int get_ptr_depth() const;

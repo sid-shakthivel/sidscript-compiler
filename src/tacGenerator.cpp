@@ -207,13 +207,15 @@ void TacGenerator::generate_tac_var_decl(ASTNode *element)
     VarDeclNode *var_decl = (VarDeclNode *)element;
     Symbol *var_symbol = gst->get_symbol(var_decl->var->name);
 
-    if (var_decl->var->type.is_array() && var_decl->value != nullptr)
+    /*
+        Handle array assignment (i.e. int arr[3] = {1, 2, 3}; )
+        Note: char arrays (i.e. strings) are handled differently
+    */
+    if (var_decl->var->type.is_array() && var_decl->value != nullptr && var_decl->var->type.get_base_type() != BaseType::CHAR)
         return generate_tac_var_array_assign(var_decl->var.get(), var_symbol, var_decl->value.get());
 
     std::string result = generate_tac_expr(var_decl->value.get());
     TACInstruction instruction(TACOp::ASSIGN, var_decl->var->name, "", result, var_symbol->type);
-
-    // std::cout << "ok here for " << var_decl->var->name << "\n";
 
     // Check if some sort of global/static
     if (var_symbol->linkage != Linkage::None || var_symbol->storage_duration == StorageDuration::Static)
@@ -406,15 +408,26 @@ void TacGenerator::generate_tac_for(ASTNode *element)
 
     generate_tac_cmp(for_stmt->condition.get(), label_body, label_end);
 
+    /*
+        Previous TAC will jump to "while block" if condition is true
+        If condition is false, jump to end of while
+    */
+    instructions.emplace_back(TACOp::GOTO, "", "", label_end);
+
     // For block
+    instructions.emplace_back(TACOp::LABEL, label_body);
+
     for (auto &element : for_stmt->elements)
         generate_tac(element.get());
 
+    // Generate post-expression (i.e. increment/decrement)
     instructions.emplace_back(TACOp::LABEL, label_post);
     generate_tac(for_stmt->post.get());
 
+    // Go back to start of for loop (to check condition)
     instructions.emplace_back(TACOp::GOTO, "", "", label_start);
 
+    instructions.emplace_back(TACOp::NOP);
     instructions.emplace_back(TACOp::LABEL, label_end);
 }
 
@@ -711,8 +724,6 @@ std::string TacGenerator::generate_tac_expr_postfix(ASTNode *expr)
 
     if (postfix->op == TokenType::TOKEN_DOT || postfix->op == TokenType::TOKEN_ARROW)
     {
-        std::cout << "are we here?\n";
-
         std::string temp = gen_new_temp_var();
         gst->declare_temp_var(temp, postfix->type);
 
@@ -739,6 +750,7 @@ std::string TacGenerator::generate_tac_expr_array_access(ASTNode *expr)
     std::string base = generate_tac_expr(array_access->array.get());
     std::string index = generate_tac_expr(array_access->index.get());
     std::string temp = gen_new_temp_var();
+
     gst->declare_temp_var(temp, array_access->type.get_base_type());
     instructions.emplace_back(TACOp::ASSIGN, temp, index, base, array_access->type.get_base_type());
     return temp;
@@ -942,6 +954,8 @@ void TacGenerator::print_all_tac()
 {
     for (auto &instr : instructions)
         std::cout << gen_tac_str(instr) << std::endl;
+
+    std::cout << std::endl;
 }
 
 std::string TacGenerator::gen_tac_str(const TACInstruction &instr)
@@ -989,7 +1003,7 @@ std::string TacGenerator::gen_tac_str(const TACInstruction &instr)
         case TACOp::FUNC_BEGIN:
             return "FUNC_BEGIN";
         case TACOp::FUNC_END:
-            return "FUNC_END\n";
+            return "FUNC_END";
         case TACOp::ALLOC_STACK:
             return "ALLOC_STACK";
         case TACOp::DEALLOC_STACK:
@@ -1046,8 +1060,7 @@ std::string TacGenerator::gen_tac_str(const TACInstruction &instr)
     if (!instr.result.empty())
         str += " -> " + instr.result;
 
-    if (!instr.type.has_base_type(BaseType::VOID))
-        str += " (" + instr.type.to_string() + ")";
+    str += " (" + instr.type.to_string() + ")";
 
     return str;
 }
