@@ -74,10 +74,21 @@ size_t Type::get_size() const
     return base_size;
 }
 
+void Type::set_array_length(int size)
+{
+    if (array_sizes.empty())
+        throw std::runtime_error("Type Error: Attempting to set array length on non-array type");
+    array_sizes[0] = size;
+}
+
 size_t Type::get_array_length() const
 {
     if (!is_array())
         return 0;
+
+    if (!array_sizes.empty())
+        if (array_sizes[0] != -1)
+            return array_sizes[0];
 
     size_t total_size = 1;
 

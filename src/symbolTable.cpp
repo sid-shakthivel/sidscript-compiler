@@ -109,6 +109,7 @@ void SymbolTable::declare_const_var(const std::string &name, const Type &type)
 void SymbolTable::declare_str_var(const std::string &name, const Type &type)
 {
     var_symbols[name] = std::make_shared<Symbol>(name, 0, type, std::vector<Specifier>{});
+    var_symbols[name]->set_storage_duration(StorageDuration::Static);
 }
 
 void SymbolTable::print()

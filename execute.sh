@@ -4,7 +4,7 @@ cd build || exit
 
 make || { echo "Build failed."; exit 1; }
 
-./ssc ../tests/test.ss 
+./ssc ../test.ss 
 
 arch -x86_64 gcc test.s -o test || { echo "Assembly compilation failed."; exit 1; }
 

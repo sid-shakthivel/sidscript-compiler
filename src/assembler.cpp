@@ -105,7 +105,7 @@ void Assembler::emit_load(const std::string &operand, const char *reg, Type type
 	// Case: src is a char pointer (e.g., char *str = "Hello")
 	if (sym->type.has_base_type(BaseType::CHAR) && (sym->type.is_pointer() || sym->type.is_array()))
 	{
-		fprintf(file, "\tleaq\t_%s(%%rip), %s\n", operand.c_str(), reg);
+		fprintf(file, "\tleaq\t%s, %s\n", format_mem_operand(operand).c_str(), reg);
 		return;
 	}
 
@@ -126,13 +126,9 @@ void Assembler::emit_load(const std::string &operand, const char *reg, Type type
 		if (!field_sym)
 		{
 			if (sym->is_global)
-			{
 				fprintf(file, "\tmovl\t_%s+%d(%%rip), %s\n", operand.c_str(), std::stoi(arg2), reg_name.c_str());
-			}
 			else
-			{
 				fprintf(file, "\tmovl\t%d(%%rbp), %s\n", std::stoi(arg2), reg_name.c_str());
-			}
 		}
 		else
 		{

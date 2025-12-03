@@ -220,7 +220,27 @@ StringLiteral::StringLiteral(const std::string &v, Type t, SourceLocation loc) :
 
 void StringLiteral::print(int tabs)
 {
-    std::cout << std::string(tabs, ' ') << "String: " << value << std::endl;
+    auto escape_basic = [](const std::string &s)
+    {
+        std::string out;
+        out.reserve(s.size());
+        for (char c : s)
+        {
+            if (c == '\\')
+                out += "\\\\";
+            else if (c == '\"')
+                out += "\\\"";
+            else if (c == '\n')
+                out += "\\n";
+            else if (c == '\t')
+                out += "\\t";
+            else
+                out += c;
+        }
+        return out;
+    };
+
+    std::cout << std::string(tabs, ' ') << "String: " << escape_basic(value) << std::endl;
 }
 
 BoolLiteral::BoolLiteral(bool v, SourceLocation loc) : ASTNode(NodeType::NODE_BOOL, loc), value(v) {}

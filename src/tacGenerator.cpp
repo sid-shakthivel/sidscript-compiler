@@ -211,7 +211,7 @@ void TacGenerator::generate_tac_var_decl(ASTNode *element)
         Handle array assignment (i.e. int arr[3] = {1, 2, 3}; )
         Note: char arrays (i.e. strings) are handled differently
     */
-    if (var_decl->var->type.is_array() && var_decl->value != nullptr && var_decl->var->type.get_base_type() != BaseType::CHAR)
+    if (var_decl->var->type.is_array() && var_decl->value != nullptr)
         return generate_tac_var_array_assign(var_decl->var.get(), var_symbol, var_decl->value.get());
 
     std::string result = generate_tac_expr(var_decl->value.get());
@@ -479,6 +479,22 @@ void TacGenerator::generate_tac_var_array_assign(VarNode *var_node, Symbol *var_
 
     if (base_type == BaseType::CHAR)
     {
+        if (array_size == -1)
+        {
+            /*
+                Special case: char str[] = "Hello";
+                Here, we need to set the array size based on the string length
+            */
+            StringLiteral *str = dynamic_cast<StringLiteral *>(value);
+            // array_size = str->value.length() + 1; // +1 for null termin
+
+            // for (size_t i = 0; i < str->value.length(); i++)
+            //     elements.emplace_back(std::to_string(static_cast<int>(str->value[i])));
+
+            // var_symbol->type.set_array_length(array_size);
+            // var_node->type.set_array_length(array_size);
+        }
+
         StringLiteral *str = dynamic_cast<StringLiteral *>(value);
         for (size_t i = 0; i < array_size; i++)
             elements.emplace_back(std::to_string(static_cast<int>(str->value[i])));
@@ -491,12 +507,17 @@ void TacGenerator::generate_tac_var_array_assign(VarNode *var_node, Symbol *var_
     }
 
     // Assign provided values
-    for (size_t i = 0; i < elements.size() && i < (size_t)array_size; i++)
+    size_t i = 0;
+    for (; i < elements.size() && i < (size_t)array_size; i++)
         instructions.emplace_back(TACOp::ASSIGN, var_node->name, std::to_string(i), elements[i], Type(base_type));
 
+    // Add a null terminator for char arrays
+    if (var_symbol->type.is_array() && base_type == BaseType::CHAR)
+        instructions.emplace_back(TACOp::ASSIGN, var_node->name, std::to_string(i + 1), std::string("0"), Type(base_type));
+
     // Fill remaining space (if any) with zeros
-    for (size_t i = elements.size(); i < (size_t)array_size; i++)
-        instructions.emplace_back(TACOp::ASSIGN, var_node->name, std::to_string(i), "0", Type(base_type));
+    for (size_t j = elements.size(); j < (size_t)array_size; j++)
+        instructions.emplace_back(TACOp::ASSIGN, var_node->name, std::to_string(j), "0", Type(base_type));
 }
 
 void TacGenerator::generate_tac_cmp(ASTNode *condition, const std::string &label_success,

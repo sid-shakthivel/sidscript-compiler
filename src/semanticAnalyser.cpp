@@ -120,9 +120,17 @@ void SemanticAnalyser::analyse_var_decl(ASTNode *node)
 
             StringLiteral *string_literal = dynamic_cast<StringLiteral *>(var_decl_node->value.get());
 
-            // +1 due to null terminator
-            if (string_literal->value.size() + 1 > var_type.get_size())
-                error("Too many characters in string initialisation of " + var_decl_node->var->name, var_decl_node->loc);
+            if (var_type.get_array_length() == -1)
+            {
+                var_type.set_array_length(string_literal->value.size());
+                var_decl_node->var->type.set_array_length(string_literal->value.size());
+            }
+            else
+            {
+                // +1 due to null terminator
+                if (string_literal->value.size() + 1 > var_type.get_size())
+                    error("Too many characters in string initialisation of " + var_decl_node->var->name, var_decl_node->loc);
+            }
         }
         else if ((var_type.is_array() || var_type.is_struct()) && !var_type.is_pointer())
             if (var_decl_node->value->node_type != NodeType::NODE_AGGREGATE_INIT)

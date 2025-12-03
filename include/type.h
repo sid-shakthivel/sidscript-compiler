@@ -48,6 +48,7 @@ public:
     int get_ptr_depth() const;
 
     void set_ptr_depth(int ptr_depth);
+    void set_array_length(int size);
 
     bool is_signed() const;
 
