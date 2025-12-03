@@ -2,21 +2,11 @@
 
 cd build || exit
 
-make
-
-if [ $? -ne 0 ]; then
-    echo "Build failed."
-    exit 1
-fi
+make || { echo "Build failed."; exit 1; }
 
 ./ssc ../tests/test.ss 
 
-arch -x86_64 gcc test.s -o test
-
-if [ $? -ne 0 ]; then
-    echo "Assembly compilation failed."
-    exit 1
-fi
+arch -x86_64 gcc test.s -o test || { echo "Assembly compilation failed."; exit 1; }
 
 arch -x86_64 ./test
 
