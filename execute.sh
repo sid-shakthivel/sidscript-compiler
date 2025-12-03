@@ -2,7 +2,7 @@
 
 cd build || exit
 
-make || { echo "Build failed."; exit 1; }
+make DEBUG=1 || { echo "Build failed."; exit 1; }
 
 ./ssc ../test.ss 
 

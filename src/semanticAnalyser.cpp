@@ -120,10 +120,14 @@ void SemanticAnalyser::analyse_var_decl(ASTNode *node)
 
             StringLiteral *string_literal = dynamic_cast<StringLiteral *>(var_decl_node->value.get());
 
+            /*
+                If the array size is not specified, we set it to the size of the string literal + 1 (for null terminator)
+                If it is specified, we check that the size of the string literal + 1 is less than or equal to the specified size
+            */
             if (var_type.get_array_length() == -1)
             {
-                var_type.set_array_length(string_literal->value.size());
-                var_decl_node->var->type.set_array_length(string_literal->value.size());
+                var_type.set_array_length(string_literal->value.size() + 1);
+                var_decl_node->var->type.set_array_length(string_literal->value.size() + 1);
             }
             else
             {
@@ -455,7 +459,10 @@ void SemanticAnalyser::analyse_func_call(ASTNode *node)
     if (fc_node->name == "printf")
     {
         for (int i = 0; i < fc_node->args.size(); i++)
+        {
+            analyse_node(fc_node->args[i].get());
             infer_type(fc_node->args[i].get());
+        }
 
         return;
     }
@@ -587,6 +594,10 @@ void SemanticAnalyser::validate_type_assignment(const Type &target_type, std::un
     if (target_type.is_array() && target_type.get_array_length() == -1 && source_type.is_array())
         return;
 
+    if (target_type.is_array() && source_type.is_array())
+        if (target_type.get_base_type() == source_type.get_base_type() && target_type.get_array_length() == source_type.get_array_length() + 1)
+            return;
+
     // Try literal-only, exact rewrite
     if (target_type.can_assign_from(source_type) && try_promote_literal(source_expr, target_type))
         return;
@@ -633,6 +644,22 @@ void SemanticAnalyser::error(const std::string &message, const SourceLocation &l
 
 Type SemanticAnalyser::infer_type(ASTNode *node, std::optional<std::string> field_name)
 {
+    /*
+        Return the cached type based on node type
+        Come up with a better way to do this later
+    */
+    if (node->analysed)
+    {
+
+        switch (node->node_type)
+        {
+        case NodeType::NODE_BINARY:
+            return ((BinaryNode *)node)->type;
+        default:
+            break;
+        }
+    }
+
     switch (node->node_type)
     {
     case NodeType::NODE_NUMBER:
@@ -692,12 +719,18 @@ Type SemanticAnalyser::infer_type(ASTNode *node, std::optional<std::string> fiel
         Type left = infer_type(bin_node->left.get());
         Type right = infer_type(bin_node->right.get());
 
-        // Handle pointer artithmetic
+        /*
+            Handle pointer artithmetic
+            -   This requires scaling the integral value by the size of the base type
+            -   e.g. ptr + 1  -> ptr + (1 * sizeof(base_type))
+
+            Note only supports integral + pointer or pointer + integral
+        */
         if (bin_node->op == BinOpType::ADD || bin_node->op == BinOpType::SUB)
         {
             if (left.is_pointer() && right.is_integral())
             {
-                auto scale_node = std::make_unique<BinaryNode>(
+                std::unique_ptr<BinaryNode> scale_node = std::make_unique<BinaryNode>(
                     BinOpType::MUL,
                     std::move(bin_node->right),
                     std::make_unique<IntegerLiteral>(Type(left.get_base_type()).get_size(), bin_node->loc),
@@ -706,6 +739,8 @@ Type SemanticAnalyser::infer_type(ASTNode *node, std::optional<std::string> fiel
                 scale_node->type = left;
                 bin_node->right = std::move(scale_node);
                 bin_node->type = left;
+                bin_node->analysed = true;
+
                 return left;
             }
             else if (right.is_pointer() && left.is_integral())
@@ -719,6 +754,8 @@ Type SemanticAnalyser::infer_type(ASTNode *node, std::optional<std::string> fiel
                 scale_node->type = left;
                 bin_node->left = std::move(scale_node);
                 bin_node->type = right;
+                bin_node->analysed = true;
+
                 return right;
             }
         }

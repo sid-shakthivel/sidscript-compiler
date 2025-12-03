@@ -154,6 +154,7 @@ class ASTNode
 public:
     NodeType node_type;
     SourceLocation loc;
+    bool analysed = false;
 
     ASTNode(NodeType t, SourceLocation l = {}) : node_type(t), loc(l) {}
     virtual void print(int tabs) {};

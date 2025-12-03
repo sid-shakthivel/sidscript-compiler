@@ -1,2 +1,5 @@
 Third number: 3
+String: Hello
+First number via pointer: 1
+Second number via pointer: 2
 Return value: 0

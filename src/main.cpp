@@ -25,7 +25,7 @@ int main(int argc, char *argv[])
         module.compile();
     }
 
-    gst->print();
+    // gst->print();
     gst->check_imports();
 
     return 0;

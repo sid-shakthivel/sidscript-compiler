@@ -479,22 +479,6 @@ void TacGenerator::generate_tac_var_array_assign(VarNode *var_node, Symbol *var_
 
     if (base_type == BaseType::CHAR)
     {
-        if (array_size == -1)
-        {
-            /*
-                Special case: char str[] = "Hello";
-                Here, we need to set the array size based on the string length
-            */
-            StringLiteral *str = dynamic_cast<StringLiteral *>(value);
-            // array_size = str->value.length() + 1; // +1 for null termin
-
-            // for (size_t i = 0; i < str->value.length(); i++)
-            //     elements.emplace_back(std::to_string(static_cast<int>(str->value[i])));
-
-            // var_symbol->type.set_array_length(array_size);
-            // var_node->type.set_array_length(array_size);
-        }
-
         StringLiteral *str = dynamic_cast<StringLiteral *>(value);
         for (size_t i = 0; i < array_size; i++)
             elements.emplace_back(std::to_string(static_cast<int>(str->value[i])));

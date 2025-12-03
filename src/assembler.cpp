@@ -421,11 +421,22 @@ void Assembler::emit_bin_op(const TACInstruction &instruction, const std::string
 
 	std::string instr = format_typed_instr(op, instruction.type);
 
-	// Have to use xmm0 explicitely
-	if (instruction.type.has_base_type(BaseType::DOUBLE))
-		fprintf(file, "\t%s\t%s, %%xmm0\n", op.c_str(), reg.c_str());
+	if (instr == "mulq")
+	{
+		/*
+			So mulq doesn't allow an immediate value and a register to be multiplied together
+			Hence we need to use imulq instead
+		*/
+		fprintf(file, "\timulq\t%s, %s, %s\n", format_mem_operand(instruction.arg2).c_str(), reg.c_str(), reg.c_str());
+	}
 	else
-		fprintf(file, "\t%s\t%s, %s\n", instr.c_str(), format_mem_operand(instruction.arg2).c_str(), reg.c_str());
+	{
+		// Have to use xmm0 explicitely
+		if (instruction.type.has_base_type(BaseType::DOUBLE))
+			fprintf(file, "\t%s\t%s, %%xmm0\n", op.c_str(), reg.c_str());
+		else
+			fprintf(file, "\t%s\t%s, %s\n", instr.c_str(), format_mem_operand(instruction.arg2).c_str(), reg.c_str());
+	}
 
 	emit_store(instruction.result, "%r10", instruction.type);
 

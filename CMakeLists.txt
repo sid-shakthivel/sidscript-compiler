@@ -22,3 +22,4 @@ set(SOURCES
 
 add_executable(ssc ${SOURCES})
 
+target_compile_definitions(ssc PRIVATE $<$<BOOL:$ENV{DEBUG}>:DEBUG>)
