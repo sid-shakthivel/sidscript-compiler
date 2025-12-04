@@ -1,15 +1,13 @@
-fn main() -> int {
-    int numbers[5] = {1, 2, 3, 4, 5};
-    char str[] = "Hello";
-
-    printf("Third number: %d\n", numbers[2]);
-    printf("String: %s\n", str);
-
-    int *ptr = numbers;
-    printf("First number via pointer: %d\n", *ptr);
-
-    ptr = ptr + 1;
-    printf("Second number via pointer: %d\n", *ptr);
+fn printArray(int arr[], int size) -> void {
+    printf("%d ", arr[1]);
     
+    printf("\n");
+}
+
+fn main() -> int {    
+    int arr[] = {1, 2, 3, 4, 5};
+
+    printArray(arr, 5);
+
     return 0;
 }

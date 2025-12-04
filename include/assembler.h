@@ -72,7 +72,9 @@ private:
     void emit_addr_of(const TACInstruction &instruction);
     void emit_struct_init(const TACInstruction &instruction);
     void emit_not(const TACInstruction &instruction);
-    void emit_assign_deref(const TACInstruction &instruction);
+	void emit_assign_deref(const TACInstruction &instruction);
+	void emit_push(const TACInstruction &instruction);
+	void emit_pop(const TACInstruction &instruction);
 
     void emit_logical_op(const TACInstruction &instruction, const std::string &op);
     void emit_logical_and(const TACInstruction &instruction);

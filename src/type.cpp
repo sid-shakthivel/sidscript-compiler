@@ -353,3 +353,10 @@ std::string Type::get_field_name(int index) const
 
     return struct_fields[index].first;
 }
+
+Type Type::make_pointer(const Type &base)
+{
+    Type ptr_type = base;
+    ptr_type.ptr_level++;
+    return ptr_type;
+}

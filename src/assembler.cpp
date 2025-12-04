@@ -1,26 +1,31 @@
-#include <cstdio>
-#include <cerrno>
-#include <iostream>
-#include <functional>
-#include <unordered_map>
-#include <string>
-#include <sstream>
-#include <cstring>
-#include <iomanip>
-
 #include "../include/assembler.h"
+
+#include <cerrno>
+#include <cstdio>
+#include <cstring>
+#include <functional>
+#include <iomanip>
+#include <iostream>
+#include <sstream>
+#include <string>
+#include <unordered_map>
+
 #include "../include/parser.h"
 #include "../include/tacGenerator.h"
 
-#define REGISTER_HANDLER(op, fn) handlers[TACOp::op] = [this](TACInstruction instr) { fn(instr); }
+#define REGISTER_HANDLER(op, fn) \
+	handlers[TACOp::op] = [this](TACInstruction instr) { fn(instr); }
 
-Assembler::Assembler(std::shared_ptr<GlobalSymbolTable> &gst, const std::string &filename) : gst(gst)
+Assembler::Assembler(std::shared_ptr<GlobalSymbolTable> &gst,
+					 const std::string &filename)
+	: gst(gst)
 {
 	file = fopen(filename.c_str(), "w");
 	if (file == NULL)
 	{
 		char errorMessage[256];
-		snprintf(errorMessage, sizeof(errorMessage), "Error opening file %s", filename.c_str());
+		snprintf(errorMessage, sizeof(errorMessage), "Error opening file %s",
+				 filename.c_str());
 		perror(errorMessage);
 		return;
 	}
@@ -29,29 +34,40 @@ Assembler::Assembler(std::shared_ptr<GlobalSymbolTable> &gst, const std::string 
 	REGISTER_HANDLER(FUNC_END, emit_func_end);
 	REGISTER_HANDLER(ASSIGN, emit_assign);
 	REGISTER_HANDLER(RETURN, emit_return);
-	REGISTER_HANDLER(ADD, [&](TACInstruction instr)
+	REGISTER_HANDLER(ADD,
+					 [&](TACInstruction instr)
 					 { emit_bin_op(instr, "add"); });
-	REGISTER_HANDLER(SUB, [&](TACInstruction instr)
+	REGISTER_HANDLER(SUB,
+					 [&](TACInstruction instr)
 					 { emit_bin_op(instr, "sub"); });
-	REGISTER_HANDLER(MUL, [&](TACInstruction instr)
+	REGISTER_HANDLER(MUL,
+					 [&](TACInstruction instr)
 					 { emit_bin_op(instr, "imul"); });
 	REGISTER_HANDLER(DIV, emit_div);
 	REGISTER_HANDLER(MOD, emit_mod);
-	REGISTER_HANDLER(COMPLEMENT, [&](TACInstruction instr)
+	REGISTER_HANDLER(COMPLEMENT,
+					 [&](TACInstruction instr)
 					 { emit_unary_op(instr, "not"); });
-	REGISTER_HANDLER(NEGATE, [&](TACInstruction instr)
+	REGISTER_HANDLER(NEGATE,
+					 [&](TACInstruction instr)
 					 { emit_unary_op(instr, "neg"); });
-	REGISTER_HANDLER(LT, [&](TACInstruction instr)
+	REGISTER_HANDLER(LT,
+					 [&](TACInstruction instr)
 					 { emit_cmp_op(instr, "setl"); });
-	REGISTER_HANDLER(LTE, [&](TACInstruction instr)
+	REGISTER_HANDLER(LTE,
+					 [&](TACInstruction instr)
 					 { emit_cmp_op(instr, "setle"); });
-	REGISTER_HANDLER(GT, [&](TACInstruction instr)
+	REGISTER_HANDLER(GT,
+					 [&](TACInstruction instr)
 					 { emit_cmp_op(instr, "setg"); });
-	REGISTER_HANDLER(GTE, [&](TACInstruction instr)
+	REGISTER_HANDLER(GTE,
+					 [&](TACInstruction instr)
 					 { emit_cmp_op(instr, "setge"); });
-	REGISTER_HANDLER(EQUAL, [&](TACInstruction instr)
+	REGISTER_HANDLER(EQUAL,
+					 [&](TACInstruction instr)
 					 { emit_cmp_op(instr, "sete"); });
-	REGISTER_HANDLER(NOT_EQUAL, [&](TACInstruction instr)
+	REGISTER_HANDLER(NOT_EQUAL,
+					 [&](TACInstruction instr)
 					 { emit_cmp_op(instr, "sene"); });
 	REGISTER_HANDLER(IF, emit_if);
 	REGISTER_HANDLER(GOTO, emit_goto);
@@ -72,6 +88,8 @@ Assembler::Assembler(std::shared_ptr<GlobalSymbolTable> &gst, const std::string 
 	REGISTER_HANDLER(AND, emit_logical_and);
 	REGISTER_HANDLER(OR, emit_logical_or);
 	REGISTER_HANDLER(ASSIGN_DEREF, emit_assign_deref);
+	REGISTER_HANDLER(PUSH, emit_push);
+	REGISTER_HANDLER(POP, emit_pop);
 }
 
 void Assembler::assemble(const std::vector<TACInstruction> &instructions)
@@ -86,11 +104,13 @@ void Assembler::assemble(const std::vector<TACInstruction> &instructions)
 		if (handler != handlers.end())
 			handler->second(instruction);
 		else
-			fprintf(file, "# Unknown TAC operation: %d\n", static_cast<int>(instruction.op));
+			fprintf(file, "# Unknown TAC operation: %d\n",
+					static_cast<int>(instruction.op));
 	}
 }
 
-void Assembler::emit_load(const std::string &operand, const char *reg, Type type, const std::string &arg2)
+void Assembler::emit_load(const std::string &operand, const char *reg,
+						  Type type, const std::string &arg2)
 {
 	Symbol *sym = gst->get_symbol(operand);
 	std::string mov = select_mov_instr(type);
@@ -98,12 +118,14 @@ void Assembler::emit_load(const std::string &operand, const char *reg, Type type
 
 	if (!sym)
 	{
-		fprintf(file, "\t%s\t%s, %s\n", mov.c_str(), format_mem_operand(operand).c_str(), reg_name.c_str());
+		fprintf(file, "\t%s\t%s, %s\n", mov.c_str(),
+				format_mem_operand(operand).c_str(), reg_name.c_str());
 		return;
 	}
 
 	// Case: src is a char pointer (e.g., char *str = "Hello")
-	if (sym->type.has_base_type(BaseType::CHAR) && (sym->type.is_pointer() || sym->type.is_array()))
+	if (sym->type.has_base_type(BaseType::CHAR) &&
+		(sym->type.is_pointer() || sym->type.is_array()))
 	{
 		fprintf(file, "\tleaq\t%s, %s\n", format_mem_operand(operand).c_str(), reg);
 		return;
@@ -112,13 +134,14 @@ void Assembler::emit_load(const std::string &operand, const char *reg, Type type
 	if (sym->type.is_struct() && !sym->type.is_pointer())
 	{
 		/*
-			The following code is used to load a struct field into a register
-			arg2 could either be:
-			- A number (stack offset)
-			- A variable (which contains the value of the appopriate stack offset)
+				The following code is used to load a struct field into a register
+				arg2 could either be:
+				- A number (stack offset)
+				- A variable (which contains the value of the appopriate stack
+		   offset)
 
-			Note that since variables will be within the symbol table, if there isn't a variable
-			it must be a number
+				Note that since variables will be within the symbol table, if there
+		   isn't a variable it must be a number
 		*/
 
 		Symbol *field_sym = gst->get_symbol(arg2);
@@ -126,18 +149,61 @@ void Assembler::emit_load(const std::string &operand, const char *reg, Type type
 		if (!field_sym)
 		{
 			if (sym->is_global)
-				fprintf(file, "\tmovl\t_%s+%d(%%rip), %s\n", operand.c_str(), std::stoi(arg2), reg_name.c_str());
+				fprintf(file, "\tmovl\t_%s+%d(%%rip), %s\n", operand.c_str(),
+						std::stoi(arg2), reg_name.c_str());
 			else
-				fprintf(file, "\tmovl\t%d(%%rbp), %s\n", std::stoi(arg2), reg_name.c_str());
+				fprintf(file, "\tmovl\t%d(%%rbp), %s\n", std::stoi(arg2),
+						reg_name.c_str());
 		}
 		else
 		{
 			/*
-				This moves and sign extends arg2 into the register
-				It then will move the value on the stack at the offset of arg2 into the register
+					This moves and sign extends arg2 into the register
+					It then will move the value on the stack at the offset of arg2
+			   into the register
 			*/
-			fprintf(file, "\tmovslq\t%s, %s\n", format_mem_operand(arg2).c_str(), "%r10");
+			fprintf(file, "\tmovslq\t%s, %s\n", format_mem_operand(arg2).c_str(),
+					"%r10");
 			fprintf(file, "\tmovl\t(%%rbp, %%r10), %s\n", reg_name.c_str());
+		}
+
+		return;
+	}
+
+	if (sym->type.is_pointer())
+	{
+		std::cout << "we here then\n";
+
+		if (arg2.empty())
+		{
+			/*
+					Case: pointer dereference (e.g., int val = *ptr;)
+			*/
+			fprintf(file, "\tmovq\t%d(%%rbp), %%r11\n", sym->stack_offset);
+			fprintf(file, "\t%s\t(%%r11), %s\n", mov.c_str(), reg_name.c_str());
+		}
+		else
+		{
+			/*
+					Case: accessing a specific array element via pointer
+					(e.g., int val = ptr[2];)
+			*/
+
+			std::cout << "it's " << arg2 << "\n";
+
+			Symbol *index_sym = gst->get_symbol(arg2);
+
+			if (!index_sym)
+			{
+				// Constant index
+				int offset = std::stoi(arg2) * type.get_size();
+
+				// Load pointer into %r10
+				fprintf(file, "\tmovq\t%d(%%rbp), %%r10\n", sym->stack_offset);
+
+				// Load from pointer with offset: mov offset(%r10), reg
+				fprintf(file, "\t%s\t%d(%%r10), %s\n", mov.c_str(), offset, reg_name.c_str());
+			}
 		}
 
 		return;
@@ -148,32 +214,71 @@ void Assembler::emit_load(const std::string &operand, const char *reg, Type type
 		if (arg2.empty())
 		{
 			/*
-				Case: array-to-pointer decay (get address of array start)
-				(e.g, int* p = array;)
+					Case: array-to-pointer decay (get address of array start)
+					(e.g, int* p = array;)
 			*/
 			fprintf(file, "\tleaq\t%d(%%rbp), %s\n", sym->stack_offset, reg);
 		}
 		else
 		{
 			/*
-				Case: accessing a specific array element
-				(e.g., int x = array[2];)
+					Case: accessing a specific array element
+					(e.g., int x = array[2];)
 			*/
-			int stack_offset = sym->stack_offset + std::stod(arg2) * type.get_size();
-			fprintf(file, "\t%s\t%d(%%rbp), %s\n", mov.c_str(), stack_offset, reg_name.c_str());
+
+			Symbol *index_sym = gst->get_symbol(arg2);
+
+			if (index_sym)
+			{
+				/*
+					Case: index is a variable
+					This means the following needs to be done:
+					- Load the index value from the stack
+					- Scale it by the size of the array element type
+					- Add to the base address of the array to get the final address
+					- Finally load the value at that address into the register
+				*/
+				std::string temp_reg = select_reg_name("%r11", type);
+
+				int element_size = type.get_size();
+
+				fprintf(file, "\tmovl\t%d(%%rbp), %%r11d\n", index_sym->stack_offset);
+
+				if (element_size > 1)
+				{
+					fprintf(file, "\timull\t$%d, %%r11d, %%r11d\n", element_size);
+				}
+
+				fprintf(file, "\tmovslq\t%%r11d, %%r11\n");
+
+				std::string mov = select_mov_instr(type);
+				std::string reg_name = select_reg_name(reg, type);
+
+				fprintf(file, "\t%s\t%d(%%rbp, %%r11), %s\n", mov.c_str(), sym->stack_offset, reg_name.c_str());
+			}
+			else
+			{
+				// Case: index is a number
+				int stack_offset =
+					sym->stack_offset + std::stod(arg2) * type.get_size();
+				fprintf(file, "\t%s\t%d(%%rbp), %s\n", mov.c_str(), stack_offset,
+						reg_name.c_str());
+			}
 		}
 
 		return;
 	}
 
-	fprintf(file, "\t%s\t%s, %s\n", mov.c_str(), format_mem_operand(operand).c_str(), reg_name.c_str());
+	fprintf(file, "\t%s\t%s, %s\n", mov.c_str(),
+			format_mem_operand(operand).c_str(), reg_name.c_str());
 }
 
 /*
-	The following function is used to store a value from a register to various different memory locations
-	(e.g., a variable, an array element, etc.)
+		The following function is used to store a value from a register to
+   various different memory locations (e.g., a variable, an array element, etc.)
 */
-void Assembler::emit_store(const std::string &operand, const char *reg, Type type, const std::string &arg2)
+void Assembler::emit_store(const std::string &operand, const char *reg,
+						   Type type, const std::string &arg2)
 {
 	Symbol *sym = gst->get_symbol(operand);
 	std::string mov = select_mov_instr(type);
@@ -186,16 +291,16 @@ void Assembler::emit_store(const std::string &operand, const char *reg, Type typ
 	if (sym->type.is_array())
 	{
 		/*
-			Case: array-to-pointer decay (get address of array start)
-			This is used specifically when passing an array to a function i.e.
+				Case: array-to-pointer decay (get address of array start)
+				This is used specifically when passing an array to a function i.e.
 
-			fn test(int hey[]) -> int { return 5; }
-			fn main() -> int
-			{
-				int arr[3];
-				test(arr);
-				return 9;
-			}
+				fn test(int hey[]) -> int { return 5; }
+				fn main() -> int
+				{
+						int arr[3];
+						test(arr);
+						return 9;
+				}
 		*/
 		if (arg2.empty())
 		{
@@ -205,12 +310,14 @@ void Assembler::emit_store(const std::string &operand, const char *reg, Type typ
 				return;
 			}
 
-			fprintf(file, "\tleaq\t%d(%%rbp), %s\n", sym->stack_offset, reg_name.c_str());
+			fprintf(file, "\tleaq\t%d(%%rbp), %s\n", sym->stack_offset,
+					reg_name.c_str());
 		}
 		else
 		{
 			int stack_offset = sym->stack_offset + std::stod(arg2) * type.get_size();
-			fprintf(file, "\t%s\t%s, %d(%%rbp)\n", mov.c_str(), reg_name.c_str(), stack_offset);
+			fprintf(file, "\t%s\t%s, %d(%%rbp)\n", mov.c_str(), reg_name.c_str(),
+					stack_offset);
 		}
 		return;
 	}
@@ -218,10 +325,11 @@ void Assembler::emit_store(const std::string &operand, const char *reg, Type typ
 	if (sym->type.is_struct() && !sym->type.is_pointer())
 	{
 		/*
-			The following code is used to load a struct field into a register
-			arg2 could either be:
-			- A number (stack offset)
-			- A variable (which contains the value of the appopriate stack offset)
+				The following code is used to load a struct field into a register
+				arg2 could either be:
+				- A number (stack offset)
+				- A variable (which contains the value of the appopriate stack
+		   offset)
 		*/
 
 		Symbol *field_sym = gst->get_symbol(arg2);
@@ -229,9 +337,11 @@ void Assembler::emit_store(const std::string &operand, const char *reg, Type typ
 		if (!field_sym)
 		{
 			if (sym->is_global)
-				fprintf(file, "\tmovl\t%s, _%s+%d(%%rip)\n", reg_name.c_str(), operand.c_str(), std::stoi(arg2));
+				fprintf(file, "\tmovl\t%s, _%s+%d(%%rip)\n", reg_name.c_str(),
+						operand.c_str(), std::stoi(arg2));
 			else
-				fprintf(file, "\tmovl\t%s, %d(%%rbp)\n", reg_name.c_str(), std::stoi(arg2));
+				fprintf(file, "\tmovl\t%s, %d(%%rbp)\n", reg_name.c_str(),
+						std::stoi(arg2));
 		}
 		else
 		{
@@ -243,10 +353,12 @@ void Assembler::emit_store(const std::string &operand, const char *reg, Type typ
 	}
 
 	// Case: dst is a variable (of any sort i.e. static, local, etc)
-	fprintf(file, "\t%s\t%s, %s\n", mov.c_str(), reg_name.c_str(), format_mem_operand(operand).c_str());
+	fprintf(file, "\t%s\t%s, %s\n", mov.c_str(), reg_name.c_str(),
+			format_mem_operand(operand).c_str());
 }
 
-void Assembler::compare_and_store_result(const std::string &operand_a, const std::string &operand_b, const std::string &result, const char *reg, const std::string &op, const Type &type)
+void Assembler::compare_and_store_result(const std::string &operand_a, const std::string &operand_b,
+										 const std::string &result, const char *reg, const std::string &op, const Type &type)
 {
 	emit_load(operand_a, reg, type);
 
@@ -256,9 +368,11 @@ void Assembler::compare_and_store_result(const std::string &operand_a, const std
 	std::string reg_name = select_reg_name(reg, type);
 
 	if (potential_var_b == nullptr)
-		fprintf(file, "\t%s\t$%s, %s\n", cmp_text.c_str(), operand_b.c_str(), reg_name.c_str());
+		fprintf(file, "\t%s\t$%s, %s\n", cmp_text.c_str(), operand_b.c_str(),
+				reg_name.c_str());
 	else
-		fprintf(file, "\t%s\t%d(%%rbp), %s\n", cmp_text.c_str(), potential_var_b->stack_offset, reg_name.c_str());
+		fprintf(file, "\t%s\t%d(%%rbp), %s\n", cmp_text.c_str(),
+				potential_var_b->stack_offset, reg_name.c_str());
 
 	std::string reg_b = reg_name;
 	if (!type.is_size_8())
@@ -281,7 +395,8 @@ void Assembler::emit_func_begin(const TACInstruction &instruction)
 	if (instruction.arg2 == "global")
 		fprintf(file, ".global _%s\n", instruction.arg1.c_str());
 	fprintf(file, ".extern _printf\n");
-	fprintf(file, "_%s: # %s\n", instruction.arg1.c_str(), TacGenerator::gen_tac_str(instruction).c_str());
+	fprintf(file, "_%s: # %s\n", instruction.arg1.c_str(),
+			TacGenerator::gen_tac_str(instruction).c_str());
 	fprintf(file, "\tpushq\t%%rbp\n");
 	fprintf(file, "\tmovq\t%%rsp, %%rbp\n");
 	int stack_space = gst->get_func_st(gst->get_current_func())->get_stack_size();
@@ -291,7 +406,8 @@ void Assembler::emit_func_begin(const TACInstruction &instruction)
 void Assembler::emit_func_end(const TACInstruction &instruction)
 {
 	std::string current_func = gst->get_current_func();
-	fprintf(file, ".L%s_end: # %s\n", current_func.c_str(), TacGenerator::gen_tac_str(instruction).c_str());
+	fprintf(file, ".L%s_end: # %s\n", current_func.c_str(),
+			TacGenerator::gen_tac_str(instruction).c_str());
 	int stack_space = gst->get_func_st(current_func)->get_stack_size();
 	fprintf(file, "\taddq\t$%d, %%rsp\n", stack_space);
 	fprintf(file, "\tpopq\t%%rbp\n");
@@ -349,7 +465,8 @@ void Assembler::emit_data_assign(const TACInstruction &instruction)
 
 	if (instruction.arg3 != "struct_not_first")
 		fprintf(file, "_%s:\n", instruction.arg1.c_str());
-	fprintf(file, "\t.%s %s\n", instruction.type.is_size_8() ? "quad" : "long", instruction.result.c_str());
+	fprintf(file, "\t.%s %s\n", instruction.type.is_size_8() ? "quad" : "long",
+			instruction.result.c_str());
 }
 
 void Assembler::emit_literal8_assign(const TACInstruction &instruction)
@@ -362,7 +479,8 @@ void Assembler::emit_literal8_assign(const TACInstruction &instruction)
 	double value = std::stod(instruction.result);
 	std::string double_hex = encode_double_hex(value);
 
-	fprintf(file, "\t.quad %s # %s\n\n", double_hex.c_str(), instruction.result.c_str());
+	fprintf(file, "\t.quad %s # %s\n\n", double_hex.c_str(),
+			instruction.result.c_str());
 }
 
 void Assembler::emit_str_assign(const TACInstruction &instruction)
@@ -392,7 +510,8 @@ void Assembler::emit_str_assign(const TACInstruction &instruction)
 		return;
 
 	fprintf(file, "_%s:\n", instruction.arg1.c_str());
-	fprintf(file, "\t.asciz \"%s\"\n\n", escape_basic(instruction.result).c_str());
+	fprintf(file, "\t.asciz \"%s\"\n\n",
+			escape_basic(instruction.result).c_str());
 }
 
 void Assembler::emit_return(const TACInstruction &instruction)
@@ -408,7 +527,8 @@ void Assembler::emit_return(const TACInstruction &instruction)
 	fprintf(file, "\tjmp\t.L%s_end\n\n", gst->get_current_func().c_str());
 }
 
-void Assembler::emit_bin_op(const TACInstruction &instruction, const std::string &op)
+void Assembler::emit_bin_op(const TACInstruction &instruction,
+							const std::string &op)
 {
 	emit_comment_instr(instruction);
 
@@ -424,10 +544,12 @@ void Assembler::emit_bin_op(const TACInstruction &instruction, const std::string
 	if (instr == "mulq")
 	{
 		/*
-			So mulq doesn't allow an immediate value and a register to be multiplied together
-			Hence we need to use imulq instead
+				So mulq doesn't allow an immediate value and a register to be
+		   multiplied together Hence we need to use imulq instead
 		*/
-		fprintf(file, "\timulq\t%s, %s, %s\n", format_mem_operand(instruction.arg2).c_str(), reg.c_str(), reg.c_str());
+		fprintf(file, "\timulq\t%s, %s, %s\n",
+				format_mem_operand(instruction.arg2).c_str(), reg.c_str(),
+				reg.c_str());
 	}
 	else
 	{
@@ -435,7 +557,8 @@ void Assembler::emit_bin_op(const TACInstruction &instruction, const std::string
 		if (instruction.type.has_base_type(BaseType::DOUBLE))
 			fprintf(file, "\t%s\t%s, %%xmm0\n", op.c_str(), reg.c_str());
 		else
-			fprintf(file, "\t%s\t%s, %s\n", instr.c_str(), format_mem_operand(instruction.arg2).c_str(), reg.c_str());
+			fprintf(file, "\t%s\t%s, %s\n", instr.c_str(),
+					format_mem_operand(instruction.arg2).c_str(), reg.c_str());
 	}
 
 	emit_store(instruction.result, "%r10", instruction.type);
@@ -443,7 +566,8 @@ void Assembler::emit_bin_op(const TACInstruction &instruction, const std::string
 	fprintf(file, "\n");
 }
 
-void Assembler::emit_cmp_op(const TACInstruction &instruction, const std::string &op)
+void Assembler::emit_cmp_op(const TACInstruction &instruction,
+							const std::string &op)
 {
 	emit_comment_instr(instruction);
 
@@ -469,7 +593,9 @@ void Assembler::emit_cmp_op(const TACInstruction &instruction, const std::string
 		return;
 	}
 
-	compare_and_store_result(instruction.arg1, instruction.arg2, instruction.result, "%r10", actual_op, instruction.type);
+	compare_and_store_result(instruction.arg1, instruction.arg2,
+							 instruction.result, "%r10", actual_op,
+							 instruction.type);
 }
 
 void Assembler::emit_if(const TACInstruction &instruction)
@@ -481,7 +607,12 @@ void Assembler::emit_if(const TACInstruction &instruction)
 	std::string cmp_text = select_cmp_instr(instruction.type);
 	std::string jmp = select_conditional_jmp(instruction.cmp_op, instruction.type);
 
-	fprintf(file, "\t%s\t%s, %s\n", cmp_text.c_str(), format_mem_operand(instruction.arg2).c_str(), format_mem_operand(instruction.arg1).c_str());
+	std::string reg = select_reg_name("%r10", instruction.type);
+	emit_load(instruction.arg1, "%r10", instruction.type);
+
+	fprintf(file, "\t%s\t%s, %s\n", cmp_text.c_str(),
+			format_mem_operand(instruction.arg2).c_str(),
+			reg.c_str());
 
 	fprintf(file, "\t%s\t%s\n\n", jmp.c_str(), instruction.result.c_str());
 }
@@ -494,7 +625,8 @@ void Assembler::emit_goto(const TACInstruction &instruction)
 
 void Assembler::emit_label(const TACInstruction &instruction)
 {
-	fprintf(file, "%s: # %s\n", instruction.arg1.c_str(), TacGenerator::gen_tac_str(instruction).c_str());
+	fprintf(file, "%s: # %s\n", instruction.arg1.c_str(),
+			TacGenerator::gen_tac_str(instruction).c_str());
 }
 
 void Assembler::emit_call(const TACInstruction &instruction)
@@ -532,7 +664,8 @@ void Assembler::emit_mod(const TACInstruction &instruction)
 	return emit_div_mod(instruction, true);
 }
 
-void Assembler::emit_div_mod(const TACInstruction &instruction, const bool &is_mod)
+void Assembler::emit_div_mod(const TACInstruction &instruction,
+							 const bool &is_mod)
 {
 	emit_comment_instr(instruction);
 
@@ -567,7 +700,8 @@ void Assembler::emit_div_mod(const TACInstruction &instruction, const bool &is_m
 	emit_store(instruction.result, result_reg, instruction.type);
 }
 
-void Assembler::emit_unary_op(const TACInstruction &instruction, const std::string &op)
+void Assembler::emit_unary_op(const TACInstruction &instruction,
+							  const std::string &op)
 {
 	emit_comment_instr(instruction);
 
@@ -600,8 +734,9 @@ void Assembler::emit_not(const TACInstruction &instruction)
 
 	std::string cmp_text = select_cmp_instr(instruction.type);
 
-	compare_and_store_result(instruction.arg1, instruction.arg2, instruction.result,
-							 "%r10", "sete", instruction.type);
+	compare_and_store_result(instruction.arg1, instruction.arg2,
+							 instruction.result, "%r10", "sete",
+							 instruction.type);
 
 	emit_store(instruction.result, "%r10", instruction.type);
 
@@ -611,8 +746,8 @@ void Assembler::emit_not(const TACInstruction &instruction)
 void Assembler::emit_section(const TACInstruction &instruction)
 {
 	/*
-		Use the largest alignment needed for variables in a section
-		So for now use 8
+			Use the largest alignment needed for variables in a section
+			So for now use 8
 	*/
 	switch (instruction.op)
 	{
@@ -664,22 +799,26 @@ void Assembler::emit_convert_type(const TACInstruction &instruction)
 	emit_comment_instr(instruction);
 
 	// int -> long (sign extend)
-	if (src_type.has_base_type(BaseType::INT) && dst_type.has_base_type(BaseType::LONG))
+	if (src_type.has_base_type(BaseType::INT) &&
+		dst_type.has_base_type(BaseType::LONG))
 	{
 		fprintf(file, "\tmovl %d(%%rbp), %%r10d\n", src->stack_offset);
 		fprintf(file, "\tmovslq %%r10d, %%r10\n");
 		fprintf(file, "\tmovq %%r10, %d(%%rbp)\n", dst->stack_offset);
 	}
 	// uint -> ulong (zero extend)
-	else if (src_type.has_base_type(BaseType::UINT) && dst_type.has_base_type(BaseType::ULONG))
+	else if (src_type.has_base_type(BaseType::UINT) &&
+			 dst_type.has_base_type(BaseType::ULONG))
 	{
 		fprintf(file, "\tmovl %d(%%rbp), %%r10d\n", src->stack_offset);
 		fprintf(file, "\tmovzxd %%r10d, %%r10\n"); // zero extend using movzx
 		fprintf(file, "\tmovq %%r10, %d(%%rbp)\n", dst->stack_offset);
 	}
 	// long/ulong -> int/uint (truncate)
-	else if ((src_type.has_base_type(BaseType::LONG) || src_type.has_base_type(BaseType::ULONG)) &&
-			 (dst_type.has_base_type(BaseType::INT) || dst_type.has_base_type(BaseType::UINT)))
+	else if ((src_type.has_base_type(BaseType::LONG) ||
+			  src_type.has_base_type(BaseType::ULONG)) &&
+			 (dst_type.has_base_type(BaseType::INT) ||
+			  dst_type.has_base_type(BaseType::UINT)))
 	{
 		fprintf(file, "\tmovq %d(%%rbp), %%r10\n", src->stack_offset);
 		fprintf(file, "\tmovl %%r10d, %d(%%rbp)\n", dst->stack_offset);
@@ -687,8 +826,10 @@ void Assembler::emit_convert_type(const TACInstruction &instruction)
 			fprintf(file, "\tandl $0xFFFFFFFF, %d(%%rbp)\n", dst->stack_offset);
 	}
 	// int <-> uint (reinterpret, but mask for uint)
-	else if ((src_type.has_base_type(BaseType::INT) && dst_type.has_base_type(BaseType::UINT)) ||
-			 (src_type.has_base_type(BaseType::UINT) && dst_type.has_base_type(BaseType::INT)))
+	else if ((src_type.has_base_type(BaseType::INT) &&
+			  dst_type.has_base_type(BaseType::UINT)) ||
+			 (src_type.has_base_type(BaseType::UINT) &&
+			  dst_type.has_base_type(BaseType::INT)))
 	{
 		fprintf(file, "\tmovl %d(%%rbp), %%r10d\n", src->stack_offset);
 		fprintf(file, "\tmovl %%r10d, %d(%%rbp)\n", dst->stack_offset);
@@ -696,33 +837,41 @@ void Assembler::emit_convert_type(const TACInstruction &instruction)
 			fprintf(file, "\tandl $0xFFFFFFFF, %d(%%rbp)\n", dst->stack_offset);
 	}
 	// double -> int
-	else if (src_type.has_base_type(BaseType::DOUBLE) && dst_type.has_base_type(BaseType::INT))
+	else if (src_type.has_base_type(BaseType::DOUBLE) &&
+			 dst_type.has_base_type(BaseType::INT))
 	{
 		fprintf(file, "\tmovsd %d(%%rbp), %%xmm0\n", src->stack_offset);
-		fprintf(file, "\tcvttsd2si %%xmm0, %%r10d\n"); // truncate double to signed int
+		fprintf(file,
+				"\tcvttsd2si %%xmm0, %%r10d\n"); // truncate double to signed int
 		fprintf(file, "\tmovl %%r10d, %d(%%rbp)\n", dst->stack_offset);
 	}
 	// double -> uint
-	else if (src_type.has_base_type(BaseType::DOUBLE) && dst_type.has_base_type(BaseType::UINT))
+	else if (src_type.has_base_type(BaseType::DOUBLE) &&
+			 dst_type.has_base_type(BaseType::UINT))
 	{
 		fprintf(file, "\tmovsd %d(%%rbp), %%xmm0\n", src->stack_offset);
-		fprintf(file, "\tcvttsd2si %%xmm0, %%r10d\n"); // truncate double to signed int
+		fprintf(file,
+				"\tcvttsd2si %%xmm0, %%r10d\n"); // truncate double to signed int
 		fprintf(file, "\tmovl %%r10d, %d(%%rbp)\n", dst->stack_offset);
 		fprintf(file, "\tandl $0xFFFFFFFF, %d(%%rbp)\n", dst->stack_offset);
 	}
 	// int -> double
-	else if (src_type.has_base_type(BaseType::INT) && dst_type.has_base_type(BaseType::DOUBLE))
+	else if (src_type.has_base_type(BaseType::INT) &&
+			 dst_type.has_base_type(BaseType::DOUBLE))
 	{
 		fprintf(file, "\tmovl %d(%%rbp), %%r10d\n", src->stack_offset);
-		fprintf(file, "\tcvtsi2sd %%r10d, %%xmm0\n"); // convert signed int to double
+		fprintf(file,
+				"\tcvtsi2sd %%r10d, %%xmm0\n"); // convert signed int to double
 		fprintf(file, "\tmovsd %%xmm0, %d(%%rbp)\n", dst->stack_offset);
 	}
 	// uint -> double
-	else if (src_type.has_base_type(BaseType::UINT) && dst_type.has_base_type(BaseType::DOUBLE))
+	else if (src_type.has_base_type(BaseType::UINT) &&
+			 dst_type.has_base_type(BaseType::DOUBLE))
 	{
 		fprintf(file, "\tmovl %d(%%rbp), %%r10d\n", src->stack_offset);
-		fprintf(file, "\tmovl %%r10d, %%r10d\n");	 // zero extend to 64 bits
-		fprintf(file, "\tcvtsi2sd %%r10, %%xmm0\n"); // convert unsigned int to double
+		fprintf(file, "\tmovl %%r10d, %%r10d\n"); // zero extend to 64 bits
+		fprintf(file,
+				"\tcvtsi2sd %%r10, %%xmm0\n"); // convert unsigned int to double
 		fprintf(file, "\tmovsd %%xmm0, %d(%%rbp)\n", dst->stack_offset);
 	}
 
@@ -781,7 +930,8 @@ void Assembler::emit_logical_or(const TACInstruction &instruction)
 	emit_logical_op(instruction, "or");
 }
 
-void Assembler::emit_logical_op(const TACInstruction &instruction, const std::string &op)
+void Assembler::emit_logical_op(const TACInstruction &instruction,
+								const std::string &op)
 {
 	emit_comment_instr(instruction);
 
@@ -806,7 +956,8 @@ void Assembler::emit_assign_deref(const TACInstruction &instruction)
 	Symbol *ptr = gst->get_symbol(instruction.arg1);
 
 	// First, get the pointer value into a register
-	fprintf(file, "\tmovq\t%s, %%rax\n", format_mem_operand(instruction.arg1).c_str());
+	fprintf(file, "\tmovq\t%s, %%rax\n",
+			format_mem_operand(instruction.arg1).c_str());
 
 	std::string mov = select_mov_instr(instruction.type);
 	std::string reg = select_reg_name("%r10", instruction.type);
@@ -828,6 +979,18 @@ void Assembler::emit_assign_deref(const TACInstruction &instruction)
 	fprintf(file, "\n");
 }
 
+void Assembler::emit_push(const TACInstruction &instruction)
+{
+	emit_comment_instr(instruction);
+	fprintf(file, "\tpushq\t%s\n\n", instruction.arg1.c_str());
+}
+
+void Assembler::emit_pop(const TACInstruction &instruction)
+{
+	emit_comment_instr(instruction);
+	fprintf(file, "\tpopq\t%s\n\n", instruction.arg1.c_str());
+}
+
 std::string Assembler::encode_double_hex(const double &value)
 {
 	union
@@ -839,7 +1002,8 @@ std::string Assembler::encode_double_hex(const double &value)
 	converter.d = value;
 
 	std::stringstream ss;
-	ss << "0x" << std::uppercase << std::hex << std::setfill('0') << std::setw(16) << converter.i;
+	ss << "0x" << std::uppercase << std::hex << std::setfill('0') << std::setw(16)
+	   << converter.i;
 
 	return ss.str();
 }
@@ -857,7 +1021,8 @@ std::string Assembler::select_cmp_instr(const Type &type)
 	return format_typed_instr("cmp", type);
 }
 
-std::string Assembler::format_typed_instr(const std::string &instr, const Type &type)
+std::string Assembler::format_typed_instr(const std::string &instr,
+										  const Type &type)
 {
 	std::string instr_cpy = instr;
 
@@ -879,13 +1044,14 @@ std::string Assembler::format_typed_instr(const std::string &instr, const Type &
 	case 8:
 		return instr_cpy + "q";
 	default:
-		std::cerr << "Assembler Error: Invalid type size for " << instr_cpy << " with type " << type.to_string() << std::endl;
+		std::cerr << "Assembler Error: Invalid type size for " << instr_cpy
+				  << " with type " << type.to_string() << std::endl;
 		return instr_cpy + "l";
 	}
 }
 
 /*
-	Fixes instruction to adhere if they are performed on unsigned values
+		Fixes instruction to adhere if they are performed on unsigned values
 */
 std::string Assembler::normalise_signed_instr(const std::string &instr)
 {
@@ -932,7 +1098,8 @@ std::string Assembler::select_reg_name(const char *base_reg, const Type &type)
 		case 8:
 			return 0;
 		default:
-			std::cerr << "Assembler Error: Invalid size for register: " << base_reg << " with type " << type.to_string() << std::endl;
+			std::cerr << "Assembler Error: Invalid size for register: " << base_reg
+					  << " with type " << type.to_string() << std::endl;
 			return 1;
 		}
 	};
@@ -953,9 +1120,9 @@ std::string Assembler::format_mem_operand(const std::string &sym_name)
 		return std::to_string(sym->stack_offset) + "(%rbp)";
 }
 
-std::string Assembler::select_conditional_jmp(const BinOpType &op, const Type &type)
+std::string Assembler::select_conditional_jmp(const BinOpType &op,
+											  const Type &type)
 {
-
 	switch (op)
 	{
 	case BinOpType::EQUAL:
