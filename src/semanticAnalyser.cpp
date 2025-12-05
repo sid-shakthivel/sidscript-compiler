@@ -164,7 +164,6 @@ void SemanticAnalyser::analyse_var_decl(ASTNode *node)
 				*/
 				if (aggregate_literal->type == var_type)
 				{
-					std::cout << "this worked!?\n";
 					var_type.set_array_length(aggregate_literal->values.size());
 					var_decl_node->var->type.set_array_length(aggregate_literal->values.size());
 					aggregate_literal->type.set_array_length(aggregate_literal->values.size());
@@ -282,6 +281,7 @@ void SemanticAnalyser::analyse_var_assign(ASTNode *node)
 		if (symbol->is_const())
 			error("Cannot assign to const variable '" + array_access->array->name + "'", var_assign_node->loc);
 
+		infer_type(array_access);
 		Type value_type = infer_type(var_assign_node->value.get());
 
 		if (symbol->type.has_base_type(BaseType::CHAR) && !symbol->type.is_pointer())
@@ -636,6 +636,12 @@ void SemanticAnalyser::validate_type_assignment(const Type &target_type, std::un
 			target_type.get_array_length() == source_type.get_array_length() + 1)
 			return;
 
+	// Allow lower to higher array decay (e.g. char[5] to char[10])
+	if (target_type.is_array() && source_type.is_array())
+		if (target_type.get_base_type() == source_type.get_base_type() &&
+			target_type.get_array_length() > source_type.get_array_length())
+			return;
+
 	// Try literal-only, exact rewrite
 	if (target_type.can_assign_from(source_type) && try_promote_literal(source_expr, target_type))
 		return;
@@ -694,6 +700,8 @@ Type SemanticAnalyser::infer_type(ASTNode *node, std::optional<std::string> fiel
 		{
 		case NodeType::NODE_BINARY:
 			return ((BinaryNode *)node)->type;
+		case NodeType::NODE_ARRAY_ACCESS:
+			return ((ArrayAccessNode *)node)->type;
 		default:
 			break;
 		}
@@ -847,7 +855,7 @@ Type SemanticAnalyser::infer_type(ASTNode *node, std::optional<std::string> fiel
 		ArrayAccessNode *array_access_node = (ArrayAccessNode *)node;
 
 		/*
-			Note that an array_access node can be one of two things (both must be accomodated for):
+			Note that an array_access node can be one of two things:
 			- Just a regular variable i.e. arr[1]
 			- A struct member i.e. struct.arr[1] / struct->arr[1]
 		*/
@@ -878,12 +886,14 @@ Type SemanticAnalyser::infer_type(ASTNode *node, std::optional<std::string> fiel
 
 			if (auto index_literal = dynamic_cast<IntegerLiteral *>(array_access_node->index.get()))
 			{
-				if (index_literal->value < 0 || index_literal->value >= type.get_array_length())
+				int array_length = type.get_array_length();
+
+				if (index_literal->value < 0 || (index_literal->value >= array_length && array_length != -1))
 				{
-					// error("Array index " + std::to_string(index_literal->value) + " out of bounds for '" +
-					// 		  array_access_node->array->name + "' within struct '" + field_name.value() +
-					// 		  "' of length " + std::to_string(type.get_array_length()),
-					// 	  array_access_node->loc);
+					error("Array index " + std::to_string(index_literal->value) + " out of bounds for '" +
+							  array_access_node->array->name + "' within struct '" + field_name.value() +
+							  "' of length " + std::to_string(type.get_array_length()),
+						  array_access_node->loc);
 				}
 			}
 
@@ -896,17 +906,26 @@ Type SemanticAnalyser::infer_type(ASTNode *node, std::optional<std::string> fiel
 			// Check if the index is a constant + in range
 			if (auto index_literal = dynamic_cast<IntegerLiteral *>(array_access_node->index.get()))
 			{
-				if (index_literal->value < 0 || index_literal->value >= array_symbol->type.get_array_length())
+				int array_length = array_symbol->type.get_array_length();
+
+				if (index_literal->value < 0 || (index_literal->value >= array_length && array_length != -1))
 				{
-					// error("Array index " + std::to_string(index_literal->value) + " out of bounds for array '" +
-					// 		  array_access_node->array->name + "' of length " +
-					// 		  std::to_string(array_symbol->type.get_array_length()),
-					// 	  array_access_node->loc);
+					error("Array index " + std::to_string(index_literal->value) + " out of bounds for array '" +
+							  array_access_node->array->name + "' of length " +
+							  std::to_string(array_symbol->type.get_array_length()),
+						  array_access_node->loc);
 				}
 			}
+			else
+				analyse_node(array_access_node->index.get());
+
+			infer_type(array_access_node->array.get());
+			infer_type(array_access_node->index.get());
 
 			array_access_node->type = array_symbol->type;
-			array_access_node->array->type = array_symbol->type;
+			array_access_node->type = array_symbol->type;
+
+			array_access_node->analysed = true;
 
 			return array_symbol->type.get_base_type();
 		}

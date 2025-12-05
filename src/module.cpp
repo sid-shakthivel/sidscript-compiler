@@ -12,8 +12,10 @@
 #include "../include/tacGenerator.h"
 
 Module::Module(const std::string &path, std::shared_ptr<GlobalSymbolTable> gst)
-    : gst(gst) {
-  auto get_filename = [](const std::string &filepath) -> std::string {
+    : gst(gst)
+{
+  auto get_filename = [](const std::string &filepath) -> std::string
+  {
     size_t last_slash = filepath.find_last_of("/\\");
     size_t last_dot = filepath.find_last_of('.');
 
@@ -29,7 +31,8 @@ Module::Module(const std::string &path, std::shared_ptr<GlobalSymbolTable> gst)
   check_file();
 }
 
-void Module::check_file() {
+void Module::check_file()
+{
   std::ifstream code_file(filepath, std::ios::in);
 
   if (!code_file)
@@ -46,7 +49,8 @@ void Module::check_file() {
     throw std::runtime_error("File Error: File is empty: " + filepath);
 }
 
-void Module::compile() {
+void Module::compile()
+{
   gst->current_module = name;
 
   Lexer lexer(file_contents);

@@ -142,7 +142,10 @@ void TacGenerator::generate_tac(ASTNode *node)
 {
 	auto handler = handlers.find(node->node_type);
 	if (handler != handlers.end())
+	{
+		std::cout << "Generating TAC for " << node_type_to_string(node->node_type) << "\n";
 		handler->second(node);
+	}
 
 	// std::cout << "sorted " << node_type_to_string(node->node_type) << "\n";
 
@@ -282,8 +285,27 @@ void TacGenerator::generate_tac_var_assign(ASTNode *element)
 		std::string result = generate_tac_expr(var_assign->value.get());
 		std::string index = generate_tac_expr(array_access->index.get());
 
-		instructions.emplace_back(TACOp::ASSIGN, array_access->array->name, index, result,
-								  array_access->type.get_base_type());
+		std::string scaled_index = index;
+
+		Type element_type = array_access->type.get_base_type();
+
+		if (array_access->index->node_type != NodeType::NODE_NUMBER)
+		{
+			std::string scale_temp = gen_new_temp_var();
+			gst->declare_temp_var(scale_temp, Type(BaseType::INT));
+
+			// Generate: scale_temp = index * element_size
+			instructions.emplace_back(
+				TACOp::MUL,
+				std::to_string(element_type.get_size()),
+				index,
+				scale_temp,
+				element_type);
+
+			scaled_index = scale_temp;
+		}
+
+		instructions.emplace_back(TACOp::ASSIGN, array_access->array->name, scaled_index, result, array_access->type.get_base_type());
 	}
 	else if (var_assign->var->node_type == NodeType::NODE_POSTFIX)
 	{
@@ -756,8 +778,31 @@ std::string TacGenerator::generate_tac_expr_array_access(ASTNode *expr)
 	std::string index = generate_tac_expr(array_access->index.get());
 	std::string temp = gen_new_temp_var();
 
-	gst->declare_temp_var(temp, array_access->type.get_base_type());
-	instructions.emplace_back(TACOp::ASSIGN, temp, index, base, array_access->type.get_base_type());
+	std::string scaled_index = index;
+
+	Type element_type = array_access->type.get_base_type();
+
+	std::cout << "index is " << index << "\n";
+
+	if (array_access->index->node_type != NodeType::NODE_NUMBER)
+	{
+		std::string scale_temp = gen_new_temp_var();
+		gst->declare_temp_var(scale_temp, Type(BaseType::INT));
+
+		// Generate: scale_temp = index * element_size
+		instructions.emplace_back(
+			TACOp::MUL,
+			std::to_string(element_type.get_size()),
+			index,
+			scale_temp,
+			element_type);
+
+		scaled_index = scale_temp;
+	}
+
+	gst->declare_temp_var(temp, element_type);
+
+	instructions.emplace_back(TACOp::ASSIGN, temp, scaled_index, base, element_type);
 	return temp;
 }
 
@@ -769,7 +814,10 @@ std::string TacGenerator::generate_tac_expr_func_call(ASTNode *expr)
 	// Handle regular function calls
 	for (size_t i = 0; i < func->args.size(); i++)
 	{
+		std::cout << "Figuring out arg " << i << "\n";
+		std::cout << "Arg node type is " << node_type_to_string(func->args[i].get()->node_type) << "\n";
 		Type arg_type = sem_analyser->infer_type(func->args[i].get());
+		std::cout << "Arg type is " << arg_type.to_string() << "\n";
 
 		/*
 			If the argument is a function call:

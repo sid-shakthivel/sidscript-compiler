@@ -172,8 +172,6 @@ void Assembler::emit_load(const std::string &operand, const char *reg,
 
 	if (sym->type.is_pointer())
 	{
-		std::cout << "we here then\n";
-
 		if (arg2.empty())
 		{
 			/*
@@ -188,8 +186,6 @@ void Assembler::emit_load(const std::string &operand, const char *reg,
 					Case: accessing a specific array element via pointer
 					(e.g., int val = ptr[2];)
 			*/
-
-			std::cout << "it's " << arg2 << "\n";
 
 			Symbol *index_sym = gst->get_symbol(arg2);
 
@@ -230,39 +226,26 @@ void Assembler::emit_load(const std::string &operand, const char *reg,
 
 			if (index_sym)
 			{
-				/*
-					Case: index is a variable
-					This means the following needs to be done:
-					- Load the index value from the stack
-					- Scale it by the size of the array element type
-					- Add to the base address of the array to get the final address
-					- Finally load the value at that address into the register
-				*/
-				std::string temp_reg = select_reg_name("%r11", type);
-
-				int element_size = type.get_size();
-
+				// Index is a variable/temp - it's already scaled by TAC generator
+				// Just load and use it
 				fprintf(file, "\tmovl\t%d(%%rbp), %%r11d\n", index_sym->stack_offset);
-
-				if (element_size > 1)
-				{
-					fprintf(file, "\timull\t$%d, %%r11d, %%r11d\n", element_size);
-				}
-
 				fprintf(file, "\tmovslq\t%%r11d, %%r11\n");
 
 				std::string mov = select_mov_instr(type);
 				std::string reg_name = select_reg_name(reg, type);
 
-				fprintf(file, "\t%s\t%d(%%rbp, %%r11), %s\n", mov.c_str(), sym->stack_offset, reg_name.c_str());
+				// Load: array[base + index]
+				fprintf(file, "\t%s\t%d(%%rbp, %%r11), %s\n",
+						mov.c_str(),
+						sym->stack_offset,
+						reg_name.c_str());
 			}
 			else
 			{
-				// Case: index is a number
-				int stack_offset =
-					sym->stack_offset + std::stod(arg2) * type.get_size();
-				fprintf(file, "\t%s\t%d(%%rbp), %s\n", mov.c_str(), stack_offset,
-						reg_name.c_str());
+				// Index is a constant - calculate offset at compile time
+
+				int offset = sym->stack_offset + std::stoi(arg2) * type.get_size();
+				fprintf(file, "\t%s\t%d(%%rbp), %s\n", mov.c_str(), offset, reg_name.c_str());
 			}
 		}
 
@@ -315,9 +298,29 @@ void Assembler::emit_store(const std::string &operand, const char *reg,
 		}
 		else
 		{
-			int stack_offset = sym->stack_offset + std::stod(arg2) * type.get_size();
-			fprintf(file, "\t%s\t%s, %d(%%rbp)\n", mov.c_str(), reg_name.c_str(),
-					stack_offset);
+			Symbol *index_sym = gst->get_symbol(arg2);
+
+			if (index_sym)
+			{
+				// Index is already scaled - just load and use
+				fprintf(file, "\tmovl\t%d(%%rbp), %%r11d\n", index_sym->stack_offset);
+				fprintf(file, "\tmovslq\t%%r11d, %%r11\n");
+
+				std::string mov = select_mov_instr(type);
+				std::string reg_name = select_reg_name(reg, type);
+
+				// Store: array[base + index] = value
+				fprintf(file, "\t%s\t%s, %d(%%rbp, %%r11)\n",
+						mov.c_str(),
+						reg_name.c_str(),
+						sym->stack_offset);
+			}
+			else
+			{
+				// Constant index
+				int offset = sym->stack_offset + std::stoi(arg2) * type.get_size();
+				fprintf(file, "\t%s\t%s, %d(%%rbp)\n", mov.c_str(), reg_name.c_str(), offset);
+			}
 		}
 		return;
 	}
