@@ -530,8 +530,7 @@ void Assembler::emit_return(const TACInstruction &instruction)
 	fprintf(file, "\tjmp\t.L%s_end\n\n", gst->get_current_func().c_str());
 }
 
-void Assembler::emit_bin_op(const TACInstruction &instruction,
-							const std::string &op)
+void Assembler::emit_bin_op(const TACInstruction &instruction, const std::string &op)
 {
 	emit_comment_instr(instruction);
 
@@ -540,7 +539,7 @@ void Assembler::emit_bin_op(const TACInstruction &instruction,
 	emit_load(instruction.arg1, "%r10", instruction.type);
 
 	if (instruction.type.has_base_type(BaseType::DOUBLE))
-		emit_load(instruction.arg2, "%xmm1", instruction.type);
+		emit_load(instruction.arg2, "%xmm0", instruction.type);
 
 	std::string instr = format_typed_instr(op, instruction.type);
 
@@ -558,7 +557,13 @@ void Assembler::emit_bin_op(const TACInstruction &instruction,
 	{
 		// Have to use xmm0 explicitely
 		if (instruction.type.has_base_type(BaseType::DOUBLE))
-			fprintf(file, "\t%s\t%s, %%xmm0\n", op.c_str(), reg.c_str());
+		{
+			/*
+				Note that mulsd xmm0, xmm1 does: xmm1 = xmm1 * xmm0
+				(The result is stored in xmm1 - which maps to r10 here)
+			*/
+			fprintf(file, "\t%s\t%%xmm0, %s\n", "mulsd", reg.c_str());
+		}
 		else
 			fprintf(file, "\t%s\t%s, %s\n", instr.c_str(),
 					format_mem_operand(instruction.arg2).c_str(), reg.c_str());
@@ -638,7 +643,6 @@ void Assembler::emit_call(const TACInstruction &instruction)
 	fprintf(file, "\tcall\t_%s\n\n", instruction.arg1.c_str());
 }
 
-// This may not work
 void Assembler::emit_mov_between_reg(const TACInstruction &instruction)
 {
 	// MOV_TO_REG %rsi, 5 (int)
@@ -1078,7 +1082,22 @@ std::string Assembler::normalise_signed_instr(const std::string &instr)
 std::string Assembler::select_reg_name(const char *base_reg, const Type &type)
 {
 	if (type.has_base_type(BaseType::DOUBLE))
+	{
+		/*
+			Note that doubles use XMM registers
+			Otherwise just default to xmm1 for now
+		*/
+
+		std::cout << "Selecting register for double type from " << base_reg << std::endl;
+
+		if (std::string(base_reg) == "%rax")
+			return "%xmm0";
+
+		if (std::string(base_reg) == "%xmm0")
+			return "%xmm0";
+
 		return "%xmm1";
+	}
 
 	if (type.is_array())
 		return base_reg;

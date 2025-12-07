@@ -1,4 +1,4 @@
-int main() {
+fn main() -> int {
     int x = 42;
     int *ptr = &x;
     int **ptr2 = &ptr;
@@ -10,8 +10,8 @@ int main() {
     printf("Modified value: %d\n", x);
     
     int arr[5] = {1, 2, 3, 4, 5};
-    int *arr_ptr = arr;
-    printf("Array via pointer: %d\n", arr_ptr[2]);
+    int *arrPtr = arr;
+    printf("Array via pointer: %d\n", arrPtr[2]);
     
     return 0;
 }

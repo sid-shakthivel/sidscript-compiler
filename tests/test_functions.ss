@@ -1,12 +1,12 @@
-int add(int a, int b) {
+ fn add(int a, int b) -> int {
     return a + b;
 }
 
-double multiply(double x, double y) {
+fn multiply(double x, double y) -> double {
     return x * y;
 }
 
-int main() {
+fn main() -> int {
     int sum = add(5, 3);
     double product = multiply(2.5, 3.0);
     

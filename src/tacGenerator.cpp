@@ -174,9 +174,20 @@ void TacGenerator::generate_tac_func(ASTNode *element)
 
 	FuncSymbol *func_symbol = gst->get_func_symbol(func->name);
 
+	size_t other_arg_count = 0;
+	size_t double_arg_count = 0;
+
 	for (int i = 0; i < func->params.size(); i++)
-		if (i < 6)
-			instructions.emplace_back(TACOp::MOV_BETWEEN_REG, func->get_param_name(i), x64_registers[i], "store", func_symbol->arg_types[i]);
+	{
+		Type arg_type = func_symbol->arg_types[i];
+
+		if (arg_type.has_base_type(BaseType::DOUBLE))
+			instructions.emplace_back(TACOp::MOV_BETWEEN_REG, func->get_param_name(i), xmm_registers[double_arg_count++],
+									  "store", arg_type);
+		else
+			instructions.emplace_back(TACOp::MOV_BETWEEN_REG, func->get_param_name(i), x64_registers[other_arg_count++],
+									  "store", arg_type);
+	}
 
 	for (auto &element : func->elements)
 		generate_tac(element.get());
@@ -811,13 +822,13 @@ std::string TacGenerator::generate_tac_expr_func_call(ASTNode *expr)
 	FuncCallNode *func = (FuncCallNode *)expr;
 	FuncSymbol *func_node = gst->get_func_symbol(func->name);
 
+	size_t double_arg_count = 0;
+	size_t other_arg_count = 0;
+
 	// Handle regular function calls
 	for (size_t i = 0; i < func->args.size(); i++)
 	{
-		std::cout << "Figuring out arg " << i << "\n";
-		std::cout << "Arg node type is " << node_type_to_string(func->args[i].get()->node_type) << "\n";
 		Type arg_type = sem_analyser->infer_type(func->args[i].get());
-		std::cout << "Arg type is " << arg_type.to_string() << "\n";
 
 		/*
 			If the argument is a function call:
@@ -841,13 +852,26 @@ std::string TacGenerator::generate_tac_expr_func_call(ASTNode *expr)
 
 		/*
 			The first 6 arguments go in registers
+			Note that doubles go in the xmm registers
 			Remaining arguments get pushed onto the stack
 		*/
 
-		if (i < 6)
-			instructions.emplace_back(TACOp::MOV_BETWEEN_REG, arg_result, x64_registers[i], "load", arg_type);
+		if (arg_type.has_base_type(BaseType::DOUBLE))
+		{
+			if (double_arg_count < 8)
+				instructions.emplace_back(TACOp::MOV_BETWEEN_REG, arg_result, xmm_registers[double_arg_count++],
+										  "load", arg_type);
+			else
+				instructions.emplace_back(TACOp::PUSH, arg_result, "", "", arg_type);
+		}
 		else
-			instructions.emplace_back(TACOp::PUSH, arg_result, "", "", arg_type);
+		{
+			if (other_arg_count < 6)
+				instructions.emplace_back(TACOp::MOV_BETWEEN_REG, arg_result, x64_registers[other_arg_count++],
+										  "load", arg_type);
+			else
+				instructions.emplace_back(TACOp::PUSH, arg_result, "", "", arg_type);
+		}
 	}
 
 	// Handle stack alignment

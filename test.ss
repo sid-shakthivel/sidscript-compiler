@@ -1,20 +1,15 @@
 fn main() -> int {
-    int numbers[10];
-    for (int i = 0; i < 10; i++) {
-        numbers[i] = i * i;
-    }
-
-    printf("Numbers[5]: %d\n", numbers[5]);
-
-    char str[] = "Hello, World!";
-    char str2[20] = "Test";
+    int i = 42;
+    long l = 1234567890L;
+    double d = 3.14159;
     
-    printf("String: %s\n", str);
-
-    for (int j = 9; j >= 0; j--) {
-        printf("%d ", numbers[j]);
-    }
-    printf("\n");
+    double result1 = i + d;
+    long result2 = l + i;
+    int result3 = d;  
+    
+    printf("Int + Double: %f\n", result1);
+    printf("Long + Int: %ld\n", result2);
+    printf("Double to Int: %d\n", result3);
     
     return 0;
 }

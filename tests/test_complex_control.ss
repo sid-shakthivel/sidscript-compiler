@@ -1,10 +1,10 @@
-int main() {
-    for (int i = 0; i < 5; i = i + 1) {
+fn main() -> int {
+    for (int i = 0; i < 5; i++) {
         if (i == 2) {
             continue;
         }
         
-        for (int j = 0; j < 3; j = j + 1) {
+        for (int j = 0; j < 3; j++) {
             if (i * j > 5) {
                 break;
             }

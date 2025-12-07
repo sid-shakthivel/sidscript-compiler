@@ -11,7 +11,8 @@
 
 class SemanticAnalyser;
 
-enum class TACOp {
+enum class TACOp
+{
   ADD,
   SUB,
   MUL,
@@ -60,7 +61,8 @@ enum class TACOp {
 TACOp convert_UnaryOpType_to_TACOp(UnaryOpType op);
 TACOp convert_BinOpType_to_TACOp(BinOpType op);
 
-struct TACInstruction {
+struct TACInstruction
+{
   TACOp op;
   std::string arg1;   // First argument
   std::string arg2;   // Second argument (optional)
@@ -77,7 +79,8 @@ struct TACInstruction {
         cmp_op(BinOpType::EQUAL), type(type), arg3{""} {}
 };
 
-class TacGenerator {
+class TacGenerator
+{
 public:
   TacGenerator(std::shared_ptr<GlobalSymbolTable> gst,
                std::shared_ptr<SemanticAnalyser> sem_analyser);
@@ -86,7 +89,8 @@ public:
   void print_all_tac();
   static std::string gen_tac_str(const TACInstruction &instruction);
 
-  const std::vector<TACInstruction> &get_instructions() const {
+  const std::vector<TACInstruction> &get_instructions() const
+  {
     return instructions;
   }
 
@@ -106,7 +110,10 @@ private:
   std::unordered_map<double, std::string> const_labels;
 
   std::array<std::string, 6> x64_registers = {"%rdi", "%rsi", "%rdx",
-                                              "%rcx", "%r8",  "%r9"};
+                                              "%rcx", "%r8", "%r9"};
+
+  std::array<std::string, 6> xmm_registers = {"%xmm0", "%xmm1", "%xmm2",
+                                              "%xmm3", "%xmm4", "%xmm5"};
 
   std::vector<std::string> void_func_names = {"printf"};
 

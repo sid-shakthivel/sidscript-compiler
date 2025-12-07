@@ -1,4 +1,4 @@
-int main() {
+fn main() -> int {
     int a = 5;
     int b = 3;
     double c = 5.5;
