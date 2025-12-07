@@ -13,10 +13,15 @@ Type &Type::add_array_dimension(int size)
 }
 
 bool Type::is_pointer() const { return ptr_level > 0; }
-bool Type::is_array() const { return array_sizes.size() > 0; }
 bool Type::is_struct() const { return base_type == BaseType::STRUCT; }
 bool Type::is_void() const { return base_type == BaseType::VOID; }
 bool Type::is_null() const { return base_type == BaseType::NULL_TYPE; }
+
+/*
+    Note for array to ptr decay:
+    The type of the ptr will have a size for semantic purposes
+*/
+bool Type::is_array() const { return (array_sizes.size() > 0 && !is_pointer()); }
 
 BaseType Type::get_base_type() const { return base_type; }
 
@@ -77,13 +82,19 @@ size_t Type::get_size() const
 void Type::set_array_length(int size)
 {
     if (array_sizes.empty())
-        throw std::runtime_error("Type Error: Attempting to set array length on non-array type");
+    {
+        if (!is_pointer())
+            throw std::runtime_error("Type Error: Attempting to set array length on non-array type");
+
+        array_sizes.push_back(size);
+        return;
+    }
     array_sizes[0] = size;
 }
 
 size_t Type::get_array_length() const
 {
-    if (!is_array())
+    if (!is_array() && !is_pointer())
         return 0;
 
     if (!array_sizes.empty())

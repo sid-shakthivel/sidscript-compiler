@@ -175,10 +175,9 @@ void Assembler::emit_load(const std::string &operand, const char *reg,
 		if (arg2.empty())
 		{
 			/*
-					Case: pointer dereference (e.g., int val = *ptr;)
+				Case: pointer dereference (e.g., int val = *ptr;)
 			*/
-			fprintf(file, "\tmovq\t%d(%%rbp), %%r11\n", sym->stack_offset);
-			fprintf(file, "\t%s\t(%%r11), %s\n", mov.c_str(), reg_name.c_str());
+			fprintf(file, "\tmovq\t%d(%%rbp), %%r10\n", sym->stack_offset);
 		}
 		else
 		{

@@ -171,7 +171,7 @@ void SemanticAnalyser::analyse_var_decl(ASTNode *node)
 			}
 		}
 
-		validate_type_assignment(var_type, var_decl_node->value, var_decl_node->var->name);
+		validate_type_assignment(var_decl_node->var->type, var_decl_node->value, var_decl_node->var->name);
 	}
 
 	gst->declare_var(var_decl_node->var.get());
@@ -216,7 +216,7 @@ void SemanticAnalyser::analyse_aggregate_literal(ASTNode *node, const Type &var_
 				  aggregate_literal->loc);
 
 		int i = 0;
-		for (const auto &[field_name, field_type] : struct_fields)
+		for (auto &[field_name, field_type] : struct_fields)
 		{
 			analyse_node(aggregate_literal->values[i].get());
 
@@ -438,16 +438,15 @@ void SemanticAnalyser::analyse_unary(ASTNode *node)
 	analyse_node(unary_node->value.get());
 	Type expr_type = infer_type(unary_node->value.get());
 
+	/*
+		Only variables and unary expressions can have their address taken or be dereferenced
+		i.e.
+		int *ptr = &x;
+		int **ptr2 = &ptr;
+	*/
 	if (unary_node->op == UnaryOpType::ADDR_OF || unary_node->op == UnaryOpType::DEREF)
-		if (unary_node->value->node_type != NodeType::NODE_VAR)
-			error("Can only take address of variables", unary_node->loc);
-
-	// if (unary_node->op == UnaryOpType::ADDR_OF)
-	//     unary_node->type = Type(expr_type.get_base_type(), expr_type.get_ptr_depth() + 1);
-	// else if (unary_node->op == UnaryOpType::DEREF)
-	//     unary_node->type = Type(expr_type.get_base_type(), expr_type.get_ptr_depth() - 1);
-	// else
-	//     unary_node->type = expr_type;
+		if (unary_node->value->node_type != NodeType::NODE_VAR && unary_node->value->node_type != NodeType::NODE_UNARY)
+			error("Can only take address of variables/unary expressions", unary_node->loc);
 
 	if (unary_node->op == UnaryOpType::ADDR_OF)
 	{
@@ -614,7 +613,7 @@ void SemanticAnalyser::analyse_postfix(ASTNode *node)
 	postfix_node->type = infer_type(postfix_node->value.get());
 }
 
-void SemanticAnalyser::validate_type_assignment(const Type &target_type, std::unique_ptr<ASTNode> &source_expr,
+void SemanticAnalyser::validate_type_assignment(Type &target_type, std::unique_ptr<ASTNode> &source_expr,
 												const std::string &context)
 {
 	Type source_type = infer_type(source_expr.get());
@@ -625,7 +624,10 @@ void SemanticAnalyser::validate_type_assignment(const Type &target_type, std::un
 	// Allow array-to-pointer decay
 	if (target_type.is_pointer() && source_type.is_array())
 		if (target_type.get_base_type() == source_type.get_base_type())
+		{
+			target_type.set_array_length(source_type.get_array_length());
 			return;
+		}
 
 	// Allow array[x] to array[] decay
 	if (target_type.is_array() && target_type.get_array_length() == -1 && source_type.is_array())
@@ -922,7 +924,6 @@ Type SemanticAnalyser::infer_type(ASTNode *node, std::optional<std::string> fiel
 			infer_type(array_access_node->array.get());
 			infer_type(array_access_node->index.get());
 
-			array_access_node->type = array_symbol->type;
 			array_access_node->type = array_symbol->type;
 
 			array_access_node->analysed = true;

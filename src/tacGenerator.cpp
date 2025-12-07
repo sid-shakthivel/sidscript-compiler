@@ -143,7 +143,7 @@ void TacGenerator::generate_tac(ASTNode *node)
 	auto handler = handlers.find(node->node_type);
 	if (handler != handlers.end())
 	{
-		std::cout << "Generating TAC for " << node_type_to_string(node->node_type) << "\n";
+		// std::cout << "Generating TAC for " << node_type_to_string(node->node_type) << "\n";
 		handler->second(node);
 	}
 
@@ -227,6 +227,7 @@ void TacGenerator::generate_tac_var_decl(ASTNode *element)
 		return generate_tac_var_array_assign(var_decl->var.get(), var_symbol, var_decl->value.get());
 
 	std::string result = generate_tac_expr(var_decl->value.get());
+
 	TACInstruction instruction(TACOp::ASSIGN, var_decl->var->name, "", result, var_symbol->type);
 
 	// Check if some sort of global/static
@@ -792,8 +793,6 @@ std::string TacGenerator::generate_tac_expr_array_access(ASTNode *expr)
 	std::string scaled_index = index;
 
 	Type element_type = array_access->type.get_base_type();
-
-	std::cout << "index is " << index << "\n";
 
 	if (array_access->index->node_type != NodeType::NODE_NUMBER)
 	{

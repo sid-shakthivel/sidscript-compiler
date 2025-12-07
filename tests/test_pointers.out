@@ -1,0 +1,5 @@
+Value: 42
+Double pointer: 42
+Modified value: 100
+Array via pointer: 3
+Return value: 0

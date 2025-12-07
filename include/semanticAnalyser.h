@@ -53,7 +53,7 @@ private:
 
     bool try_promote_literal(std::unique_ptr<ASTNode> &expr, const Type &target);
 
-    void validate_type_assignment(const Type &target_type, std::unique_ptr<ASTNode> &source_expr, const std::string &context);
+    void validate_type_assignment(Type &target_type, std::unique_ptr<ASTNode> &source_expr, const std::string &context);
 
     void error(const std::string &message, const SourceLocation &loc);
 };

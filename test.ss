@@ -1,15 +1,17 @@
 fn main() -> int {
-    int i = 42;
-    long l = 1234567890L;
-    double d = 3.14159;
+    int x = 42;
+    int *ptr = &x;
+    int **ptr2 = &ptr;
     
-    double result1 = i + d;
-    long result2 = l + i;
-    int result3 = d;  
+    printf("Value: %d\n", *ptr);
+    printf("Double pointer: %d\n", **ptr2);
     
-    printf("Int + Double: %f\n", result1);
-    printf("Long + Int: %ld\n", result2);
-    printf("Double to Int: %d\n", result3);
+    *ptr = 100;
+    printf("Modified value: %d\n", x);
+    
+    int arr[5] = {1, 2, 3, 4, 5};
+    int *arrPtr = arr;
+    printf("Array via pointer: %d\n", arrPtr[2]);
     
     return 0;
 }
