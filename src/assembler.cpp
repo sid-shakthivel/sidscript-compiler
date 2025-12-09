@@ -185,11 +185,28 @@ void Assembler::emit_load(const std::string &operand, const char *reg,
 					Case: accessing a specific array element via pointer
 					(e.g., int val = ptr[2];)
 			*/
-
 			Symbol *index_sym = gst->get_symbol(arg2);
 
-			if (!index_sym)
+			if (index_sym)
 			{
+				// Index is a variable/temp - it's already scaled by TAC generator
+				// Just load and use it
+				fprintf(file, "\tmovl\t%d(%%rbp), %%r11d\n", index_sym->stack_offset);
+				fprintf(file, "\tmovslq\t%%r11d, %%r11\n");
+
+				std::string mov = select_mov_instr(type);
+				std::string reg_name = select_reg_name(reg, type);
+
+				// Load the pointer
+				fprintf(file, "\tmovq\t%d(%%rbp), %%r10\n", sym->stack_offset);
+
+				// Load the value at pointer + index
+				fprintf(file, "\t%s\t(%%r10, %%r11), %s\n", mov.c_str(), reg_name.c_str());
+			}
+			else
+			{
+				// Index is a constant - calculate offset at compile time
+
 				// Constant index
 				int offset = std::stoi(arg2) * type.get_size();
 
@@ -1086,8 +1103,6 @@ std::string Assembler::select_reg_name(const char *base_reg, const Type &type)
 			Note that doubles use XMM registers
 			Otherwise just default to xmm1 for now
 		*/
-
-		std::cout << "Selecting register for double type from " << base_reg << std::endl;
 
 		if (std::string(base_reg) == "%rax")
 			return "%xmm0";

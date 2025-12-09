@@ -109,6 +109,11 @@ size_t Type::get_array_length() const
     return total_size;
 }
 
+void Type::clear_array_dimensions()
+{
+    array_sizes.clear();
+}
+
 size_t Type::get_base_size() const
 {
     size_t base_size;

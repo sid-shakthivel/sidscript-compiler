@@ -458,6 +458,7 @@ void SemanticAnalyser::analyse_unary(ASTNode *node)
 	{
 		Type test = expr_type;
 		test.set_ptr_depth(test.get_ptr_depth() - 1);
+		test.clear_array_dimensions();
 		unary_node->type = test;
 	}
 	else
@@ -703,7 +704,7 @@ Type SemanticAnalyser::infer_type(ASTNode *node, std::optional<std::string> fiel
 		case NodeType::NODE_BINARY:
 			return ((BinaryNode *)node)->type;
 		case NodeType::NODE_ARRAY_ACCESS:
-			return ((ArrayAccessNode *)node)->type;
+			return ((ArrayAccessNode *)node)->type.get_base_type();
 		default:
 			break;
 		}
