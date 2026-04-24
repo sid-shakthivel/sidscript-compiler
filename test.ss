@@ -1,8 +1,11 @@
-fn main() -> int {    
-    int arr[5] = {1, 2, 3, 4, 5};
-    int *arrPtr = arr;
-    int test = arrPtr[2];
-    printf("Array via pointer: %d\n", test);
-    
-    return 0;
+struct Test {
+    int a;
+    int c;
+    int arr[3];
+};
+
+fn main() -> int
+{
+    struct Test example = {18, 14, {3, 6, 9}};
+    return example.arr[0];
 }

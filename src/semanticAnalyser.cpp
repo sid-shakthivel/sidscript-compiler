@@ -1,5 +1,6 @@
 #include "../include/semanticAnalyser.h"
 
+#include <algorithm>
 #include <iostream>
 
 #define REGISTER_HANDLER(node_type, fn) handlers[node_type] = [this](ASTNode *node) { fn(node); }
@@ -208,7 +209,7 @@ void SemanticAnalyser::analyse_aggregate_literal(ASTNode *node, const Type &var_
 		if (!gst->check_struct_defined(struct_name))
 			error("Struct '" + struct_name + "' not defined", aggregate_literal->loc);
 
-		std::map<std::string, Type> struct_fields = std::get<0>(gst->struct_table[struct_name]);
+		const auto &struct_fields = std::get<0>(gst->struct_table[struct_name]);
 
 		if (struct_fields.size() != aggregate_literal->values.size())
 			error("Struct '" + struct_name + "' has " + std::to_string(struct_fields.size()) + " fields, but " +
@@ -219,8 +220,9 @@ void SemanticAnalyser::analyse_aggregate_literal(ASTNode *node, const Type &var_
 		for (auto &[field_name, field_type] : struct_fields)
 		{
 			analyse_node(aggregate_literal->values[i].get());
+			Type expected_type = field_type;
 
-			validate_type_assignment(field_type, aggregate_literal->values[i],
+			validate_type_assignment(expected_type, aggregate_literal->values[i],
 									 "in initialisation of struct field '" + field_name + "'");
 			i++;
 		}
@@ -554,14 +556,18 @@ void SemanticAnalyser::analyse_struct_decl(ASTNode *node)
 	if (gst->check_struct_defined(struct_decl_node->name))
 		error("Struct '" + struct_decl_node->name + "' already defined", struct_decl_node->loc);
 
-	std::map<std::string, Type> members;
+	std::vector<std::pair<std::string, Type>> members;
 
 	for (const auto &member : struct_decl_node->members)
 	{
 		VarDeclNode *member_decl = dynamic_cast<VarDeclNode *>(member.get());
 		Type member_type = member_decl->var->type;
 
-		if (members.find(member_decl->var->name) != members.end())
+		auto duplicate_it = std::find_if(members.begin(), members.end(),
+										 [&](const std::pair<std::string, Type> &entry)
+										 { return entry.first == member_decl->var->name; });
+
+		if (duplicate_it != members.end())
 			error("Duplicate member '" + member_decl->var->name + "' in struct '" + struct_decl_node->name + "'",
 				  member_decl->loc);
 
@@ -569,7 +575,7 @@ void SemanticAnalyser::analyse_struct_decl(ASTNode *node)
 			struct_decl_node->name == member_type.get_struct_name())
 			error("Struct member '" + member_decl->var->name + "' cannot be a struct of itself", member_decl->loc);
 
-		members[member_decl->var->name] = member_decl->var->type;
+		members.push_back({member_decl->var->name, member_decl->var->type});
 	}
 
 	gst->struct_table[struct_decl_node->name] = std::make_pair(std::move(members), module_name);
@@ -737,12 +743,16 @@ Type SemanticAnalyser::infer_type(ASTNode *node, std::optional<std::string> fiel
 			if (!gst->check_struct_defined(struct_name))
 				error("Struct '" + struct_name + "' not defined", var_node->loc);
 
-			std::map<std::string, Type> struct_fields = std::get<0>(gst->struct_table[struct_name]);
+			const auto &struct_fields = std::get<0>(gst->struct_table[struct_name]);
 
-			if (struct_fields.find(var_node->name) == struct_fields.end())
+			auto field_it = std::find_if(struct_fields.begin(), struct_fields.end(),
+										 [&](const std::pair<std::string, Type> &entry)
+										 { return entry.first == var_node->name; });
+
+			if (field_it == struct_fields.end())
 				error("Struct '" + struct_name + "' has no field '" + var_node->name + "'", var_node->loc);
 
-			return struct_fields[var_node->name];
+			return field_it->second;
 		}
 		else
 		{
@@ -876,13 +886,17 @@ Type SemanticAnalyser::infer_type(ASTNode *node, std::optional<std::string> fiel
 			if (!gst->check_struct_defined(struct_name))
 				error("Struct '" + struct_name + "' not defined", array_access_node->loc);
 
-			std::map<std::string, Type> struct_fields = std::get<0>(gst->struct_table[struct_name]);
+			const auto &struct_fields = std::get<0>(gst->struct_table[struct_name]);
 
-			if (struct_fields.find(array_access_node->array->name) == struct_fields.end())
+			auto field_it = std::find_if(struct_fields.begin(), struct_fields.end(),
+										 [&](const std::pair<std::string, Type> &entry)
+										 { return entry.first == array_access_node->array->name; });
+
+			if (field_it == struct_fields.end())
 				error("Struct '" + struct_name + "' has no field '" + array_access_node->array->name + "'",
 					  array_access_node->loc);
 
-			Type type = struct_fields[array_access_node->array->name];
+			Type type = field_it->second;
 
 			array_access_node->type = type;
 			array_access_node->array->type = type;

@@ -45,7 +45,7 @@ public:
         This is a map of struct names to a map of field names to their respective types
         (All struct members are public for now)
     */
-    std::unordered_map<std::string, std::pair<std::map<std::string, Type>, std::string>> struct_table;
+    std::unordered_map<std::string, std::pair<std::vector<std::pair<std::string, Type>>, std::string>> struct_table;
 
 private:
     std::string current_func = "";
